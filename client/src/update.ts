@@ -13,6 +13,7 @@ import {
   FocusModelSearch,
   FocusPalette,
   Install,
+  JumpToLatest,
   KillLoops,
   LoadDir,
   LoadFile,
@@ -25,9 +26,11 @@ import {
   RevealModelOption,
   RunAction,
   RunOp,
+  SaveDraft,
   SaveTheme,
   SendMessage,
   ShowNotifications,
+  storedDraft,
   systemIsDark,
   UploadFiles,
 } from './command';
@@ -106,6 +109,7 @@ const openThread = (model: Model, name: string | null): UpdateReturn => {
     drawer: () => 'none' as const,
     menuOpen: () => false,
     sizeMenuOpen: () => false,
+    draft: (draft) => (same || name === null ? draft : storedDraft(name)),
   });
 
   if (name === null || same) return { model: next };
@@ -246,7 +250,13 @@ const send = (model: Model): UpdateReturn => {
       }),
   });
 
-  return { model: pending, commands: [SendMessage({ name: model.name, text })] };
+  return {
+    model: pending,
+    commands: [
+      SendMessage({ name: model.name, text }),
+      SaveDraft({ thread: model.name, draft: '' }),
+    ],
+  };
 };
 
 const runAction = (model: Model, action: Action): UpdateReturn => {
@@ -291,6 +301,22 @@ const ensureTab = (model: Model): Model => {
 const forCurrent = (model: Model, name: string, apply: () => UpdateReturn): UpdateReturn =>
   name === model.name ? apply() : { model };
 
+const anyOverlayOpen = (model: Model): boolean =>
+  model.palette !== null ||
+  model.modelMenuOpen ||
+  model.sizeMenuOpen ||
+  model.addMenuOpen ||
+  model.menuOpen ||
+  model.usageOpen;
+
+const stopFromKeyboard = (model: Model): UpdateReturn => {
+  const working = viewOf(model)?.busy ?? false;
+
+  return model.name === null || !working || anyOverlayOpen(model)
+    ? { model }
+    : update(model, Message.ClickedOp({ name: model.name, op: { _tag: 'Stop' } }));
+};
+
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
     LoadedWho: ({ who }) => ({ model: modifyFields(model, { who: () => who }) }),
@@ -330,6 +356,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       model: modifyFields(model, { now: () => now }),
       commands: [LoadThreads()],
     }),
+
+    TickedTurn: ({ now }) => ({ model: modifyFields(model, { now: () => now }) }),
 
     NavigatedTo: ({ name }) => openThread(model, name),
     ClickedThread: ({ name }) => ({
@@ -383,7 +411,11 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         model: modifyFields(model, { streamEpoch: (epoch) => epoch + 1 }),
       })),
 
-    UpdatedDraft: ({ value }) => ({ model: modifyFields(model, { draft: () => value }) }),
+    ClickedJumpToLatest: () => ({ model, commands: [JumpToLatest()] }),
+    UpdatedDraft: ({ value }) => ({
+      model: modifyFields(model, { draft: () => value }),
+      commands: model.name === null ? [] : [SaveDraft({ thread: model.name, draft: value })],
+    }),
     SubmittedDraft: () => send(model),
     DroppedFiles: ({ count }) =>
       model.name === null || count === 0
@@ -549,12 +581,15 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     ToggledUsage: () => ({
       model: modifyFields(model, { usageOpen: (open) => !open, modelMenuOpen: () => false }),
     }),
-    PressedShortcut: () => ({
-      model: modifyFields(model, {
-        palette: (open) => (open === null ? { query: '', index: 0 } : null),
-      }),
-      commands: [FocusPalette()],
-    }),
+    PressedShortcut: ({ key }) =>
+      key === 'stop'
+        ? stopFromKeyboard(model)
+        : {
+            model: modifyFields(model, {
+              palette: (open) => (open === null ? { query: '', index: 0 } : null),
+            }),
+            commands: [FocusPalette()],
+          },
     UpdatedPalette: ({ query }) => ({
       model: modifyFields(model, { palette: () => ({ query, index: 0 }) }),
     }),

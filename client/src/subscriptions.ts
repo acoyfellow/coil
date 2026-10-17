@@ -7,6 +7,7 @@ import type { Model } from './model';
 import type { CoilClient } from './rpc';
 
 const THREAD_REFRESH = Duration.seconds(10);
+const TURN_TICK = Duration.seconds(1);
 
 const decodeEvent = Schema.decodeUnknownOption(Schema.fromJsonString(LiveEvent));
 
@@ -80,6 +81,9 @@ const shortcuts = windowEvent('keydown', (event) => {
     return Message.PressedShortcut({ key: 'palette' });
   }
 
+  if (key.key === 'Escape' && !key.defaultPrevented)
+    return Message.PressedShortcut({ key: 'stop' });
+
   return Message.CompletedEffect();
 });
 
@@ -122,6 +126,21 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
           Stream.mapEffect(() => now),
           Stream.map((at) => Message.Ticked({ now: at })),
         ),
+    },
+  ),
+  turnClock: entry(
+    { working: Schema.Boolean },
+    {
+      modelToDependencies: (model) => ({
+        working: model.view._tag === 'Ready' && model.view.value.busy,
+      }),
+      dependenciesToStream: ({ working }) =>
+        working
+          ? Stream.tick(TURN_TICK).pipe(
+              Stream.mapEffect(() => now),
+              Stream.map((at) => Message.TickedTurn({ now: at })),
+            )
+          : Stream.empty,
     },
   ),
   online: entry(

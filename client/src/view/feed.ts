@@ -3,7 +3,7 @@ import type { Html } from 'foldkit/html';
 import type { ChatMessage, ThreadView, Turn } from '../../../shared/protocol';
 import { Message } from '../message';
 import { type LiveTool, type Model, ViewState } from '../model';
-import { ScrollToEnd } from '../mount';
+import { FollowFeed, ScrollToEnd } from '../mount';
 import { markdown } from './markdown';
 import { type H, skeleton, spinner } from './parts';
 
@@ -269,12 +269,28 @@ const welcome = (h: H): Html =>
     ],
   );
 
+const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
+  const open = view.turns.find((turn) => turn.ended === 0);
+
+  if (!view.busy || open === undefined) return [];
+
+  return [
+    h.keyed('div')(
+      'turn-timer',
+      [h.Class('ran running'), h.Id('turn-timer'), h.AriaLive('off')],
+      [`Running for ${ranFor(Math.max(0, model.now - open.at))}`],
+    ),
+  ];
+};
+
+const pinsReader = (view: ThreadView): boolean => view.messages.at(-1)?.id === 'pending';
+
 const conversation = (h: H, model: Model, view: ThreadView): Html => {
   const results = toolResults(view.messages);
   const items = withTurnFooters(h, view.messages, view.turns, (entry) =>
     message(h, entry, results),
   );
-  const live = liveItems(h, model);
+  const live = [...liveItems(h, model), ...turnTimer(h, model, view)];
   const endKey = `${view.messages.length}:${model.live?.text.length ?? 0}:${model.live?.tools.length ?? 0}`;
 
   return h.div(
@@ -283,7 +299,11 @@ const conversation = (h: H, model: Model, view: ThreadView): Html => {
       ...(items.length === 0 && model.live === null ? [ready(h, view)] : []),
       ...items,
       ...live,
-      h.keyed('div')(endKey, [h.Class('feed-end'), h.OnMount(ScrollToEnd({ key: endKey }))], []),
+      h.keyed('div')(
+        endKey,
+        [h.Class('feed-end'), h.OnMount(ScrollToEnd({ key: endKey, pin: pinsReader(view) }))],
+        [],
+      ),
     ],
   );
 };
@@ -302,5 +322,20 @@ export const feed = (h: H, model: Model): Html => {
           Ready: ({ value }) => conversation(h, model, value),
         });
 
-  return h.section([h.Class('feed'), h.Id('feed'), h.AriaLive('polite')], [body]);
+  return h.keyed('section')(
+    model.name ?? 'home',
+    [h.Class('feed'), h.Id('feed'), h.AriaLive('polite'), h.OnMount(FollowFeed({}))],
+    [
+      body,
+      h.button(
+        [
+          h.Id('jump-to-latest'),
+          h.Class('jump'),
+          h.AriaLabel('Scroll to latest message'),
+          h.OnClick(Message.ClickedJumpToLatest()),
+        ],
+        ['↓ Latest'],
+      ),
+    ],
+  );
 };

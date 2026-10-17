@@ -21,6 +21,7 @@ export const Message = defineMessageUnion({
   FailedThreads: { reason: Schema.String },
   ClickedRetryThreads: {},
   Ticked: { now: Schema.Number },
+  TickedTurn: { now: Schema.Number },
 
   NavigatedTo: { name: Schema.NullOr(Schema.String) },
   ClickedThread: { name: Schema.String },
@@ -32,6 +33,7 @@ export const Message = defineMessageUnion({
   ReceivedEvent: { name: Schema.String, event: LiveEvent },
   StreamClosed: { name: Schema.String },
 
+  ClickedJumpToLatest: {},
   UpdatedDraft: { value: Schema.String },
   SubmittedDraft: {},
   DroppedFiles: { count: Schema.Number },

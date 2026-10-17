@@ -13,6 +13,7 @@ import {
   Resize,
   RunAction,
   RunOp,
+  SaveDraft,
   SendMessage,
 } from './command';
 import { initialModel } from './main';
@@ -149,7 +150,9 @@ describe('sending', () => {
       update,
       given(opened()),
       message(Message.UpdatedDraft({ value: '  build a page  ' })),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       message(Message.SubmittedDraft()),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       model((current) => {
         expect(current.draft).toBe('');
         expect(current.view._tag === 'Ready' && current.view.value.busy).toBe(true);
@@ -169,7 +172,9 @@ describe('sending', () => {
       update,
       given(opened()),
       message(Message.UpdatedDraft({ value: 'hello' })),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       message(Message.SubmittedDraft()),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       Command.resolve(
         SendMessage,
         Message.FailedSend({ name: 'demo', text: 'hello', reason: 'The agent is working.' }),
@@ -190,6 +195,7 @@ describe('sending', () => {
       update,
       given(opened({ busy: true })),
       message(Message.UpdatedDraft({ value: 'x' })),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       message(Message.SubmittedDraft()),
       Command.expectNone(),
     );
@@ -307,6 +313,7 @@ describe('the palette and message tools', () => {
       message(Message.ClickedRetry({ text: 'make it blue' })),
       Command.expectHas(SendMessage),
       model((current) => expect(current.draft).toBe('')),
+      Command.resolve(SaveDraft, Message.CompletedEffect()),
       Command.resolve(SendMessage, Message.SentMessage({ name: 'demo' })),
       Command.resolveAll([LoadThreads, Message.LoadedThreads({ threads: [] })]),
     );

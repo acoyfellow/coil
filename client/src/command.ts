@@ -1,6 +1,7 @@
 import { Duration, Effect, Schema } from 'effect';
 import { Command, Navigation } from 'foldkit';
 import { type CoilError, Size, SurfaceKind } from '../../shared/protocol';
+import { pinToBottom } from './follow';
 import { Message } from './message';
 import { Action, Theme, ThreadOp } from './model';
 import { CoilClient, type RpcClientError } from './rpc';
@@ -35,6 +36,17 @@ export const LoadModels = Command.define('LoadModels', {
 
     return Message.LoadedModels({ models: yield* client.Models() });
   }).pipe(Effect.orElseSucceed(() => Message.CompletedEffect())),
+});
+
+export const JumpToLatest = Command.define('JumpToLatest', {
+  messages: [Message.CompletedEffect],
+  execute: Effect.sync(() => {
+    const feed = document.querySelector('#feed');
+
+    if (feed !== null) pinToBottom(feed);
+
+    return Message.CompletedEffect();
+  }),
 });
 
 export const FocusModelSearch = Command.define('FocusModelSearch', {
@@ -348,6 +360,26 @@ export const storedTheme = (): Theme => {
 
   return value === 'light' || value === 'dark' ? value : 'system';
 };
+
+const draftKey = (thread: string) => `coil-draft:${thread}`;
+
+export const storedDraft = (thread: string): string =>
+  Effect.runSync(
+    Effect.try(() => globalThis.localStorage.getItem(draftKey(thread)) ?? '').pipe(
+      Effect.orElseSucceed(() => ''),
+    ),
+  );
+
+export const SaveDraft = Command.define('SaveDraft', {
+  args: { thread: Schema.String, draft: Schema.String },
+  messages: [Message.CompletedEffect],
+  execute: ({ thread, draft }) =>
+    Effect.try(() =>
+      draft === ''
+        ? globalThis.localStorage.removeItem(draftKey(thread))
+        : globalThis.localStorage.setItem(draftKey(thread), draft),
+    ).pipe(Effect.ignore, Effect.as(Message.CompletedEffect())),
+});
 
 export const systemIsDark = () =>
   globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;

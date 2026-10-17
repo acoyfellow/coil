@@ -1,5 +1,6 @@
 import { Effect, Queue, Schema, Stream } from 'effect';
 import { Mount } from 'foldkit';
+import { attachFollow, followNewContent, pinToBottom } from './follow';
 import { Message } from './message';
 import { attachBrowser } from './surfaces/browser';
 import { attachTerminal } from './surfaces/terminal';
@@ -42,17 +43,27 @@ const fitToContent = (field: HTMLTextAreaElement) => () => {
   field.style.height = `${field.scrollHeight}px`;
 };
 
+const IME_PROCESS_KEY = 229;
+
+const holdEnterWhileComposing = (event: KeyboardEvent) => {
+  if (event.key === 'Enter' && (event.isComposing || event.keyCode === IME_PROCESS_KEY))
+    event.stopImmediatePropagation();
+};
+
 const attachAutosize = (host: HTMLElement) => {
   const field = host as HTMLTextAreaElement;
   const fit = fitToContent(field);
   const observer = new ResizeObserver(fit);
 
   field.addEventListener('input', fit);
+  field.addEventListener('keydown', holdEnterWhileComposing, { capture: true });
   observer.observe(field.parentElement ?? field);
   fit();
+  if (globalThis.matchMedia?.('(pointer: fine)').matches ?? true) field.focus();
 
   return () => {
     field.removeEventListener('input', fit);
+    field.removeEventListener('keydown', holdEnterWhileComposing, { capture: true });
     observer.disconnect();
   };
 };
@@ -64,14 +75,20 @@ export const Autosize = Mount.defineStream('Autosize', {
 });
 
 export const ScrollToEnd = Mount.define('ScrollToEnd', {
-  args: { key: Schema.String },
+  args: { key: Schema.String, pin: Schema.Boolean },
   messages: [Message.CompletedEffect],
-  execute: ({ element }) =>
+  execute: ({ element, pin }) =>
     Effect.sync(() => {
       const feed = element.closest('.feed');
 
-      if (feed !== null) feed.scrollTop = feed.scrollHeight;
+      if (feed !== null) (pin ? pinToBottom : followNewContent)(feed);
 
       return Message.CompletedEffect();
     }),
+});
+
+export const FollowFeed = Mount.defineStream('FollowFeed', {
+  args: {},
+  messages: [Message.CompletedEffect],
+  execute: ({ element }) => hold(() => attachFollow(element as HTMLElement), element),
 });
