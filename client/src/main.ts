@@ -3,7 +3,15 @@ import type { Update } from 'foldkit';
 import type { Url } from 'foldkit/url';
 import { MODELS } from '../../shared/models';
 import { DEFAULT_SIZE } from '../../shared/protocol';
-import { LoadModels, LoadSpend, LoadThreads, LoadView, LoadWho, notifyPermission } from './command';
+import {
+  LoadModels,
+  LoadSpend,
+  LoadThreads,
+  LoadView,
+  LoadWho,
+  notifyPermission,
+  storedDraft,
+} from './command';
 import type { Message } from './message';
 import { FileView, type Model, Theme, ThreadsState, ViewState } from './model';
 import { threadFromPath } from './route';
@@ -58,8 +66,11 @@ export const initialModel = (flags: Flags): Model => ({
   now: flags.now,
 });
 
+const withStoredDraft = (model: Model): Model =>
+  model.name === null ? model : { ...model, draft: storedDraft(model.name) };
+
 export const init = (flags: Flags, url: Url): Update.Return<Model, Message, CoilClient> => ({
-  model: initialModel({ ...flags, name: flags.name ?? threadFromUrl(url) }),
+  model: withStoredDraft(initialModel({ ...flags, name: flags.name ?? threadFromUrl(url) })),
   commands: [
     LoadWho(),
     LoadSpend(),

@@ -59,7 +59,11 @@ const attachAutosize = (host: HTMLElement) => {
   field.addEventListener('keydown', holdEnterWhileComposing, { capture: true });
   observer.observe(field.parentElement ?? field);
   fit();
-  if (globalThis.matchMedia?.('(pointer: fine)').matches ?? true) field.focus();
+  if (globalThis.matchMedia?.('(pointer: fine)').matches ?? true)
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body || document.activeElement === null)
+        field.focus();
+    });
 
   return () => {
     field.removeEventListener('input', fit);
