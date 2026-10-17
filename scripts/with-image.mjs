@@ -18,4 +18,29 @@ if (withImage === source) {
   process.exit(2);
 }
 
-writeFileSync(process.env.COIL_WRANGLER_CONFIG ?? 'wrangler.local.jsonc', withImage);
+const workerName = process.env.COIL_WORKER_NAME ?? '';
+const named =
+  workerName === ''
+    ? withImage
+    : withImage.replace('"name": "coil",', `"name": ${JSON.stringify(workerName)},`);
+
+if (workerName !== '' && named === withImage) {
+  console.error(
+    `COIL_WORKER_NAME=${workerName} was set but wrangler.jsonc has no "name": "coil", line to replace; refusing to deploy over the default worker.`,
+  );
+  process.exit(2);
+}
+
+const workersDev = process.env.COIL_WORKERS_DEV === '1';
+const routed = workersDev
+  ? named.replace('"compatibility_flags"', '"workers_dev": true,\n  "compatibility_flags"')
+  : named;
+
+if (workersDev && routed === named) {
+  console.error(
+    'COIL_WORKERS_DEV=1 but wrangler.jsonc has no compatibility_flags line to anchor on.',
+  );
+  process.exit(2);
+}
+
+writeFileSync(process.env.COIL_WRANGLER_CONFIG ?? 'wrangler.local.jsonc', routed);

@@ -39,6 +39,8 @@ esac
 
 export CLOUDFLARE_ACCOUNT_ID="$COIL_ACCOUNT_ID"
 export APK_PLAIN_HTTP="${COIL_APK_PLAIN_HTTP:-0}"
+export COIL_WORKER_NAME="${COIL_WORKER_NAME:-}"
+export COIL_WORKERS_DEV="${COIL_WORKERS_DEV:-0}"
 
 instance=$(basename "$conf" .conf)
 export COIL_WRANGLER_CONFIG="wrangler.$instance.local.jsonc"
@@ -63,7 +65,11 @@ fi
 )
 
 deploy() {
-  npx wrangler deploy -c "$COIL_WRANGLER_CONFIG" --domain "$COIL_DOMAIN" "${vars[@]}"
+  if [ "$COIL_WORKERS_DEV" = 1 ]; then
+    npx wrangler deploy -c "$COIL_WRANGLER_CONFIG" "${vars[@]}"
+  else
+    npx wrangler deploy -c "$COIL_WRANGLER_CONFIG" --domain "$COIL_DOMAIN" "${vars[@]}"
+  fi
 }
 deploy || deploy
 
