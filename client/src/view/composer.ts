@@ -73,7 +73,11 @@ export const composer = (h: H, model: Model): Html => {
                     [
                       h.Id('send'),
                       h.AriaLabel('Send'),
-                      h.Disabled(view === null),
+                      h.Disabled(view === null || model.draft.trim() === ''),
+                      h.DataAttribute(
+                        'tip',
+                        model.draft.trim() === '' ? 'Type a message to send' : 'Send (Enter)',
+                      ),
                       h.OnClick(Message.SubmittedDraft()),
                     ],
                     ['↑'],
