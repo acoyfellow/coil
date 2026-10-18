@@ -48,7 +48,7 @@ const chart = (perDay: InstanceStats['perDay']) => {
     .map((day, index) => {
       const height = Math.max(day.threads === 0 ? 0 : 3, (day.threads / peak) * CHART_HEIGHT);
 
-      return `<rect x="${(index * width + width * 0.12).toFixed(2)}%" y="${CHART_HEIGHT - height}" width="${(width * 0.76).toFixed(2)}%" height="${height}" rx="2"><title>${day.day}: ${day.threads} thread${day.threads === 1 ? '' : 's'}</title></rect>`;
+      return `<rect x="${(index * width + width * 0.12).toFixed(2)}%" y="${CHART_HEIGHT - height}" width="${(width * 0.76).toFixed(2)}%" height="${height}"><title>${day.day}: ${day.threads} thread${day.threads === 1 ? '' : 's'}</title></rect>`;
     })
     .join('');
 
@@ -78,9 +78,11 @@ header img{height:22px}
 header a{color:var(--dim);text-decoration:none;font-size:14px}
 h1{font-size:28px;letter-spacing:-.02em;margin:0 0 4px}
 .sub{color:var(--dim);margin:0 0 28px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:28px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px}
+@media (min-width:860px){.tiles{grid-template-columns:repeat(6,1fr)}}
+@media (max-width:520px){.tiles{grid-template-columns:repeat(2,1fr)}}
 .tile{border:1px solid var(--line2);border-radius:14px;padding:16px 18px;background:var(--side)}
-.tile b{display:block;font-size:34px;line-height:1.1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.tile b{display:block;font-size:30px;line-height:1.1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .tile span{color:var(--dim);font-size:13px}
 .tile.live b{color:var(--orange)}
 .tile.live b::after{content:'';display:inline-block;width:9px;height:9px;margin-left:8px;border-radius:50%;background:var(--orange);vertical-align:middle;animation:pulse 1.4s infinite}
