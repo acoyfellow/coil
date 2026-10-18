@@ -270,15 +270,16 @@ const welcome = (h: H): Html =>
   );
 
 const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
-  const open = view.turns.find((turn) => turn.ended === 0);
+  const startedAt =
+    view.turns.find((turn) => turn.ended === 0)?.at ?? model.live?.startedAt ?? null;
 
-  if (!view.busy || open === undefined) return [];
+  if (!view.busy || startedAt === null) return [];
 
   return [
     h.keyed('div')(
       'turn-timer',
       [h.Class('ran running'), h.Id('turn-timer'), h.AriaLive('off')],
-      [`Running for ${ranFor(Math.max(0, model.now - open.at))}`],
+      [`Running for ${ranFor(Math.max(0, model.now - startedAt))}`],
     ),
   ];
 };

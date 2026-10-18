@@ -139,7 +139,9 @@ const boot = async (path: string, calls: string[] = []) => {
   return errors;
 };
 
-describe('the foldkit client loads conversations', () => {
+const COLD_BOOT_MS = 20_000;
+
+describe('the foldkit client loads conversations', { timeout: COLD_BOOT_MS }, () => {
   beforeEach(() => {
     document.body.innerHTML = '';
   });

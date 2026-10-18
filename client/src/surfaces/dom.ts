@@ -11,3 +11,6 @@ export const spinnerNode = (): HTMLElement => {
 
   return spinner;
 };
+
+export const nothingFocused = (): boolean =>
+  document.activeElement === null || document.activeElement === document.body;

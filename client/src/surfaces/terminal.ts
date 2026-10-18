@@ -1,7 +1,7 @@
 import type { Terminal } from 'cloudterm';
 import { terminalPath } from '../../../shared/protocol';
 import { TERMINAL_ACK_EVERY_BYTES } from '../../../src/flow';
-import { cssVar, socketUrl, spinnerNode } from './dom';
+import { cssVar, nothingFocused, socketUrl, spinnerNode } from './dom';
 
 type TermModule = {
   mount: (el: HTMLElement, options: Record<string, unknown>) => Promise<Terminal>;
@@ -103,7 +103,7 @@ export const attachTerminal = (host: HTMLElement, thread: string, id: string): (
       status.replaceChildren();
       if (active.cols >= 2 && active.rows >= 2)
         ws.send(JSON.stringify({ resize: [active.cols, active.rows] }));
-      active.focus();
+      if (nothingFocused()) active.focus();
       globalThis.window.__coilTerm = (globalThis.window.__coilTerm ?? 0) + 1;
     };
     ws.onmessage = (incoming: MessageEvent<ArrayBuffer>) => {

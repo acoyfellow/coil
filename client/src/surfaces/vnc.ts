@@ -1,4 +1,4 @@
-import { socketUrl, spinnerNode } from './dom';
+import { nothingFocused, socketUrl, spinnerNode } from './dom';
 
 type Rfb = {
   scaleViewport: boolean;
@@ -48,7 +48,7 @@ export const attachVnc = (
     next.addEventListener('connect', () => {
       retry = 500;
       status.hidden = true;
-      next.focus();
+      if (nothingFocused()) next.focus();
     });
     next.addEventListener('disconnect', () => {
       rfb = null;

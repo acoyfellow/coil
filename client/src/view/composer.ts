@@ -40,7 +40,7 @@ export const composer = (h: H, model: Model): Html => {
       h.div(
         [h.Class('composer-inner')],
         [
-          h.textarea([
+          h.keyed('textarea')('composer-text', [
             h.Id('text'),
             h.Rows(1),
             h.OnMount(Autosize({})),

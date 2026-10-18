@@ -35,6 +35,7 @@ export const LiveTool = Schema.Struct({
 export type LiveTool = typeof LiveTool.Type;
 
 export const Live = Schema.Struct({
+  startedAt: Schema.NullOr(Schema.Number),
   text: Schema.String,
   tools: Schema.Array(LiveTool),
   compacting: Schema.Boolean,
@@ -42,7 +43,7 @@ export const Live = Schema.Struct({
 
 export type Live = typeof Live.Type;
 
-export const emptyLive: Live = { text: '', tools: [], compacting: false };
+export const emptyLive: Live = { startedAt: null, text: '', tools: [], compacting: false };
 
 export const Action = Schema.Literals(['compact', 'pause', 'fork', 'size']);
 

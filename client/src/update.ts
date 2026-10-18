@@ -239,7 +239,7 @@ const send = (model: Model): UpdateReturn => {
   const pending = modifyFields(model, {
     draft: () => '',
     sending: () => true,
-    live: () => emptyLive,
+    live: () => ({ ...emptyLive, startedAt: model.now }),
     view: () =>
       ViewState.Ready({
         value: {
