@@ -55,6 +55,7 @@ export const ThreadOp = Schema.Union([
   Schema.TaggedStruct('SetModel', { model: Schema.String }),
   Schema.TaggedStruct('Rename', {}),
   Schema.TaggedStruct('Archive', { archived: Schema.Boolean }),
+  Schema.TaggedStruct('Pin', { pinned: Schema.Boolean }),
   Schema.TaggedStruct('Delete', {}),
   Schema.TaggedStruct('Share', {}),
 ]);
@@ -120,6 +121,8 @@ export const Model = Schema.Struct({
   modelIndex: Schema.Number,
   usageOpen: Schema.Boolean,
   showArchived: Schema.Boolean,
+  listFilter: Schema.String,
+  rowMenu: Schema.NullOr(Schema.String),
   notify: Schema.Literals(['unsupported', 'default', 'granted', 'denied']),
   uploading: Schema.Number,
   palette: Schema.NullOr(Schema.Struct({ query: Schema.String, index: Schema.Number })),

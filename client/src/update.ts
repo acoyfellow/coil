@@ -555,7 +555,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
               busy: false,
             }))
           : model,
-        { modelMenuOpen: () => false, menuOpen: () => false },
+        { modelMenuOpen: () => false, menuOpen: () => false, rowMenu: () => null },
       ),
       commands: [RunOp({ name, op })],
     }),
@@ -653,6 +653,10 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         [LoadThreads()],
       ),
     ToggledArchived: () => ({ model: modifyFields(model, { showArchived: (on) => !on }) }),
+    UpdatedListFilter: ({ value }) => ({ model: modifyFields(model, { listFilter: () => value }) }),
+    ToggledRowMenu: ({ name }) => ({
+      model: modifyFields(model, { rowMenu: (open) => (open === name ? null : name) }),
+    }),
 
     ClickedTab: ({ tab }) => selectTab(model, tab),
     ToggledAddMenu: () => ({ model: modifyFields(model, { addMenuOpen: (open) => !open }) }),

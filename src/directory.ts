@@ -18,6 +18,7 @@ export type ThreadSummary = {
   readonly spend: number;
   readonly looping: boolean;
   readonly failed?: boolean;
+  readonly pinned?: boolean;
 };
 
 export type ThreadUpdate = Partial<Omit<ThreadSummary, 'name' | 'createdAt'>> & {
@@ -41,6 +42,7 @@ type Row = {
   spend: number;
   looping: number;
   failed: number;
+  pinned: number;
 };
 
 const fromRow = (row: Row): ThreadSummary => ({
@@ -60,6 +62,7 @@ const fromRow = (row: Row): ThreadSummary => ({
   spend: row.spend,
   looping: row.looping === 1,
   failed: row.failed === 1,
+  pinned: row.pinned === 1,
 });
 
 export const TURN_RESERVE = 0.5;
@@ -221,6 +224,8 @@ export class Directory extends DurableObject {
       );
     if (!columns.includes('spend'))
       this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN spend REAL NOT NULL DEFAULT 0`);
+    if (!columns.includes('pinned'))
+      this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
     if (!columns.includes('failed'))
       this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`);
   }
@@ -242,11 +247,12 @@ export class Directory extends DurableObject {
       spend: update.spend ?? current?.spend ?? 0,
       looping: (update.looping ?? current?.looping ?? false) ? 1 : 0,
       failed: (update.failed ?? current?.failed ?? false) ? 1 : 0,
+      pinned: (update.pinned ?? current?.pinned ?? false) ? 1 : 0,
     };
 
     this.ctx.storage.sql.exec(
-      `INSERT INTO threads (name, title, phase, busy, repo, parent, forked_from, created_by, owner, created_at, updated_at, archived, model, spend, looping, failed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(name) DO UPDATE SET title = excluded.title, phase = excluded.phase, busy = excluded.busy, repo = excluded.repo, parent = excluded.parent, forked_from = excluded.forked_from, owner = excluded.owner, updated_at = excluded.updated_at, archived = excluded.archived, model = excluded.model, spend = excluded.spend, looping = excluded.looping, failed = excluded.failed`,
+      `INSERT INTO threads (name, title, phase, busy, repo, parent, forked_from, created_by, owner, created_at, updated_at, archived, model, spend, looping, failed, pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET title = excluded.title, phase = excluded.phase, busy = excluded.busy, repo = excluded.repo, parent = excluded.parent, forked_from = excluded.forked_from, owner = excluded.owner, updated_at = excluded.updated_at, archived = excluded.archived, model = excluded.model, spend = excluded.spend, looping = excluded.looping, failed = excluded.failed, pinned = excluded.pinned`,
       update.name,
       next.title,
       next.phase,
@@ -263,6 +269,7 @@ export class Directory extends DurableObject {
       next.spend,
       next.looping,
       next.failed,
+      next.pinned,
     );
   }
 

@@ -55,6 +55,8 @@ export const initialModel = (flags: Flags): Model => ({
   modelIndex: 0,
   usageOpen: false,
   showArchived: false,
+  listFilter: '',
+  rowMenu: null,
   notify: notifyPermission(),
   uploading: 0,
   palette: null,

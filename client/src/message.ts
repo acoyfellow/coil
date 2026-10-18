@@ -74,6 +74,8 @@ export const Message = defineMessageUnion({
   ClosedModelMenu: {},
   ToggledUsage: {},
   ToggledArchived: {},
+  UpdatedListFilter: { value: Schema.String },
+  ToggledRowMenu: { name: Schema.NullOr(Schema.String) },
   ClickedKillLoops: {},
   ClickedNotify: {},
   ChangedNotify: { permission: Schema.Literals(['unsupported', 'default', 'granted', 'denied']) },

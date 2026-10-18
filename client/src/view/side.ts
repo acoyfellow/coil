@@ -5,11 +5,84 @@ import { type Model, ThreadsState } from '../model';
 import { pathForThread } from '../route';
 import { type H, phaseKey, phaseLabel, short, skeleton } from './parts';
 
-const GROUPS: readonly [string, (thread: ThreadSummary) => boolean][] = [
-  ['Working', (thread) => thread.busy],
-  ['Running', (thread) => !thread.busy && thread.phase === 'awake'],
-  ['Paused', (thread) => !thread.busy && thread.phase !== 'awake'],
-];
+const DAY_MS = 86_400_000;
+
+const startOfDay = (now: number) => {
+  const day = new Date(now);
+
+  day.setHours(0, 0, 0, 0);
+
+  return day.getTime();
+};
+
+const groupsFor = (now: number): readonly [string, (thread: ThreadSummary) => boolean][] => {
+  const today = startOfDay(now);
+  const yesterday = today - DAY_MS;
+  const week = today - 6 * DAY_MS;
+  const unpinned = (thread: ThreadSummary) => thread.pinned !== true;
+
+  return [
+    ['Pinned', (thread) => thread.pinned === true],
+    ['Today', (thread) => unpinned(thread) && thread.updatedAt >= today],
+    [
+      'Yesterday',
+      (thread) => unpinned(thread) && thread.updatedAt >= yesterday && thread.updatedAt < today,
+    ],
+    [
+      'Previous 7 days',
+      (thread) => unpinned(thread) && thread.updatedAt >= week && thread.updatedAt < yesterday,
+    ],
+    ['Earlier', (thread) => unpinned(thread) && thread.updatedAt < week],
+  ];
+};
+
+const matches = (filter: string) => {
+  const needle = filter.trim().toLowerCase();
+
+  return (thread: ThreadSummary) =>
+    needle === '' ||
+    thread.title.toLowerCase().includes(needle) ||
+    thread.name.toLowerCase().includes(needle) ||
+    (thread.repo ?? '').toLowerCase().includes(needle);
+};
+
+const rowMenu = (h: H, thread: ThreadSummary): Html =>
+  h.div(
+    [h.Class('row-menu'), h.Role('menu'), h.DataAttribute('menu-for', thread.name)],
+    [
+      h.button(
+        [
+          h.Role('menuitem'),
+          h.DataAttribute('op', 'pin'),
+          h.OnClick(
+            Message.ClickedOp({
+              name: thread.name,
+              op: { _tag: 'Pin', pinned: thread.pinned !== true },
+            }),
+          ),
+        ],
+        [thread.pinned === true ? 'Unpin' : 'Pin'],
+      ),
+      h.button(
+        [
+          h.Role('menuitem'),
+          h.DataAttribute('op', 'rename'),
+          h.OnClick(Message.ClickedOp({ name: thread.name, op: { _tag: 'Rename' } })),
+        ],
+        ['Rename'],
+      ),
+      h.button(
+        [
+          h.Role('menuitem'),
+          h.DataAttribute('op', 'archive'),
+          h.OnClick(
+            Message.ClickedOp({ name: thread.name, op: { _tag: 'Archive', archived: true } }),
+          ),
+        ],
+        ['Archive'],
+      ),
+    ],
+  );
 
 const rowTitle = (thread: ThreadSummary): string =>
   [
@@ -22,19 +95,35 @@ const rowTitle = (thread: ThreadSummary): string =>
     .join(' · ');
 
 const row = (h: H, model: Model, thread: ThreadSummary, child: boolean): Html =>
-  h.keyed('a')(
+  h.keyed('div')(
     thread.name,
+    [h.Class(`row${model.rowMenu === thread.name ? ' menu-open' : ''}`)],
     [
-      h.Class(`item${thread.name === model.name ? ' on' : ''}${child ? ' child' : ''}`),
-      h.Href(pathForThread(thread.name)),
-      h.DataAttribute('thread', thread.name),
-      h.Title(rowTitle(thread)),
-      h.OnClick(Message.ClickedThread({ name: thread.name }), { defaultAction: 'Prevent' }),
-    ],
-    [
-      h.span([h.Class(`dot ${phaseKey(thread)}`), h.AriaLabel(phaseLabel(thread))], []),
-      h.span([h.Class('t')], [thread.title === '' ? thread.name : thread.title]),
-      h.span([h.Class('m')], [short(model.now, thread.updatedAt)]),
+      h.a(
+        [
+          h.Class(`item${thread.name === model.name ? ' on' : ''}${child ? ' child' : ''}`),
+          h.Href(pathForThread(thread.name)),
+          h.DataAttribute('thread', thread.name),
+          h.Title(rowTitle(thread)),
+          h.OnClick(Message.ClickedThread({ name: thread.name }), { defaultAction: 'Prevent' }),
+        ],
+        [
+          h.span([h.Class(`dot ${phaseKey(thread)}`), h.AriaLabel(phaseLabel(thread))], []),
+          h.span([h.Class('t')], [thread.title === '' ? thread.name : thread.title]),
+          h.span([h.Class('m')], [short(model.now, thread.updatedAt)]),
+        ],
+      ),
+      h.button(
+        [
+          h.Class('row-more'),
+          h.Type('button'),
+          h.AriaLabel(`Actions for ${thread.title === '' ? thread.name : thread.title}`),
+          h.AriaExpanded(model.rowMenu === thread.name),
+          h.OnClick(Message.ToggledRowMenu({ name: thread.name })),
+        ],
+        ['⋯'],
+      ),
+      ...(model.rowMenu === thread.name ? [rowMenu(h, thread)] : []),
     ],
   );
 
@@ -117,11 +206,23 @@ const archivedRows = (h: H, model: Model, archived: readonly ThreadSummary[]): H
       )
     : [];
 
+const filterBox = (h: H, model: Model): Html =>
+  h.input([
+    h.Class('list-filter'),
+    h.Id('list-filter'),
+    h.Type('search'),
+    h.Placeholder('Filter threads'),
+    h.AriaLabel('Filter threads'),
+    h.Value(model.listFilter),
+    h.OnInput((value) => Message.UpdatedListFilter({ value })),
+  ]);
+
 const threadList = (h: H, model: Model, all: readonly ThreadSummary[]): Html[] => {
-  const threads = all.filter((thread) => !thread.archived);
+  const threads = all.filter((thread) => !thread.archived && matches(model.listFilter)(thread));
   const archived = all.filter((thread) => thread.archived);
 
   return [
+    ...(all.length === 0 ? [] : [filterBox(h, model)]),
     ...activeList(h, model, threads),
     ...archivedToggle(h, model, archived.length),
     ...archivedRows(h, model, archived),
@@ -133,7 +234,12 @@ const activeList = (h: H, model: Model, threads: readonly ThreadSummary[]): Html
     return [
       h.div(
         [h.Class('empty inline')],
-        [h.div([h.Class('empty-inner')], [h.p([], ['No threads yet.'])])],
+        [
+          h.div(
+            [h.Class('empty-inner')],
+            [h.p([], [model.listFilter.trim() === '' ? 'No threads yet.' : 'No threads match.'])],
+          ),
+        ],
       ),
     ];
 
@@ -146,7 +252,7 @@ const activeList = (h: H, model: Model, threads: readonly ThreadSummary[]): Html
 
   const roots = threads.filter((thread) => !(thread.parent !== null && names.has(thread.parent)));
 
-  return GROUPS.flatMap(([label, belongs]) => {
+  return groupsFor(model.now).flatMap(([label, belongs]) => {
     const members = roots.filter(belongs);
 
     if (members.length === 0) return [];

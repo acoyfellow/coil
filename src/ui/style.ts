@@ -260,6 +260,16 @@ pre.code:hover .code-copy,pre.code:focus-within .code-copy{opacity:1}
 .starters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
 .starter{border:1px solid var(--line2);background:var(--raise);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
 .starter:hover{border-color:var(--fg)}
+.list-filter{width:calc(100% - 16px);margin:4px 8px 6px;padding:5px 8px;border:1px solid var(--line2);border-radius:6px;background:var(--raise);color:var(--text);font:inherit;font-size:13px}
+.row{position:relative}
+.row .item{padding-right:28px}
+.row-more{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--faint);width:22px;height:22px;border-radius:5px;cursor:pointer;opacity:0}
+.row:hover .row-more,.row-more:focus-visible,.row.menu-open .row-more{opacity:1}
+@media (pointer:coarse){.row-more{opacity:1}}
+.row-more:hover{background:var(--line)}
+.row-menu{position:absolute;right:4px;top:100%;z-index:30;display:flex;flex-direction:column;min-width:120px;padding:4px;border:1px solid var(--line2);border-radius:8px;background:var(--raise);box-shadow:0 6px 20px rgb(0 0 0/.18)}
+.row-menu button{border:0;background:transparent;color:var(--text);text-align:left;padding:5px 8px;border-radius:5px;font-size:13px;cursor:pointer}
+.row-menu button:hover{background:var(--line)}
 .tool-time{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
 .enter-hint{font-size:11px;color:var(--faint)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

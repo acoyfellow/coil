@@ -473,6 +473,9 @@ export const RunOp = Command.define('RunOp', {
         case 'Archive':
           yield* client.Archive({ name, archived: op.archived });
           return done(op.archived ? 'Archived.' : 'Restored.');
+        case 'Pin':
+          yield* client.Pin({ name, pinned: op.pinned });
+          return done(op.pinned ? 'Pinned.' : 'Unpinned.');
         case 'Share': {
           const { path } = yield* client.Share({ name });
           const url = `${globalThis.location.origin}${path}`;

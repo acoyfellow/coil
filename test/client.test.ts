@@ -53,6 +53,12 @@ const threads = [
   summary('awake-one', 'awake', false),
   summary('busy-one', 'awake', true),
   summary('paused-one', 'paused', false),
+  {
+    ...summary('pinned-old', 'paused', false),
+    pinned: true,
+    updatedAt: Date.now() - 30 * 86_400_000,
+  },
+  { ...summary('old-one', 'paused', false), updatedAt: Date.now() - 30 * 86_400_000 },
 ];
 
 const fakeApi = (calls: string[]): CoilApi =>
@@ -71,6 +77,11 @@ const fakeApi = (calls: string[]): CoilApi =>
       return { size, restarted: false };
     },
     list_dir: async () => [],
+    pin: async (name: string, pinned: boolean) => {
+      calls.push(`pin ${name} ${pinned}`);
+
+      return { ...summary(name, 'paused', false), pinned };
+    },
     start: async (name: string, requestId: string) => {
       calls.push(`start ${name}`);
 
@@ -176,6 +187,43 @@ describe('the foldkit client loads conversations', { timeout: COLD_BOOT_MS }, ()
 
     expect(errors).toEqual([]);
     expect(document.body.textContent).toContain('Thread paused-one');
+  });
+
+  it('groups threads by time with pinned first, filters them, and pins from the row menu', async () => {
+    const calls: string[] = [];
+    const errors = await boot('/', calls);
+    const groups = () =>
+      [...document.querySelectorAll('#list .group')].map((group) => group.textContent ?? '');
+
+    expect(errors).toEqual([]);
+    expect(groups()).toEqual(['Pinned 1', 'Today 3', 'Earlier 1']);
+
+    const filter = document.querySelector<HTMLInputElement>('#list-filter');
+
+    expect(filter).not.toBeNull();
+    if (filter !== null) {
+      filter.value = 'busy';
+      filter.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await waitFor(() => groups().length === 1);
+    expect(groups()).toEqual(['Today 1']);
+
+    if (filter !== null) {
+      filter.value = '';
+      filter.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await waitFor(() => groups().length === 3);
+
+    document
+      .querySelector<HTMLButtonElement>('[data-thread="old-one"]')
+      ?.parentElement?.querySelector<HTMLButtonElement>('.row-more')
+      ?.click();
+    await waitFor(() => document.querySelector('[data-menu-for="old-one"]') !== null);
+    document.querySelector<HTMLButtonElement>('[data-menu-for="old-one"] [data-op="pin"]')?.click();
+    await waitFor(() => calls.includes('pin old-one true'));
+
+    expect(calls).toContain('pin old-one true');
+    expect(document.querySelector('[data-menu-for="old-one"]')).toBeNull();
   });
 
   it('picking a size from the size menu resizes the thread through the RPC', async () => {

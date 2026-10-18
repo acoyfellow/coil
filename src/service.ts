@@ -242,6 +242,12 @@ export const coil = (env: Env, owner: string) => {
 
       return (await directory.get(name)) ?? Promise.reject(new Error(`unknown thread ${name}`));
     },
+    pin: async (name: string, pinned: boolean) => {
+      await known(name);
+      await directory.upsert({ name, pinned });
+
+      return (await directory.get(name)) ?? Promise.reject(new Error(`unknown thread ${name}`));
+    },
     remove: async (name: string) => {
       const box = await known(name);
 

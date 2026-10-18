@@ -32,6 +32,7 @@ export const ThreadSummary = Schema.Struct({
   spend: Schema.Number,
   looping: Schema.Boolean,
   failed: Schema.optional(Schema.Boolean),
+  pinned: Schema.optional(Schema.Boolean),
 });
 
 export type ThreadSummary = typeof ThreadSummary.Type;
@@ -364,6 +365,11 @@ export const CoilRpcs = RpcGroup.make(
   }),
   Rpc.make('Archive', {
     payload: { ...target, archived: Schema.Boolean },
+    success: ThreadSummary,
+    error: CoilError,
+  }),
+  Rpc.make('Pin', {
+    payload: { ...target, pinned: Schema.Boolean },
     success: ThreadSummary,
     error: CoilError,
   }),
