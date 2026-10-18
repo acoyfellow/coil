@@ -1,11 +1,11 @@
 import { Effect } from 'effect';
-import { Runtime } from 'foldkit';
+import { Runtime, Url } from 'foldkit';
 import { storedTheme } from './command';
 import { installLayout } from './layout';
 import { Flags, init } from './main';
 import { Message } from './message';
 import { Model } from './model';
-import { threadFromPath } from './route';
+import { isAppPath, threadFromPath } from './route';
 import { CoilClientLive } from './rpc';
 import { subscriptions } from './subscriptions';
 import { update } from './update';
@@ -36,10 +36,13 @@ const application = Runtime.makeApplication({
   view,
   subscriptions,
   routing: {
-    onUrlRequest: (request) =>
-      request._tag === 'Internal'
-        ? Message.NavigatedTo({ name: threadFromPath(request.url.pathname) })
-        : Message.CompletedEffect(),
+    onUrlRequest: (request) => {
+      if (request._tag === 'Internal' && isAppPath(request.url.pathname))
+        return Message.NavigatedTo({ name: threadFromPath(request.url.pathname) });
+      if (request._tag === 'Internal') return Message.LeftApp({ href: Url.toString(request.url) });
+
+      return Message.LeftApp({ href: request.href });
+    },
     onUrlChange: (url) => Message.NavigatedTo({ name: threadFromPath(url.pathname) }),
   },
   resources: CoilClientLive,

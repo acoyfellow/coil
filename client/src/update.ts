@@ -18,6 +18,7 @@ import {
   KillLoops,
   LoadDir,
   LoadFile,
+  LoadPage,
   LoadSpend,
   LoadThreads,
   LoadView,
@@ -652,6 +653,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         ),
         [LoadThreads()],
       ),
+    LeftApp: ({ href }) => ({ model, commands: [LoadPage({ href })] }),
     ToggledArchived: () => ({ model: modifyFields(model, { showArchived: (on) => !on }) }),
     UpdatedListFilter: ({ value }) => ({ model: modifyFields(model, { listFilter: () => value }) }),
     ToggledRowMenu: ({ name }) => ({

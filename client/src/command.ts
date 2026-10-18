@@ -353,6 +353,12 @@ export const PushUrl = Command.define('PushUrl', {
     }),
 });
 
+export const LoadPage = Command.define('LoadPage', {
+  args: { href: Schema.String },
+  messages: [Message.CompletedEffect],
+  execute: ({ href }) => Navigation.load(href).pipe(Effect.as(Message.CompletedEffect())),
+});
+
 export const ExpireToast = Command.define('ExpireToast', {
   args: { id: Schema.Number, bad: Schema.Boolean },
   messages: [Message.ExpiredToast],
