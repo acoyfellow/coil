@@ -4,6 +4,7 @@ import type { Url } from 'foldkit/url';
 import { MODELS } from '../../shared/models';
 import { DEFAULT_SIZE } from '../../shared/protocol';
 import {
+  LoadAccount,
   LoadModels,
   LoadSpend,
   LoadThreads,
@@ -43,6 +44,7 @@ export const initialModel = (flags: Flags): Model => ({
   file: FileView.Closed(),
   action: null,
   draft: '',
+  account: null,
   sending: false,
   menuOpen: false,
   sizeMenuOpen: false,
@@ -73,6 +75,7 @@ export const init = (flags: Flags, url: Url): Update.Return<Model, Message, Coil
   model: withStoredDraft(initialModel({ ...flags, name: flags.name ?? threadFromUrl(url) })),
   commands: [
     LoadWho(),
+    LoadAccount(),
     LoadSpend(),
     LoadModels(),
     LoadThreads(),

@@ -6,6 +6,7 @@ import {
   AskNotify,
   CloseSurface,
   ConfirmResize,
+  CopyText,
   CreateThread,
   EditSpendLimit,
   ExpireToast,
@@ -320,6 +321,11 @@ const stopFromKeyboard = (model: Model): UpdateReturn => {
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
     LoadedWho: ({ who }) => ({ model: modifyFields(model, { who: () => who }) }),
+    LoadedAccount: ({ account, gateway }) => ({
+      model: modifyFields(model, {
+        account: () => (account === null ? null : { name: account, gateway }),
+      }),
+    }),
     LoadedSpend: (spend) => ({ model: modifyFields(model, { spend: () => spend }) }),
     ClickedSpendLimit: () => ({
       model,
@@ -437,6 +443,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         ? toast(done, `Uploaded ${paths.length} file${paths.length === 1 ? '' : 's'}.`)
         : toast(done, `Could not upload ${failed.join(', ')}.`, true);
     },
+    ClickedCopy: ({ text }) => ({ model, commands: [CopyText({ text })] }),
+    CopiedText: () => toast(model, 'Copied.'),
+    FailedCopy: () => toast(model, 'Could not copy: the browser blocked the clipboard.', true),
     ClickedEdit: ({ text }) => ({
       model: modifyFields(model, { draft: () => text }),
       commands: [FocusComposer()],

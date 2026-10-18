@@ -15,6 +15,7 @@ import { Action, Theme, ThreadOp } from './model';
 
 export const Message = defineMessageUnion({
   LoadedWho: { who: Schema.String },
+  LoadedAccount: { account: Schema.NullOr(Schema.String), gateway: Schema.NullOr(Schema.String) },
   LoadedSpend: { spent: Schema.Number, limit: Schema.NullOr(Schema.Number) },
   ClickedSpendLimit: {},
   LoadedThreads: { threads: Schema.Array(ThreadSummary) },
@@ -43,6 +44,9 @@ export const Message = defineMessageUnion({
     failed: Schema.Array(Schema.String),
   },
   ClickedEdit: { text: Schema.String },
+  ClickedCopy: { text: Schema.String },
+  CopiedText: {},
+  FailedCopy: {},
   ClickedRetry: { text: Schema.String },
   SentMessage: { name: Schema.String },
   FailedSend: { name: Schema.String, text: Schema.String, reason: Schema.String },

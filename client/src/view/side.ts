@@ -42,7 +42,14 @@ const CLOUDFLARE_OWNER_PREFIX = 'cf:';
 
 const isCloudflareUser = (who: string) => who.startsWith(CLOUDFLARE_OWNER_PREFIX);
 
-const signedInLabel = (who: string) => (isCloudflareUser(who) ? 'Signed in with Cloudflare' : who);
+const signedInLabel = (model: Model) => {
+  if (!isCloudflareUser(model.who)) return model.who;
+  if (model.account === null) return 'Signed in with Cloudflare';
+
+  return model.account.gateway === null
+    ? model.account.name
+    : `${model.account.name} · ${model.account.gateway}`;
+};
 
 const signOut = (h: H, who: string): Html[] =>
   isCloudflareUser(who)
@@ -225,7 +232,13 @@ export const side = (h: H, model: Model): Html =>
       h.div(
         [h.Class('who')],
         [
-          h.span([h.Id('whoami')], [signedInLabel(model.who)]),
+          h.span(
+            [
+              h.Id('whoami'),
+              h.DataAttribute('tip', 'Cloudflare account · AI Gateway coil bills to'),
+            ],
+            [signedInLabel(model)],
+          ),
           ...signOut(h, model.who),
           h.button(
             [

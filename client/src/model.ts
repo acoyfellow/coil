@@ -106,6 +106,9 @@ export const Model = Schema.Struct({
   file: FileView,
   action: Schema.NullOr(Action),
   draft: Schema.String,
+  account: Schema.NullOr(
+    Schema.Struct({ name: Schema.String, gateway: Schema.NullOr(Schema.String) }),
+  ),
   sending: Schema.Boolean,
   menuOpen: Schema.Boolean,
   sizeMenuOpen: Schema.Boolean,

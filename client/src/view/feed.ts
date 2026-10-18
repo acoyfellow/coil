@@ -82,27 +82,21 @@ const message = (h: H, entry: ChatMessage, results: ReadonlyMap<string, string>)
     [
       ...(entry.role === 'user' ? [] : [h.div([h.Class('label')], ['agent'])]),
       entry.role === 'user' ? h.div([h.Class('body')], [entry.text]) : richText(h, entry.text),
-      ...(entry.role === 'user' && entry.id !== 'pending'
+      ...(entry.id !== 'pending'
         ? [
             h.div(
               [h.Class('msg-tools')],
               [
                 h.button(
                   [
-                    h.Class('edit'),
-                    h.DataAttribute('tip', 'Put this text back in the box to edit it'),
-                    h.OnClick(Message.ClickedEdit({ text: entry.text })),
+                    h.Class('copy'),
+                    h.AriaLabel('Copy message'),
+                    h.DataAttribute('tip', 'Copy this message'),
+                    h.OnClick(Message.ClickedCopy({ text: entry.text })),
                   ],
-                  ['Edit'],
+                  ['Copy'],
                 ),
-                h.button(
-                  [
-                    h.Class('retry'),
-                    h.DataAttribute('tip', 'Send this again as a new turn'),
-                    h.OnClick(Message.ClickedRetry({ text: entry.text })),
-                  ],
-                  ['Retry'],
-                ),
+                ...(entry.role === 'user' ? userTools(h, entry.text) : []),
               ],
             ),
           ]
@@ -110,6 +104,25 @@ const message = (h: H, entry: ChatMessage, results: ReadonlyMap<string, string>)
     ],
   );
 };
+
+const userTools = (h: H, text: string): Html[] => [
+  h.button(
+    [
+      h.Class('edit'),
+      h.DataAttribute('tip', 'Put this text back in the box to edit it'),
+      h.OnClick(Message.ClickedEdit({ text })),
+    ],
+    ['Edit'],
+  ),
+  h.button(
+    [
+      h.Class('retry'),
+      h.DataAttribute('tip', 'Send this again as a new turn'),
+      h.OnClick(Message.ClickedRetry({ text })),
+    ],
+    ['Retry'],
+  ),
+];
 
 const toolResults = (messages: readonly ChatMessage[]): ReadonlyMap<string, string> =>
   new Map(

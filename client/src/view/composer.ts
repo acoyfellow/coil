@@ -8,6 +8,8 @@ import { viewOf } from '../update';
 import { meter } from './meter';
 import { type H, icon } from './parts';
 
+const touchKeyboard = (): boolean => globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+
 const hint = (model: Model): string => {
   const view = viewOf(model);
 
@@ -17,7 +19,7 @@ const hint = (model: Model): string => {
   if (view.busy) return 'Working. You can leave; it keeps going.';
   if (view.phase === 'paused') return 'Paused. Sending resumes it from the saved disk.';
 
-  return '';
+  return touchKeyboard() ? '' : 'Enter sends · Shift+Enter for a new line';
 };
 
 export const composer = (h: H, model: Model): Html => {
@@ -48,7 +50,7 @@ export const composer = (h: H, model: Model): Html => {
             h.Value(model.draft),
             h.OnInput((value) => Message.UpdatedDraft({ value })),
             h.OnKeyDownPreventDefault((key, modifiers) =>
-              key === 'Enter' && !modifiers.shiftKey
+              key === 'Enter' && !modifiers.shiftKey && !touchKeyboard()
                 ? Option.some(Message.SubmittedDraft())
                 : Option.none(),
             ),

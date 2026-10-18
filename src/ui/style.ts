@@ -245,7 +245,13 @@ dialog .actions .primary{padding:5px 12px}
 .md a{color:var(--orange)}
 .md>:last-child{margin-bottom:0}
 .msg-tools{display:flex;gap:4px;justify-content:flex-end;opacity:0;transition:opacity .15s}
-.msg.user:hover .msg-tools,.msg.user:focus-within .msg-tools{opacity:1}
+.msg:hover .msg-tools,.msg:focus-within .msg-tools{opacity:1}
+pre.code{position:relative}
+.code-copy{position:absolute;top:6px;right:6px;border:1px solid var(--line2);background:var(--raise);color:var(--dim);font:500 11px var(--sans);padding:2px 8px;border-radius:6px;opacity:0;transition:opacity .15s}
+pre.code:hover .code-copy,pre.code:focus-within .code-copy{opacity:1}
+@media (hover:none){.code-copy{opacity:1}}
+.enter-hint{font-size:11px;color:var(--faint)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 @media (hover:none){.msg-tools{opacity:1}}
 .msg-tools button{border:0;background:transparent;font-size:11.5px;color:var(--dim);padding:2px 6px;border-radius:6px}
 .msg-tools button:hover{color:var(--fg);background:var(--raise)}

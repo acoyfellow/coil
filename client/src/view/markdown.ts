@@ -1,4 +1,5 @@
 import type { Html } from 'foldkit/html';
+import { Message } from '../message';
 import type { H } from './parts';
 
 export type Block =
@@ -161,7 +162,21 @@ const renderBlock = (h: H, block: Block): Html => {
           h.Class(`code${block.open ? ' open' : ''}`),
           ...(block.lang === '' ? [] : [h.DataAttribute('lang', block.lang)]),
         ],
-        [h.code([], [block.text])],
+        [
+          h.code([], [block.text]),
+          ...(block.open
+            ? []
+            : [
+                h.button(
+                  [
+                    h.Class('code-copy'),
+                    h.AriaLabel('Copy code'),
+                    h.OnClick(Message.ClickedCopy({ text: block.text })),
+                  ],
+                  ['Copy'],
+                ),
+              ]),
+        ],
       );
     case 'heading':
       return headingOf(h, block.level)([], inline(h, block.text));

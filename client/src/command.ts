@@ -29,6 +29,25 @@ export const LoadWho = Command.define('LoadWho', {
   }).pipe(Effect.orElseSucceed(() => Message.LoadedWho({ who: '' }))),
 });
 
+const AccountInfo = Schema.Struct({
+  signedIn: Schema.Boolean,
+  account: Schema.optional(Schema.NullOr(Schema.String)),
+  gateway: Schema.optional(Schema.NullOr(Schema.String)),
+});
+
+export const LoadAccount = Command.define('LoadAccount', {
+  messages: [Message.LoadedAccount],
+  execute: Effect.tryPromise(() =>
+    fetch('/oauth/me', { credentials: 'same-origin' }).then((r) => r.json()),
+  ).pipe(
+    Effect.flatMap(Schema.decodeUnknownEffect(AccountInfo)),
+    Effect.map((info) =>
+      Message.LoadedAccount({ account: info.account ?? null, gateway: info.gateway ?? null }),
+    ),
+    Effect.orElseSucceed(() => Message.LoadedAccount({ account: null, gateway: null })),
+  ),
+});
+
 export const LoadModels = Command.define('LoadModels', {
   messages: [Message.LoadedModels, Message.CompletedEffect],
   execute: Effect.gen(function* () {
@@ -36,6 +55,16 @@ export const LoadModels = Command.define('LoadModels', {
 
     return Message.LoadedModels({ models: yield* client.Models() });
   }).pipe(Effect.orElseSucceed(() => Message.CompletedEffect())),
+});
+
+export const CopyText = Command.define('CopyText', {
+  args: { text: Schema.String },
+  messages: [Message.CopiedText, Message.FailedCopy],
+  execute: ({ text }) =>
+    Effect.tryPromise(() => navigator.clipboard.writeText(text)).pipe(
+      Effect.as(Message.CopiedText()),
+      Effect.orElseSucceed(() => Message.FailedCopy()),
+    ),
 });
 
 export const JumpToLatest = Command.define('JumpToLatest', {
