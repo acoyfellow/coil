@@ -62,7 +62,17 @@ const wantsJson = (request: Request) => {
   return path.startsWith('/api/') || path === '/mcp' || path === '/llms.txt';
 };
 
-type Flow = { readonly state: string; readonly verifier: string; readonly expires: number };
+type Flow = {
+  readonly state: string;
+  readonly verifier: string;
+  readonly expires: number;
+  readonly back: string;
+};
+
+const SAFE_RETURN = /^\/t\/[a-z0-9-]{1,80}$/;
+
+export const safeReturn = (raw: string | null | undefined): string =>
+  raw !== null && raw !== undefined && SAFE_RETURN.test(raw) ? raw : '/';
 
 const parseFlow = (raw: string | null, now = Date.now()): Flow | null => {
   if (raw === null) return null;
@@ -80,12 +90,14 @@ const parseFlow = (raw: string | null, now = Date.now()): Flow | null => {
       return null;
 
     const { state, verifier, expires } = parsed;
+    const back =
+      'back' in parsed && typeof parsed.back === 'string' ? safeReturn(parsed.back) : '/';
 
     return typeof state === 'string' &&
       typeof verifier === 'string' &&
       typeof expires === 'number' &&
       expires > now
-      ? { state, verifier, expires }
+      ? { state, verifier, expires, back }
       : null;
   } catch {
     return null;
@@ -131,6 +143,7 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
       state: randomToken(),
       verifier: randomToken(48),
       expires: Date.now() + FLOW_TTL_MS,
+      back: safeReturn(new URL(request.url).searchParams.get('return')),
     };
 
     const jar = cookieJar(request.url);
@@ -200,10 +213,13 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
       });
       await directory().openSession(session.id, owner, session.expires);
 
-      return redirect(shouldChoose ? '/oauth/gateway' : '/', [
-        clearCookie(jar, jar.flow),
-        cookie(jar, jar.session, await sign(secret, sessionValue(session)), SESSION_TTL_MS),
-      ]);
+      return redirect(
+        shouldChoose ? `/oauth/gateway?return=${encodeURIComponent(flow.back)}` : flow.back,
+        [
+          clearCookie(jar, jar.flow),
+          cookie(jar, jar.session, await sign(secret, sessionValue(session)), SESSION_TTL_MS),
+        ],
+      );
     } catch (cause) {
       if (cause instanceof OAuthFailed) return page(request, cause.message, 502);
 
@@ -282,10 +298,12 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
 
     const { gateways, problem } = await listGateways(fresh.token, fresh.grant.accountId, send);
     if (problem !== null) console.warn('gateway list failed', { problem });
+    const back = safeReturn(new URL(request.url).searchParams.get('return'));
     const view = (error?: string, current = fresh.grant.gateway, status = 200) =>
       html(
         gatewayPage({
           accountName: fresh.grant.accountName,
+          back,
           current,
           gateways,
           problem,
@@ -307,7 +325,7 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
 
     await directory().saveGrant({ ...fresh.grant, gateway: chosen });
 
-    return redirect('/');
+    return redirect(back);
   };
 
   return {
@@ -341,8 +359,13 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
           ),
         };
 
+      const asked = new URL(request.url);
+
       return {
-        refused: html(signInPage({ origin: new URL(request.url).origin }), ready ? 200 : 503),
+        refused: html(
+          signInPage({ origin: asked.origin, back: safeReturn(asked.pathname) }),
+          ready ? 200 : 503,
+        ),
       };
     },
   };

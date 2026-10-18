@@ -101,6 +101,7 @@ export const Model = Schema.Struct({
   view: ViewState,
   live: Schema.NullOr(Live),
   streamEpoch: Schema.Number,
+  reconnects: Schema.Number,
   tab: Schema.String,
   dirPath: Schema.String,
   entries: Remote(Schema.Array(DirEntry)),

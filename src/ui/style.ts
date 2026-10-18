@@ -254,6 +254,9 @@ pre.code:hover .code-copy,pre.code:focus-within .code-copy{opacity:1}
 .msg.error .error-summary{color:var(--bad);margin:0}
 .error-detail summary{cursor:pointer;color:var(--dim);font-size:12px}
 .error-detail pre{white-space:pre-wrap;word-break:break-word;font:12px var(--mono);color:var(--dim)}
+.connection{position:sticky;top:0;z-index:3;margin:0 auto 8px;width:max-content;max-width:100%;padding:4px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--raise);color:var(--warn);font-size:12px;display:flex;gap:8px;align-items:center}
+.connection.lost{color:var(--bad);border-radius:10px}
+.connection button{border:1px solid var(--line2);background:transparent;color:var(--fg);border-radius:6px;padding:1px 8px;font-size:12px}
 .tool-time{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
 .enter-hint{font-size:11px;color:var(--faint)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

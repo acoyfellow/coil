@@ -33,6 +33,8 @@ export const Message = defineMessageUnion({
 
   ReceivedEvent: { name: Schema.String, event: LiveEvent },
   StreamClosed: { name: Schema.String },
+  StreamOpened: { name: Schema.String },
+  ClickedReconnect: {},
 
   ClickedJumpToLatest: {},
   UpdatedDraft: { value: Schema.String },

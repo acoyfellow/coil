@@ -4,6 +4,7 @@ import type { ChatMessage, ThreadView, Turn } from '../../../shared/protocol';
 import { Message } from '../message';
 import { type LiveTool, type Model, ViewState } from '../model';
 import { FollowFeed, ScrollToEnd } from '../mount';
+import { MAX_RECONNECTS } from '../subscriptions';
 import { markdown } from './markdown';
 import { type H, skeleton, spinner } from './parts';
 
@@ -349,6 +350,24 @@ const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
   ];
 };
 
+const connection = (h: H, model: Model): Html[] => {
+  if (model.reconnects === 0 || !model.online) return [];
+
+  const gaveUp = model.reconnects > MAX_RECONNECTS;
+
+  return [
+    h.div(
+      [h.Class(`connection${gaveUp ? ' lost' : ''}`), h.Id('connection'), h.Role('status')],
+      gaveUp
+        ? [
+            'Lost the live connection to this thread. The agent keeps working; new output appears when you reconnect.',
+            h.button([h.OnClick(Message.ClickedReconnect())], ['Reconnect']),
+          ]
+        : ['Reconnecting to the live stream…'],
+    ),
+  ];
+};
+
 const pinsReader = (view: ThreadView): boolean => view.messages.at(-1)?.id === 'pending';
 
 const conversation = (h: H, model: Model, view: ThreadView): Html => {
@@ -392,6 +411,7 @@ export const feed = (h: H, model: Model): Html => {
     model.name ?? 'home',
     [h.Class('feed'), h.Id('feed'), h.AriaLive('polite'), h.OnMount(FollowFeed({}))],
     [
+      ...connection(h, model),
       body,
       h.button(
         [

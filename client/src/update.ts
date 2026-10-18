@@ -104,6 +104,7 @@ const openThread = (model: Model, name: string | null): UpdateReturn => {
     view: (view) => (same ? view : ViewState.Loading()),
     live: (live) => (same ? live : null),
     streamEpoch: (epoch) => (same ? epoch : epoch + 1),
+    reconnects: (count) => (same ? count : 0),
     dirPath: (path) => (same ? path : '.'),
     entries: (entries) => (same ? entries : { _tag: 'Loading' as const }),
     file: (file) => (same ? file : FileView.Closed()),
@@ -421,8 +422,19 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     ReceivedEvent: ({ name, event }) => forCurrent(model, name, () => applyEvent(model, event)),
     StreamClosed: ({ name }) =>
       forCurrent(model, name, () => ({
-        model: modifyFields(model, { streamEpoch: (epoch) => epoch + 1 }),
+        model: modifyFields(model, {
+          streamEpoch: (epoch) => epoch + 1,
+          reconnects: (count) => count + 1,
+        }),
       })),
+    StreamOpened: ({ name }) =>
+      forCurrent(model, name, () => ({
+        model: modifyFields(model, { reconnects: () => 0 }),
+        commands: model.reconnects > 0 ? [LoadView({ name, refresh: true })] : [],
+      })),
+    ClickedReconnect: () => ({
+      model: modifyFields(model, { reconnects: () => 0, streamEpoch: (epoch) => epoch + 1 }),
+    }),
 
     ClickedJumpToLatest: () => ({ model, commands: [JumpToLatest()] }),
     UpdatedDraft: ({ value }) => ({

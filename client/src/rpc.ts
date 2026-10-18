@@ -38,6 +38,22 @@ const broken = (message: string) => () => new RpcClientError({ message });
 
 let nextId = 0;
 
+const SIGNED_OUT = 401;
+
+const returnPath = () => {
+  const path = globalThis.location?.pathname ?? '/';
+
+  return /^\/t\/[a-z0-9-]{1,80}$/.test(path) ? path : '/';
+};
+
+const sendToSignIn = () => {
+  const back = returnPath();
+
+  globalThis.location.assign(
+    back === '/' ? '/oauth/login' : `/oauth/login?return=${encodeURIComponent(back)}`,
+  );
+};
+
 const post = (body: string) =>
   Effect.tryPromise({
     try: async (signal) => {
@@ -48,6 +64,7 @@ const post = (body: string) =>
         signal,
       });
 
+      if (response.status === SIGNED_OUT) sendToSignIn();
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       return response.json() as Promise<unknown>;

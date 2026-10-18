@@ -38,6 +38,7 @@ export const initialModel = (flags: Flags): Model => ({
   view: ViewState.Loading(),
   live: null,
   streamEpoch: 0,
+  reconnects: 0,
   tab: 't1',
   dirPath: '.',
   entries: { _tag: 'Loading' },

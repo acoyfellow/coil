@@ -103,9 +103,13 @@ footer .stack{font-family:var(--mono);font-size:11.5px}
 const alert = (error: string) =>
   `<div class="alert" role="alert"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg><div>${escapeHtml(error)}</div></div>`;
 
-export type SignInPage = { readonly origin: string; readonly error?: string };
+export type SignInPage = {
+  readonly origin: string;
+  readonly error?: string;
+  readonly back?: string;
+};
 
-export const signInPage = ({ origin, error }: SignInPage) => `<!doctype html>
+export const signInPage = ({ origin, error, back = '/' }: SignInPage) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -150,7 +154,7 @@ export const signInPage = ({ origin, error }: SignInPage) => `<!doctype html>
 <h2 id="start">Start a thread</h2>
 <p>Choose the Cloudflare account coil should run on. You stay in control of it the whole time.</p>
 ${error === undefined ? '' : alert(error)}
-<a class="cta" id="sign-in" href="/oauth/login">${CLOUD}Sign in with Cloudflare</a>
+<a class="cta" id="sign-in" href="${back === '/' ? '/oauth/login' : `/oauth/login?return=${encodeURIComponent(back)}`}">${CLOUD}Sign in with Cloudflare</a>
 <ol class="steps">${STEPS.map((step) => `<li><span>${step}</span></li>`).join('')}</ol>
 </section></div>
 </main>

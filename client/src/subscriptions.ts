@@ -7,6 +7,9 @@ import type { Model } from './model';
 import type { CoilClient } from './rpc';
 
 const THREAD_REFRESH = Duration.seconds(10);
+export const MAX_RECONNECTS = 5;
+const reconnectDelay = (epoch: number) =>
+  Duration.millis(epoch === 0 ? 0 : Math.min(8000, 500 * 2 ** Math.min(epoch, 4)));
 const TURN_TICK = Duration.seconds(1);
 
 const decodeEvent = Schema.decodeUnknownOption(Schema.fromJsonString(LiveEvent));
@@ -29,14 +32,15 @@ const events = (name: string): Stream.Stream<Message> =>
       Effect.sync(() => {
         const source = new EventSource(eventsPath(name));
 
+        source.onopen = () => Queue.offerUnsafe(queue, Message.StreamOpened({ name }));
         source.onmessage = (incoming: MessageEvent<string>) => {
           Option.map(decodeEvent(legacyToTagged(incoming.data)), (event) =>
             Queue.offerUnsafe(queue, Message.ReceivedEvent({ name, event })),
           );
         };
         source.onerror = () => {
-          if (source.readyState === EventSource.CLOSED)
-            Queue.offerUnsafe(queue, Message.StreamClosed({ name }));
+          source.close();
+          Queue.offerUnsafe(queue, Message.StreamClosed({ name }));
         };
 
         return source;
@@ -118,8 +122,16 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
   events: entry(
     { name: Schema.NullOr(Schema.String), epoch: Schema.Number },
     {
-      modelToDependencies: (model) => ({ name: model.name, epoch: model.streamEpoch }),
-      dependenciesToStream: ({ name }) => (name === null ? Stream.empty : events(name)),
+      modelToDependencies: (model) => ({
+        name: model.reconnects > MAX_RECONNECTS ? null : model.name,
+        epoch: model.streamEpoch,
+      }),
+      dependenciesToStream: ({ name, epoch }) =>
+        name === null
+          ? Stream.empty
+          : Stream.fromEffect(Effect.sleep(reconnectDelay(epoch))).pipe(
+              Stream.flatMap(() => events(name)),
+            ),
     },
   ),
   clock: entry(

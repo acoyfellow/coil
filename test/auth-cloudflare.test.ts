@@ -2,6 +2,7 @@ import { normalizeContext } from '@earendil-works/pi-ai/utils/transcript';
 import { describe, expect, it } from 'vitest';
 import type { ModelInfo } from '../shared/models';
 import { accountModel } from '../src/auth/account-models';
+import { safeReturn } from '../src/auth/cloudflare';
 import { authorizeUrl, exchangeCode, pickGateway, SCOPES } from '../src/auth/oauth';
 import { parseSession, readCookie, sign, unsign } from '../src/auth/session';
 
@@ -164,5 +165,26 @@ describe('models for a signed-in Cloudflare account', () => {
     );
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer user-token');
     expect(JSON.parse(await (seen[0]?.text() ?? '{}')).model).toBe(live.id);
+  });
+});
+
+describe('sign-in return path', () => {
+  it('keeps a thread path so sign-in lands back on it', () => {
+    expect(safeReturn('/t/my-thread-1a2b3c')).toBe('/t/my-thread-1a2b3c');
+  });
+
+  it('refuses anything that could leave coil or reach another route', () => {
+    for (const hostile of [
+      'https://evil.example/t/x',
+      '//evil.example',
+      '/t/../oauth/logout',
+      '/t/x?next=https://evil.example',
+      '/api/rpc',
+      '/t/UPPER',
+      '',
+      null,
+      undefined,
+    ])
+      expect(safeReturn(hostile)).toBe('/');
   });
 });

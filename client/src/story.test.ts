@@ -319,3 +319,33 @@ describe('the palette and message tools', () => {
     );
   });
 });
+
+describe('live connection', () => {
+  test('a dropped stream counts reconnects, an open stream resets and reloads', () => {
+    story(
+      update,
+      given(opened({ busy: true })),
+      message(Message.StreamClosed({ name: 'demo' })),
+      message(Message.StreamClosed({ name: 'demo' })),
+      model((current) => expect(current.reconnects).toBe(2)),
+      message(Message.StreamOpened({ name: 'demo' })),
+      model((current) => expect(current.reconnects).toBe(0)),
+      Command.resolve(
+        LoadView,
+        Message.RefreshedView({ name: 'demo', view: thread({ busy: true }) }),
+      ),
+    );
+  });
+
+  test('Reconnect after giving up starts a fresh stream', () => {
+    story(
+      update,
+      given({ ...opened(), reconnects: 9, streamEpoch: 9 }),
+      message(Message.ClickedReconnect()),
+      model((current) => {
+        expect(current.reconnects).toBe(0);
+        expect(current.streamEpoch).toBe(10);
+      }),
+    );
+  });
+});
