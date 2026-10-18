@@ -31,6 +31,7 @@ export const ThreadSummary = Schema.Struct({
   model: Schema.String,
   spend: Schema.Number,
   looping: Schema.Boolean,
+  failed: Schema.optional(Schema.Boolean),
 });
 
 export type ThreadSummary = typeof ThreadSummary.Type;

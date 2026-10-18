@@ -55,6 +55,12 @@ const scripted = (): ModelChoice => {
           fauxText('Summary: the thread wrote files into its own computer.'),
         );
 
+      if (request === 'fail on purpose')
+        return fauxAssistantMessage([], {
+          stopReason: 'error',
+          errorMessage: '503 the upstream is down',
+        });
+
       const edit = /^edit (\S+) from (\S+) to (\S+)$/.exec(request);
 
       if (edit !== null && !toolRan(context))
@@ -328,6 +334,21 @@ export default {
           view.messages.filter((m) => m.role === 'assistant' && m.text !== '').at(-1)?.text ?? null,
         finalFiles: (await api.exec(name, ['bash', '-lc', 'ls'])).stdout,
       });
+    }
+
+    if (url.pathname === '/failed-mark') {
+      const name = `fm-${run}`;
+
+      await api.create({ name, createdBy: 'web', title: 'failing' });
+      await api.send(name, 'f1', 'fail on purpose');
+
+      const afterFail = (await api.list()).find((t) => t.name === name)?.failed ?? null;
+
+      await api.send(name, 'f2', 'write ok.txt containing fine');
+
+      const afterOk = (await api.list()).find((t) => t.name === name)?.failed ?? null;
+
+      return Response.json({ afterFail, afterOk });
     }
 
     if (url.pathname === '/directory-fork-child') {

@@ -26,6 +26,8 @@ import { boundedShell, RUN_LIMIT_SECONDS, TIMED_OUT_EXIT } from './shell';
 
 export const CONTEXT = BACKGROUND_CONTEXT;
 
+export const MODEL_FAILURE_PREFIX = 'The model call failed: ';
+
 export type ModelChoice = {
   readonly provider: Provider;
   readonly modelId: string;

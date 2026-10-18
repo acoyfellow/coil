@@ -73,6 +73,14 @@ test('compact, pause, kill, resume: the summary and the disk come back together 
   expect(out.finalFiles.split('\n')).toEqual(['a.txt', 'b.txt', 'c.txt']);
 });
 
+test('a failed turn marks the thread failed in the list, and a good turn clears it', {
+  timeout: 60_000,
+}, async () => {
+  const out = await get('/failed-mark');
+
+  expect(out).toEqual({ afterFail: true, afterOk: false });
+});
+
 test('the directory lists threads from any creator, and a fork starts from the parent disk', {
   timeout: 60_000,
 }, async () => {

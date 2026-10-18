@@ -38,11 +38,14 @@ export const ago = (now: number, at: number): string => {
 export const bytes = (count: number): string =>
   count >= 1e6 ? `${(count / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(count / 1e3))} KB`;
 
-export const phaseKey = (thread: { readonly busy: boolean; readonly phase: string }): string =>
-  thread.busy ? 'busy' : thread.phase;
+type Phased = { readonly busy: boolean; readonly phase: string; readonly failed?: boolean };
 
-export const phaseLabel = (thread: { readonly busy: boolean; readonly phase: string }): string => {
+export const phaseKey = (thread: Phased): string =>
+  thread.busy ? 'busy' : thread.failed === true ? 'failed' : thread.phase;
+
+export const phaseLabel = (thread: Phased): string => {
   if (thread.busy) return 'working';
+  if (thread.failed === true) return 'last turn failed';
 
   return (
     ({ new: 'new', awake: 'running', paused: 'paused' } as Record<string, string>)[thread.phase] ??

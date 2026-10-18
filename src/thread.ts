@@ -6,6 +6,7 @@ import {
   type BrowserTools,
   type Children,
   type Message,
+  MODEL_FAILURE_PREFIX,
   type ModelChoice,
   openAgent,
   type ThreadDirectory,
@@ -933,10 +934,18 @@ export class Thread extends DurableObject<Env> {
     if (!this.ledger.busy) return;
 
     this.ledger.busy = false;
-    await this.publish({ spend: (await this.usage()).cost });
+    await this.publish({ spend: (await this.usage()).cost, failed: await this.lastTurnFailed() });
     this.state();
     await this.deliverDone().catch(() => undefined);
     await this.drainInbox().catch(() => undefined);
+  }
+
+  private async lastTurnFailed(): Promise<boolean> {
+    const said = (await (await this.open()).messages().catch(() => []))
+      .filter((entry) => entry.role === 'assistant' && entry.text !== '')
+      .at(-1);
+
+    return said?.text.startsWith(MODEL_FAILURE_PREFIX) ?? false;
   }
 
   private async deliverDone() {

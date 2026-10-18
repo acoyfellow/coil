@@ -136,6 +136,13 @@ const toolResults = (messages: readonly ChatMessage[]): ReadonlyMap<string, stri
       .map((entry) => [entry.toolCallId ?? '', entry.text]),
   );
 
+const STARTERS = [
+  'Explain what is in /workspace',
+  'Build a small Worker that returns hello',
+  'Find and fix a failing test',
+  'Write a plan before you change anything',
+] as const;
+
 const ready = (h: H, view: ThreadView): Html =>
   h.div(
     [h.Class('empty inline')],
@@ -163,6 +170,15 @@ const ready = (h: H, view: ThreadView): Html =>
                     ? 'It started warm, from a prepared snapshot of this repo.'
                     : 'Ask it to build, fix, or explore something.',
             ],
+          ),
+          h.div(
+            [h.Class('starters'), h.Id('starters')],
+            STARTERS.map((text) =>
+              h.button(
+                [h.Class('starter'), h.Type('button'), h.OnClick(Message.ClickedEdit({ text }))],
+                [text],
+              ),
+            ),
           ),
         ],
       ),

@@ -32,7 +32,7 @@ const row = (h: H, model: Model, thread: ThreadSummary, child: boolean): Html =>
       h.OnClick(Message.ClickedThread({ name: thread.name }), { defaultAction: 'Prevent' }),
     ],
     [
-      h.span([h.Class(`dot ${phaseKey(thread)}`)], []),
+      h.span([h.Class(`dot ${phaseKey(thread)}`), h.AriaLabel(phaseLabel(thread))], []),
       h.span([h.Class('t')], [thread.title === '' ? thread.name : thread.title]),
       h.span([h.Class('m')], [short(model.now, thread.updatedAt)]),
     ],
