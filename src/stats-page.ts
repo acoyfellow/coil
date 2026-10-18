@@ -72,7 +72,7 @@ const bars = (rows: readonly { readonly label: string; readonly threads: number 
 
 const STYLE = `${THEME}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 'Google Sans Flex',system-ui,sans-serif}
 main{max-width:960px;margin:0 auto;padding:32px 20px 64px}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
 header img{height:22px}
@@ -99,7 +99,7 @@ section h2{font-size:14px;margin:0 0 14px;color:var(--dim);font-weight:600;text-
 .grid section{margin:0}
 .bars{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .bars li{display:grid;grid-template-columns:minmax(0,9rem) 1fr 3rem;gap:10px;align-items:center;font-size:13px}
-.bars .name{font-family:'JetBrains Mono',ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars .name{font-family:'Google Sans Code',ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bars .track{height:8px;border-radius:99px;background:var(--line)}
 .bars i{display:block;height:100%;border-radius:99px;background:var(--orange)}
 .bars .n{text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}

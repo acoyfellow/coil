@@ -3,13 +3,13 @@ import { FONTS, THEME } from './ui/style';
 
 const STYLE = `${THEME}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,sans-serif;padding:24px}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--text);font:15px/1.5 'Google Sans Flex',system-ui,sans-serif;padding:24px}
 main{max-width:440px;text-align:center}
 img{height:24px;margin-bottom:28px}
-.code{font:700 72px/1 'JetBrains Mono',ui-monospace,monospace;letter-spacing:-.04em;color:var(--orange);margin:0}
+.code{font:600 72px/1 'Google Sans Code',ui-monospace,monospace;letter-spacing:-.04em;color:var(--orange);margin:0}
 h1{font-size:20px;margin:12px 0 8px}
 p{color:var(--dim);margin:0 0 24px}
-code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13px;background:var(--raise);padding:1px 6px;border-radius:5px;word-break:break-all}
+code{font-family:'Google Sans Code',ui-monospace,monospace;font-size:13px;background:var(--raise);padding:1px 6px;border-radius:5px;word-break:break-all}
 nav{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 nav a{padding:8px 14px;border-radius:9px;border:1px solid var(--line2);color:var(--text);text-decoration:none;font-size:14px}
 nav a.primary{background:var(--orange);border-color:var(--orange);color:#fff}`;
