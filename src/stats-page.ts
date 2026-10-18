@@ -1,3 +1,4 @@
+import { seoHead } from './seo';
 import type { InstanceStats } from './stats';
 import { FONTS, THEME } from './ui/style';
 
@@ -114,9 +115,7 @@ export const statsPage = (stats: InstanceStats, origin: string) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(host)} stats · coil</title>
-<meta name="description" content="Live totals for this coil instance: threads, people, models, and spend.">
-<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+${seoHead({ origin, path: '/stats', title: `${host} stats · coil`, description: `Live totals for the coil instance at ${host}: ${stats.threads} threads, models in use, and spend.` })}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <meta http-equiv="refresh" content="60">

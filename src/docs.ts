@@ -2,6 +2,7 @@ import { CAPABILITIES, type Capability, type Field } from './capabilities';
 import { GUIDE } from './docs-guide';
 import { highlight } from './highlight';
 import { MAX_CALLS } from './run-module';
+import { seoHead } from './seo';
 import { FONTS, THEME } from './ui/style';
 
 const GROUPS: readonly { readonly key: Capability['group']; readonly title: string }[] = [
@@ -253,9 +254,7 @@ export const docsPage = (origin: string): string => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>coil docs</title>
-<meta name="description" content="coil docs: agent threads with their own computer, built on Cloudflare Workers, Durable Objects, Containers, Workers AI, and AI Gateway.">
-<link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+${seoHead({ origin, path: '/docs', title: 'coil docs', description: 'coil docs: agent threads with their own computer, built on Cloudflare Workers, Durable Objects, Containers, Workers AI, and AI Gateway.' })}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <style>${STYLE}</style>

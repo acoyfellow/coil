@@ -4,9 +4,12 @@ import { CapabilityInputError, capabilityNamed } from './capabilities';
 import { DIRECTORY_NAME } from './directory-name';
 import { docsPage, llmsText } from './docs';
 import { mcp } from './mcp';
+import { notFoundPage } from './not-found-page';
+import { isKnownPath } from './paths';
 import { PLAYER_VIDEO, playerPage, withRanges } from './player';
 import { serveRest } from './rest';
 import { type Caller, handlersFor, isRpcPath, rpcHandler } from './rpc';
+import { robots, sitemap } from './seo';
 import { type Coil, coil, sharedView } from './service';
 import { statsPage } from './stats-page';
 import type { Env } from './thread';
@@ -225,9 +228,16 @@ const PUBLIC_PAGES: Readonly<Record<string, (origin: string) => Response>> = {
     new Response(playerPage(origin), {
       headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' },
     }),
-  '/robots.txt': () =>
-    new Response(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /t/\nDisallow: /oauth/\n`, {
+  '/robots.txt': (origin) =>
+    new Response(robots(origin), {
       headers: { 'content-type': 'text/plain; charset=utf-8' },
+    }),
+  '/sitemap.xml': (origin) =>
+    new Response(sitemap(origin), {
+      headers: {
+        'content-type': 'application/xml; charset=utf-8',
+        'cache-control': 'public, max-age=3600',
+      },
     }),
   '/llms.txt': (origin) =>
     new Response(llmsText(origin), {
@@ -250,7 +260,19 @@ const statsRoute = async (request: Request, env: Env): Promise<Response | null> 
   if (request.method !== 'GET' || (url.pathname !== '/stats' && url.pathname !== '/stats.json'))
     return null;
 
-  const stats = await env.DIRECTORY.getByName(DIRECTORY_NAME).stats();
+  const stats = await env.DIRECTORY.getByName(DIRECTORY_NAME)
+    .stats()
+    .catch((cause: unknown) => {
+      console.error('stats failed', cause instanceof Error ? cause.message : String(cause));
+
+      return null;
+    });
+
+  if (stats === null)
+    return new Response('Stats are not available right now.', {
+      status: 503,
+      headers: { 'content-type': 'text/plain; charset=utf-8', 'retry-after': '60' },
+    });
 
   return url.pathname === '/stats.json'
     ? Response.json(stats, {
@@ -259,6 +281,25 @@ const statsRoute = async (request: Request, env: Env): Promise<Response | null> 
     : new Response(statsPage(stats, url.origin), {
         headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': STATS_CACHE },
       });
+};
+
+const notFound = async (request: Request, env: Env): Promise<Response | null> => {
+  const url = new URL(request.url);
+
+  if (isKnownPath(url.pathname, PUBLIC_PAGES)) return null;
+
+  const asset = await env.ASSETS.fetch(request);
+
+  if (asset.status !== 404) return asset;
+
+  return new Response(notFoundPage(url.origin, url.pathname), {
+    status: 404,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-cache',
+      'x-robots-tag': 'noindex',
+    },
+  });
 };
 
 export default {
@@ -270,6 +311,10 @@ export default {
     const stats = await statsRoute(request, env);
 
     if (stats !== null) return stats;
+
+    const missing = await notFound(request, env);
+
+    if (missing !== null) return missing;
 
     if (new URL(request.url).pathname === PLAYER_VIDEO && request.method === 'GET')
       return withRanges(request, await env.ASSETS.fetch(new URL(PLAYER_VIDEO, request.url)));
