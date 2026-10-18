@@ -1,0 +1,43 @@
+client/src/main.ts
+  s_231221b99fcbf7::t_49e81287d0e6ea 41
+client/src/message.ts
+  s_231221b99fcbf7::t_682efc3ca5f311 36-37
+client/src/model.ts
+  s_231221b99fcbf7::t_d7a98f02e21f9f 104
+client/src/rpc.ts
+  s_231221b99fcbf7::t_b9f0e0a678e459 41-56,67
+client/src/story.test.ts
+  s_231221b99fcbf7::t_cb64c211798c87 322-351
+client/src/subscriptions.ts
+  s_231221b99fcbf7::t_4feaf4efecdf30 10-12,35,42-43,125-134
+client/src/update.ts
+  s_231221b99fcbf7::t_dd364e3ab9be27 107,425-428,430-437
+client/src/view/feed.ts
+  s_231221b99fcbf7::t_6308c10dd2f8b7 7,353-370,414
+src/auth/cloudflare.ts
+  s_231221b99fcbf7::t_496b7cb8c26313 65-75,93-94,100,146,216-222,301,306,328,362-363,365-368
+src/auth/gateway-page.ts
+  s_231221b99fcbf7::t_9ad0eec1fec0c9 30,48,64,66
+src/auth/sign-in-page.ts
+  s_231221b99fcbf7::t_20c95c90c23af8 106-110,112,157
+src/ui/style.ts
+  s_231221b99fcbf7::t_3ec33b7e2e2962 257-259
+test/auth-cloudflare.test.ts
+  s_231221b99fcbf7::t_a7cf11be0529e9 5,170-190
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4c11e15b4a464bd150321a2c3743fea1de2f7b76",
+  "prompts": {},
+  "sessions": {
+    "s_231221b99fcbf7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a1176a-4538-7369-8003-75cbe8c7d418",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
