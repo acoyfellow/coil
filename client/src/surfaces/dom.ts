@@ -13,4 +13,5 @@ export const spinnerNode = (): HTMLElement => {
 };
 
 export const nothingFocused = (): boolean =>
-  document.activeElement === null || document.activeElement === document.body;
+  (document.activeElement === null || document.activeElement === document.body) &&
+  document.querySelector('#text') === null;
