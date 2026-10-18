@@ -397,7 +397,7 @@ export class Directory extends DurableObject {
       }>(
         `SELECT COUNT(*) AS threads, COUNT(DISTINCT owner) AS people, SUM(busy) AS working,
           SUM(CASE WHEN phase = 'awake' THEN 1 ELSE 0 END) AS awake,
-          SUM(CASE WHEN created_by LIKE 'thread:%' THEN 1 ELSE 0 END) AS agentMade,
+          SUM(CASE WHEN created_by LIKE 'thread:%' OR created_by = 'agent' THEN 1 ELSE 0 END) AS agentMade,
           SUM(spend) AS spend, MIN(created_at) AS firstAt, MAX(updated_at) AS lastAt FROM threads`,
       )
       .toArray()[0];
