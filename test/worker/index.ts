@@ -8,6 +8,7 @@ import type { ModelChoice, ThreadDirectory } from '../../src/agent';
 import { restorableUrl, worthRemembering } from '../../src/browser';
 import type { Computer } from '../../src/computer';
 import { coil, sharedView } from '../../src/service';
+import { statsPage } from '../../src/stats-page';
 import { type Env, Thread } from '../../src/thread';
 import { bootSizes, crash, memoryComputer } from '../memory-computer';
 
@@ -333,6 +334,33 @@ export default {
         lastAnswer:
           view.messages.filter((m) => m.role === 'assistant' && m.text !== '').at(-1)?.text ?? null,
         finalFiles: (await api.exec(name, ['bash', '-lc', 'ls'])).stdout,
+      });
+    }
+
+    if (url.pathname === '/stats-probe') {
+      const name = `st-${run}`;
+      const directory = env.DIRECTORY.getByName('all');
+      const before = await directory.stats();
+
+      await api.create({ name, createdBy: 'web', title: 'secret project title' });
+      await directory.upsert({ name, busy: true, spend: 1.25 });
+
+      const after = await directory.stats();
+      const html = statsPage(after, 'https://coil.example');
+
+      await directory.upsert({ name, busy: false });
+
+      return Response.json({
+        threadsAdded: after.threads - before.threads,
+        workingAdded: after.working - before.working,
+        spendAdded: Math.round((after.spend - before.spend) * 100) / 100,
+        todayCount: after.perDay.at(-1)?.threads ?? 0,
+        days: after.perDay.length,
+        webSource: after.sources.find((row) => row.source === 'web')?.threads ?? 0,
+        leaksTitle: html.includes('secret project title'),
+        leaksName: html.includes(name) || JSON.stringify(after).includes(name),
+        leaksOwner: JSON.stringify(after).includes('@'),
+        showsHost: html.includes('coil.example'),
       });
     }
 

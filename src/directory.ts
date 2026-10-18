@@ -65,6 +65,16 @@ const fromRow = (row: Row): ThreadSummary => ({
   pinned: row.pinned === 1,
 });
 
+import {
+  DAY_MS,
+  type InstanceStats,
+  lastDays,
+  modelLabel,
+  STATS_DAYS,
+  sourceOf,
+  topCounts,
+} from './stats';
+
 export const TURN_RESERVE = 0.5;
 
 export type Grant = {
@@ -370,6 +380,68 @@ export class Directory extends DurableObject {
         )
         .toArray()[0]?.n ?? 0
     );
+  }
+
+  stats(now = Date.now()): InstanceStats {
+    const sql = this.ctx.storage.sql;
+    const totals = sql
+      .exec<{
+        threads: number;
+        people: number;
+        working: number | null;
+        awake: number;
+        agentMade: number;
+        spend: number | null;
+        firstAt: number | null;
+        lastAt: number | null;
+      }>(
+        `SELECT COUNT(*) AS threads, COUNT(DISTINCT owner) AS people, SUM(busy) AS working,
+          SUM(CASE WHEN phase = 'awake' THEN 1 ELSE 0 END) AS awake,
+          SUM(CASE WHEN created_by LIKE 'thread:%' THEN 1 ELSE 0 END) AS agentMade,
+          SUM(spend) AS spend, MIN(created_at) AS firstAt, MAX(updated_at) AS lastAt FROM threads`,
+      )
+      .toArray()[0];
+    const since = now - STATS_DAYS * DAY_MS;
+    const counted = new Map(
+      sql
+        .exec<{ day: string; n: number }>(
+          `SELECT strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') AS day, COUNT(*) AS n
+            FROM threads WHERE created_at >= ? GROUP BY day`,
+          since,
+        )
+        .toArray()
+        .map((row) => [row.day, row.n]),
+    );
+    const models = new Map<string, number>();
+
+    for (const row of sql
+      .exec<{ model: string; n: number }>('SELECT model, COUNT(*) AS n FROM threads GROUP BY model')
+      .toArray())
+      models.set(modelLabel(row.model), (models.get(modelLabel(row.model)) ?? 0) + row.n);
+
+    const sources = new Map<string, number>();
+
+    for (const row of sql
+      .exec<{ createdBy: string; n: number }>(
+        'SELECT created_by AS createdBy, COUNT(*) AS n FROM threads GROUP BY created_by',
+      )
+      .toArray())
+      sources.set(sourceOf(row.createdBy), (sources.get(sourceOf(row.createdBy)) ?? 0) + row.n);
+
+    return {
+      threads: totals?.threads ?? 0,
+      people: totals?.people ?? 0,
+      working: totals?.working ?? 0,
+      awake: totals?.awake ?? 0,
+      agentMade: totals?.agentMade ?? 0,
+      spend: totals?.spend ?? 0,
+      firstAt: totals?.firstAt ?? null,
+      lastAt: totals?.lastAt ?? null,
+      perDay: lastDays(now).map((day) => ({ day, threads: counted.get(day) ?? 0 })),
+      models: topCounts(models).map(([model, threads]) => ({ model, threads })),
+      sources: topCounts(sources).map(([source, threads]) => ({ source, threads })),
+      at: now,
+    };
   }
 
   get(name: string): ThreadSummary | null {

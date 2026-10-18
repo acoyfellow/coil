@@ -73,6 +73,25 @@ test('compact, pause, kill, resume: the summary and the disk come back together 
   expect(out.finalFiles.split('\n')).toEqual(['a.txt', 'b.txt', 'c.txt']);
 });
 
+test('instance stats count threads, work, and spend without naming anything', {
+  timeout: 60_000,
+}, async () => {
+  const out = await get('/stats-probe');
+
+  expect(out.threadsAdded).toBe(1);
+  expect(out.workingAdded).toBe(1);
+  expect(out.spendAdded).toBe(1.25);
+  expect(out.todayCount).toBeGreaterThanOrEqual(1);
+  expect(out.days).toBe(30);
+  expect(out.webSource).toBeGreaterThanOrEqual(1);
+  expect(out.showsHost).toBe(true);
+  expect({ title: out.leaksTitle, name: out.leaksName, owner: out.leaksOwner }).toEqual({
+    title: false,
+    name: false,
+    owner: false,
+  });
+});
+
 test('a failed turn marks the thread failed in the list, and a good turn clears it', {
   timeout: 60_000,
 }, async () => {

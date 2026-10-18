@@ -1,12 +1,14 @@
 import { Context } from 'effect';
 import { gate } from './auth/gate';
 import { CapabilityInputError, capabilityNamed } from './capabilities';
+import { DIRECTORY_NAME } from './directory-name';
 import { docsPage, llmsText } from './docs';
 import { mcp } from './mcp';
 import { PLAYER_VIDEO, playerPage, withRanges } from './player';
 import { serveRest } from './rest';
 import { type Caller, handlersFor, isRpcPath, rpcHandler } from './rpc';
 import { type Coil, coil, sharedView } from './service';
+import { statsPage } from './stats-page';
 import type { Env } from './thread';
 import { page } from './ui/index';
 import { sharedPage } from './ui/shared';
@@ -240,11 +242,34 @@ const publicPage = (request: Request) => {
   return request.method === 'GET' && page !== undefined ? page(url.origin) : null;
 };
 
+const STATS_CACHE = 'public, max-age=60';
+
+const statsRoute = async (request: Request, env: Env): Promise<Response | null> => {
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET' || (url.pathname !== '/stats' && url.pathname !== '/stats.json'))
+    return null;
+
+  const stats = await env.DIRECTORY.getByName(DIRECTORY_NAME).stats();
+
+  return url.pathname === '/stats.json'
+    ? Response.json(stats, {
+        headers: { 'cache-control': STATS_CACHE, 'access-control-allow-origin': '*' },
+      })
+    : new Response(statsPage(stats, url.origin), {
+        headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': STATS_CACHE },
+      });
+};
+
 export default {
   async fetch(request, env) {
     const open = publicPage(request);
 
     if (open !== null) return open;
+
+    const stats = await statsRoute(request, env);
+
+    if (stats !== null) return stats;
 
     if (new URL(request.url).pathname === PLAYER_VIDEO && request.method === 'GET')
       return withRanges(request, await env.ASSETS.fetch(new URL(PLAYER_VIDEO, request.url)));
