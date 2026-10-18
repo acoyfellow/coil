@@ -1,5 +1,6 @@
 import { Effect, Queue, Schema, Stream } from 'effect';
 import { Mount } from 'foldkit';
+import { rememberFiles } from './command';
 import { attachFollow, followNewContent, pinToBottom } from './follow';
 import { Message } from './message';
 import { attachBrowser } from './surfaces/browser';
@@ -50,13 +51,31 @@ const holdEnterWhileComposing = (event: KeyboardEvent) => {
     event.stopImmediatePropagation();
 };
 
-const attachAutosize = (host: HTMLElement) => {
+const pastedFiles = (event: ClipboardEvent): File[] =>
+  [...(event.clipboardData?.items ?? [])]
+    .filter((item) => item.kind === 'file')
+    .flatMap((item) => {
+      const file = item.getAsFile();
+
+      return file === null ? [] : [file];
+    });
+
+const attachAutosize = (host: HTMLElement, onFiles: (count: number) => void) => {
   const field = host as HTMLTextAreaElement;
+  const paste = (event: ClipboardEvent) => {
+    const files = pastedFiles(event);
+
+    if (files.length === 0) return;
+    event.preventDefault();
+    rememberFiles(files);
+    onFiles(files.length);
+  };
   const fit = fitToContent(field);
   const observer = new ResizeObserver(fit);
 
   field.addEventListener('input', fit);
   field.addEventListener('keydown', holdEnterWhileComposing, { capture: true });
+  field.addEventListener('paste', paste);
   observer.observe(field.parentElement ?? field);
   fit();
   if (globalThis.matchMedia?.('(pointer: fine)').matches ?? true)
@@ -68,14 +87,19 @@ const attachAutosize = (host: HTMLElement) => {
   return () => {
     field.removeEventListener('input', fit);
     field.removeEventListener('keydown', holdEnterWhileComposing, { capture: true });
+    field.removeEventListener('paste', paste);
     observer.disconnect();
   };
 };
 
 export const Autosize = Mount.defineStream('Autosize', {
   args: {},
-  messages: [Message.CompletedEffect],
-  execute: ({ element }) => hold(() => attachAutosize(element as HTMLElement), element),
+  messages: [Message.DroppedFiles],
+  execute: ({ element }) =>
+    hold<typeof Message.DroppedFiles.Type>(
+      (host, emit) => attachAutosize(host, (count) => emit(Message.DroppedFiles({ count }))),
+      element,
+    ),
 });
 
 export const ScrollToEnd = Mount.define('ScrollToEnd', {

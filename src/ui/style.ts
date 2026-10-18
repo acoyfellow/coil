@@ -250,6 +250,11 @@ pre.code{position:relative}
 .code-copy{position:absolute;top:6px;right:6px;border:1px solid var(--line2);background:var(--raise);color:var(--dim);font:500 11px var(--sans);padding:2px 8px;border-radius:6px;opacity:0;transition:opacity .15s}
 pre.code:hover .code-copy,pre.code:focus-within .code-copy{opacity:1}
 @media (hover:none){.code-copy{opacity:1}}
+.msg.note{color:var(--dim);font-size:13px;font-style:italic}
+.msg.error .error-summary{color:var(--bad);margin:0}
+.error-detail summary{cursor:pointer;color:var(--dim);font-size:12px}
+.error-detail pre{white-space:pre-wrap;word-break:break-word;font:12px var(--mono);color:var(--dim)}
+.tool-time{margin-left:auto;font:500 11px var(--mono);color:var(--dim)}
 .enter-hint{font-size:11px;color:var(--faint)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 @media (hover:none){.msg-tools{opacity:1}}

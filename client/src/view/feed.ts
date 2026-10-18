@@ -32,6 +32,7 @@ const tool = (
   output: string | null,
   running: boolean,
   failed: boolean,
+  elapsed: string | null = null,
 ): Html =>
   h.keyed('details')(
     key,
@@ -43,6 +44,7 @@ const tool = (
           running ? spinner(h) : h.span([h.Class('caret')], ['▶']),
           h.b([], [name]),
           h.span([h.Class('arg')], [toolTarget(args)]),
+          ...(elapsed === null ? [] : [h.span([h.Class('tool-time')], [elapsed])]),
         ],
       ),
       h.pre([], [output ?? args]),
@@ -75,6 +77,8 @@ const message = (h: H, entry: ChatMessage, results: ReadonlyMap<string, string>)
     );
 
   if ((entry.role !== 'user' && entry.role !== 'assistant') || entry.text === '') return null;
+
+  if (entry.role === 'assistant' && entry.text.startsWith(FAILURE_PREFIX)) return failure(h, entry);
 
   return h.keyed('div')(
     entry.id,
@@ -170,7 +174,16 @@ const liveItems = (h: H, model: Model): Html[] => {
   if (live === null) return [];
 
   const tools = live.tools.map((each: LiveTool) =>
-    tool(h, `live-${each.id}`, each.name, each.args, each.output, !each.done, false),
+    tool(
+      h,
+      `live-${each.id}`,
+      each.name,
+      each.args,
+      each.output,
+      !each.done,
+      false,
+      each.done ? null : ranFor(Math.max(0, model.now - each.startedAt)),
+    ),
   );
 
   if (live.text !== '')
@@ -216,6 +229,38 @@ const turnFooter = (h: H, turn: Turn): Html =>
     ],
   );
 
+const noReply = (h: H, seq: number): Html =>
+  h.keyed('div')(
+    `no-reply-${seq}`,
+    [h.Class('msg note'), h.DataAttribute('note', 'no-reply')],
+    ['The agent finished without writing a reply.'],
+  );
+
+const FAILURE_PREFIX = 'The model call failed: ';
+const SUMMARY_LIMIT = 160;
+
+const failure = (h: H, entry: ChatMessage): Html => {
+  const detail = entry.text.slice(FAILURE_PREFIX.length);
+  const status = detail.match(/^\d{3}/)?.[0];
+  const message = detail.match(/"message"\s*:\s*"([^"]{1,200})/)?.[1];
+  const summary =
+    message === undefined
+      ? detail.slice(0, SUMMARY_LIMIT)
+      : `${status === undefined ? '' : `${status}: `}${message}`;
+
+  return h.keyed('div')(
+    entry.id,
+    [h.Class('msg assistant error')],
+    [
+      h.div([h.Class('label')], ['agent']),
+      h.p([h.Class('error-summary')], [`The model call failed. ${summary}`]),
+      ...(detail.length > summary.length
+        ? [h.details([h.Class('error-detail')], [h.summary([], ['Details']), h.pre([], [detail])])]
+        : []),
+    ],
+  );
+};
+
 const withTurnFooters = (
   h: H,
   messages: readonly ChatMessage[],
@@ -227,14 +272,20 @@ const withTurnFooters = (
   const offset = prompts.length - finished.length;
   const footerAfter = new Map<number, Turn>();
 
+  const silent = new Set<number>();
+
   finished.forEach((turn, position) => {
     const promptIndex = prompts[position + offset];
 
     if (promptIndex === undefined) return;
 
     const nextPrompt = prompts[position + offset + 1] ?? messages.length;
+    const replied = messages
+      .slice(promptIndex + 1, nextPrompt)
+      .some((entry) => entry.role === 'assistant' && entry.text !== '');
 
     footerAfter.set(nextPrompt - 1, turn);
+    if (!replied) silent.add(nextPrompt - 1);
   });
 
   return messages.flatMap((entry, index) => {
@@ -243,6 +294,7 @@ const withTurnFooters = (
 
     return [
       ...(item === null ? [] : [item]),
+      ...(silent.has(index) && footer !== undefined ? [noReply(h, footer.seq)] : []),
       ...(footer === undefined ? [] : [turnFooter(h, footer)]),
     ];
   });

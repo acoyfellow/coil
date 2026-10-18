@@ -253,7 +253,8 @@ export const side = (h: H, model: Model): Html =>
             [
               h.Id('notify'),
               h.Hidden(model.notify !== 'default'),
-              h.DataAttribute('tip', 'Get a notification when a thread or loop finishes'),
+              h.DataAttribute('tip', 'Get a notification when a thread or loop finishes (⌘⇧N)'),
+              h.Attribute('aria-keyshortcuts', 'Meta+Shift+N Control+Shift+N'),
               h.OnClick(Message.ClickedNotify()),
             ],
             ['Notify me'],

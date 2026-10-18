@@ -185,7 +185,14 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
               text: '',
               tools: [
                 ...liveFrom(model).tools,
-                { id: event.id, name: event.name, args: event.args, output: '', done: false },
+                {
+                  id: event.id,
+                  name: event.name,
+                  args: event.args,
+                  output: '',
+                  done: false,
+                  startedAt: model.now,
+                },
               ],
             }),
           },

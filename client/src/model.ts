@@ -30,6 +30,7 @@ export const LiveTool = Schema.Struct({
   args: Schema.String,
   output: Schema.String,
   done: Schema.Boolean,
+  startedAt: Schema.Number,
 });
 
 export type LiveTool = typeof LiveTool.Type;

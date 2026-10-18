@@ -81,6 +81,12 @@ const shortcuts = windowEvent('keydown', (event) => {
     return Message.PressedShortcut({ key: 'palette' });
   }
 
+  if ((key.metaKey || key.ctrlKey) && key.shiftKey && key.key.toLowerCase() === 'n') {
+    key.preventDefault();
+
+    return Message.ClickedNotify();
+  }
+
   if (key.key === 'Escape' && !key.defaultPrevented)
     return Message.PressedShortcut({ key: 'stop' });
 
