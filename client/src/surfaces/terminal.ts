@@ -73,6 +73,8 @@ export const attachTerminal = (host: HTMLElement, thread: string, id: string): (
     if (closed) return;
 
     if (term === null) {
+      const before = document.activeElement;
+
       term = await mount(screen, {
         theme: termTheme(),
         onData: (bytes: Uint8Array) => send(bytes),
@@ -80,6 +82,9 @@ export const attachTerminal = (host: HTMLElement, thread: string, id: string): (
           if (cols >= 2 && rows >= 2) send(JSON.stringify({ resize: [cols, rows] }));
         },
       });
+      if (before instanceof HTMLElement && before !== document.body && before.isConnected)
+        before.focus({ preventScroll: true });
+      else document.querySelector<HTMLElement>('#text')?.focus({ preventScroll: true });
       observer = new ResizeObserver(() => {
         if (host.isConnected && host.offsetWidth > 0) term?.fit();
       });
