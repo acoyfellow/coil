@@ -173,7 +173,6 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
   if (pathname === `/assets/term-${TERM_VERSION}.js`)
     return script(TERM_JS, 'public, max-age=31536000, immutable');
 
-
   const socket = THREAD_SOCKET.exec(pathname);
 
   if (socket?.[1] !== undefined && socket[2] !== undefined)
