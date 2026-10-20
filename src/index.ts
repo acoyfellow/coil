@@ -13,6 +13,7 @@ import { robots, sitemap } from './seo';
 import { type Coil, coil, sharedView } from './service';
 import { statsPage } from './stats-page';
 import type { Env } from './thread';
+import { APP_ENTRY } from './ui/app.generated';
 import { page } from './ui/index';
 import { sharedPage } from './ui/shared';
 import { serviceWorker } from './ui/sw';
@@ -39,6 +40,8 @@ const UPLOAD_NAME = /^[\w.-]{1,120}$/;
 const SHARED = /^\/s\/([A-Za-z0-9_-]{16,40})$/;
 
 const CAPABILITY_PATH = /^\/api\/capabilities\/([a-z_]{1,40})$/;
+
+const shellVersion = () => `${TERM_VERSION}-${APP_ENTRY.replace(/^.*entry-|\.js$/g, '')}`;
 
 const PAGE = /^\/(t\/[a-z0-9][a-z0-9-]{0,62})?\/?$/;
 
@@ -170,7 +173,7 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
   if (pathname === `/assets/term-${TERM_VERSION}.js`)
     return script(TERM_JS, 'public, max-age=31536000, immutable');
 
-  if (pathname === '/sw.js') return script(serviceWorker(TERM_VERSION), 'no-cache');
+  if (pathname === '/sw.js') return script(serviceWorker(shellVersion()), 'no-cache');
 
   const socket = THREAD_SOCKET.exec(pathname);
 

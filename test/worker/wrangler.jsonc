@@ -8,8 +8,11 @@
   "durable_objects": {
     "bindings": [
       { "name": "THREAD", "class_name": "TestThread" },
-      { "name": "DIRECTORY", "class_name": "Directory" }
+      { "name": "DIRECTORY", "class_name": "Directory" },
+      { "name": "TEST_DIRECTORY", "class_name": "ScriptedDirectory" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TestThread", "Directory"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["TestThread", "Directory", "ScriptedDirectory"] }
+  ]
 }

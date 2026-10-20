@@ -7,12 +7,53 @@ import {
 import type { ModelChoice, ThreadDirectory } from '../../src/agent';
 import { restorableUrl, worthRemembering } from '../../src/browser';
 import type { Computer } from '../../src/computer';
+import { Directory } from '../../src/directory';
+
+export { Directory };
+
 import { coil, sharedView } from '../../src/service';
 import { statsPage } from '../../src/stats-page';
 import { type Env, Thread } from '../../src/thread';
 import { bootSizes, crash, memoryComputer } from '../memory-computer';
 
-export { Directory } from '../../src/directory';
+type TokenScript = 'ok' | 'revoked' | 'blip-then-ok' | 'down';
+
+export class ScriptedDirectory extends Directory {
+  private script: TokenScript = 'ok';
+  private calls = 0;
+  private issued = 0;
+
+  scriptTokens(script: TokenScript): void {
+    this.script = script;
+    this.calls = 0;
+  }
+
+  tokenCalls(): number {
+    return this.calls;
+  }
+
+  protected override send: typeof fetch = async () => {
+    this.calls += 1;
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    if (this.script === 'revoked')
+      return Response.json(
+        { error: 'invalid_grant', error_description: 'refresh token revoked' },
+        { status: 400 },
+      );
+    if (this.script === 'down' || (this.script === 'blip-then-ok' && this.calls === 1))
+      return new Response('upstream unavailable', { status: 503 });
+
+    this.issued += 1;
+
+    return Response.json({
+      access_token: `at-${this.issued}`,
+      refresh_token: `rt-${this.issued}`,
+      expires_in: 3600,
+      scope: 'ai',
+    });
+  };
+}
 
 type Context = {
   readonly messages: ReadonlyArray<{ readonly role: string; readonly content?: unknown }>;
@@ -132,6 +173,8 @@ const scripted = (): ModelChoice => {
   return { provider: faux.provider, modelId: faux.models[0].id, options: {} };
 };
 
+type TestBindings = { readonly TEST_DIRECTORY: DurableObjectNamespace<ScriptedDirectory> };
+
 export class TestThread extends Thread {
   async crashComputer() {
     crash(this.ctx.id.toString());
@@ -223,7 +266,7 @@ export class TestThread extends Thread {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env & TestBindings): Promise<Response> {
     const url = new URL(request.url);
     const api = coil(env, 'ana@example.com');
     const other = coil(env, 'bo@example.com');
@@ -334,6 +377,72 @@ export default {
         lastAnswer:
           view.messages.filter((m) => m.role === 'assistant' && m.text !== '').at(-1)?.text ?? null,
         finalFiles: (await api.exec(name, ['bash', '-lc', 'ls'])).stdout,
+      });
+    }
+
+    if (url.pathname === '/refresh-probe') {
+      const directory = env.TEST_DIRECTORY.getByName(`refresh-${run}`);
+      const credentials = { clientId: 'c', clientSecret: 's' };
+      const grantFor = (owner: string, refreshToken: string | null) => ({
+        owner,
+        email: null,
+        accountId: 'acct',
+        accountName: 'Acct',
+        gateway: 'gw',
+        accessToken: 'stale',
+        refreshToken,
+        expiresAt: Date.now() - 1000,
+        scope: 'ai',
+      });
+      const tags = (outcome: { _tag: string }) => outcome._tag;
+
+      await directory.saveGrant(grantFor('cf:ok', 'rt-0'));
+      await directory.scriptTokens('ok');
+      const together = await Promise.all(
+        [1, 2, 3, 4, 5].map(() => directory.freshToken('cf:ok', credentials)),
+      );
+      const okCalls = await directory.tokenCalls();
+      const okGrant = await directory.grantFor('cf:ok');
+
+      await directory.saveGrant(grantFor('cf:revoked', 'rt-x'));
+      await directory.openSession('sess-revoked', 'cf:revoked', Date.now() + 60_000);
+      await directory.scriptTokens('revoked');
+      const revoked = await directory.freshToken('cf:revoked', credentials);
+      const revokedGrant = await directory.grantFor('cf:revoked');
+      const revokedSession = await directory.sessionOwner('sess-revoked');
+
+      await directory.saveGrant(grantFor('cf:blip', 'rt-b'));
+      await directory.scriptTokens('blip-then-ok');
+      const blip = await directory.freshToken('cf:blip', credentials);
+
+      await directory.saveGrant(grantFor('cf:down', 'rt-d'));
+      await directory.openSession('sess-down', 'cf:down', Date.now() + 60_000);
+      await directory.scriptTokens('down');
+      const down = await directory.freshToken('cf:down', credentials);
+      const downGrant = await directory.grantFor('cf:down');
+      const downSession = await directory.sessionOwner('sess-down');
+
+      await directory.saveGrant({
+        ...grantFor('cf:rejected', 'rt-r'),
+        accessToken: 'looks-valid',
+        expiresAt: Date.now() + 3_600_000,
+      });
+      await directory.scriptTokens('ok');
+      const rejected = await directory.replaceToken('cf:rejected', 'looks-valid', credentials);
+
+      return Response.json({
+        together: together.map(tags),
+        sameToken: new Set(together.map((each) => (each._tag === 'Ready' ? each.token : ''))).size,
+        okCalls,
+        okRotated: okGrant?.refreshToken !== 'rt-0' && okGrant?.accessToken !== 'stale',
+        revoked: tags(revoked),
+        revokedGrantGone: revokedGrant === null,
+        revokedSessionGone: revokedSession === null,
+        blip: tags(blip),
+        down: tags(down),
+        downKeepsGrant: downGrant?.refreshToken === 'rt-d',
+        downKeepsSession: downSession === 'cf:down',
+        rejected: rejected._tag === 'Ready' && rejected.token !== 'looks-valid',
       });
     }
 

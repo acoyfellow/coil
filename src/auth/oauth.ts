@@ -29,7 +29,14 @@ export type TokenSet = {
   readonly scope: string;
 };
 
-export class OAuthFailed extends Error {}
+export class OAuthFailed extends Error {
+  constructor(
+    message: string,
+    readonly status = 0,
+  ) {
+    super(message);
+  }
+}
 
 const base64Url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes))
@@ -89,6 +96,7 @@ const tokenRequest = async (
   if (!response.ok || accessToken === null)
     throw new OAuthFailed(
       `Cloudflare refused the token request: ${stringField(parsed, 'error_description') ?? stringField(parsed, 'error') ?? response.status}`,
+      response.status,
     );
 
   const expiresIn = field(parsed, 'expires_in');

@@ -7,6 +7,7 @@ import { Message } from './message';
 import { Model } from './model';
 import { isAppPath, threadFromPath } from './route';
 import { CoilClientLive } from './rpc';
+import { keepShellCurrent } from './shell-update';
 import { subscriptions } from './subscriptions';
 import { update } from './update';
 import { view } from './view';
@@ -54,4 +55,4 @@ installLayout();
 Runtime.run(application, { flags });
 
 if ('serviceWorker' in navigator && globalThis.location.protocol === 'https:')
-  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => undefined);
+  keepShellCurrent(navigator.serviceWorker);

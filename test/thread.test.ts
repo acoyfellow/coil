@@ -73,6 +73,27 @@ test('compact, pause, kill, resume: the summary and the disk come back together 
   expect(out.finalFiles.split('\n')).toEqual(['a.txt', 'b.txt', 'c.txt']);
 });
 
+test('token refresh: one call for many waiters, revoked signs out cleanly, blips retry, outages keep the grant', {
+  timeout: 60_000,
+}, async () => {
+  const out = await get('/refresh-probe');
+
+  expect(out).toEqual({
+    together: ['Ready', 'Ready', 'Ready', 'Ready', 'Ready'],
+    sameToken: 1,
+    okCalls: 1,
+    okRotated: true,
+    revoked: 'SignedOut',
+    revokedGrantGone: true,
+    revokedSessionGone: true,
+    blip: 'Ready',
+    down: 'Unavailable',
+    downKeepsGrant: true,
+    downKeepsSession: true,
+    rejected: true,
+  });
+});
+
 test('instance stats count threads, work, and spend without naming anything', {
   timeout: 60_000,
 }, async () => {

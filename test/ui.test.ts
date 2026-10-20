@@ -13,6 +13,23 @@ describe('browser code', () => {
     expect(source).toContain("url.pathname.startsWith('/api/')");
     expect(source).toContain("url.pathname === '/mcp'");
   });
+
+  it('a new shell version names a new cache, so an installed app drops the old one', () => {
+    const before = serviceWorker('term-a-app-1');
+    const after = serviceWorker('term-a-app-2');
+
+    expect(before).not.toBe(after);
+    expect(after).toContain("const SHELL = 'coil-shell-term-a-app-2'");
+    expect(after).toContain("key.startsWith('coil-') && key !== SHELL");
+  });
+
+  it('only the home page is saved as the offline shell, and hashed bundles are the only cache-first files', () => {
+    const source = serviceWorker('v');
+
+    expect(source).toContain("url.pathname === '/') {");
+    expect(source).toContain("url.pathname.startsWith('/app/assets/')");
+    expect(source).not.toContain("url.pathname.startsWith('/icons/')");
+  });
 });
 
 describe('web app manifest', () => {

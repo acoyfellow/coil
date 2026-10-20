@@ -2,6 +2,10 @@ export const serviceWorker = (version: string) => `
 const SHELL = 'coil-shell-${version}';
 const SHELL_URLS = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/coil.svg'];
 
+self.addEventListener('message', (event) => {
+  if (event.data === 'skip-waiting') self.skipWaiting();
+});
+
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(SHELL).then((cache) => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
 });
@@ -17,7 +21,7 @@ self.addEventListener('activate', (event) => {
 const isShellNavigation = (request, url) =>
   request.mode === 'navigate' && (url.pathname === '/' || url.pathname.startsWith('/t/'));
 
-const isImmutableAsset = (url) => url.pathname.startsWith('/assets/') || url.pathname.startsWith('/app/') || url.pathname.startsWith('/icons/');
+const isImmutableAsset = (url) => url.pathname.startsWith('/assets/') || url.pathname.startsWith('/app/assets/');
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
@@ -46,7 +50,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok && response.type === 'basic') {
+          if (response.ok && response.type === 'basic' && url.pathname === '/') {
             const copy = response.clone();
             caches.open(SHELL).then((cache) => cache.put('/', copy));
           }

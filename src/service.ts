@@ -1,5 +1,5 @@
 import { GATEWAY_MODELS, MODELS, type ModelInfo } from '../shared/models';
-import { refreshedToken, TOKEN_REFRESH_MARGIN_MS } from './auth/refresh';
+import { credentialsOf } from './auth/refresh';
 import { isCloudflareOwner } from './auth/types';
 import { type CatalogEntry, fetchCatalog, loadCatalog, mergeCatalog } from './catalog';
 import { DIRECTORY_NAME } from './directory-name';
@@ -68,16 +68,9 @@ export const coil = (env: Env, owner: string) => {
   };
 
   const accountRoute = async () => {
-    const grant = await directory.grantFor(owner);
+    const outcome = await directory.freshToken(owner, credentialsOf(env));
 
-    if (grant === null) return null;
-
-    const token =
-      grant.expiresAt > Date.now() + TOKEN_REFRESH_MARGIN_MS
-        ? grant.accessToken
-        : await refreshedToken(env, grant, directory);
-
-    return { accountId: grant.accountId, token };
+    return outcome._tag === 'Ready' ? { accountId: outcome.accountId, token: outcome.token } : null;
   };
 
   const liveCatalog = async (): Promise<readonly CatalogEntry[]> => {

@@ -39,7 +39,10 @@ export type AccountRoute = {
 
 export type AccountCredentials = {
   readonly route: () => Promise<AccountRoute>;
+  readonly rejected?: (token: string) => Promise<AccountRoute>;
 };
+
+const TOKEN_REJECTED = 401;
 
 const STRIPPED = ['cf-aig-authorization', 'authorization', 'x-api-key'];
 
@@ -62,20 +65,28 @@ const withToken =
   ): typeof fetch =>
   async (input, init) => {
     const request = new Request(input, init);
+    const body = await rewriteBody(request);
+    const attempt = (route: AccountRoute) => {
+      const headers = new Headers(request.headers);
+
+      for (const name of STRIPPED) headers.delete(name);
+      headers.set(header, `Bearer ${route.token}`);
+
+      return send(
+        new Request(filled(request.url, route), {
+          method: request.method,
+          headers,
+          body,
+          signal: request.signal,
+        }),
+      );
+    };
     const route = await credentials.route();
-    const headers = new Headers(request.headers);
+    const first = await attempt(route);
 
-    for (const name of STRIPPED) headers.delete(name);
-    headers.set(header, `Bearer ${route.token}`);
+    if (first.status !== TOKEN_REJECTED || credentials.rejected === undefined) return first;
 
-    return send(
-      new Request(filled(request.url, route), {
-        method: request.method,
-        headers,
-        body: await rewriteBody(request),
-        signal: request.signal,
-      }),
-    );
+    return attempt(await credentials.rejected(route.token));
   };
 
 const accountProvider = (

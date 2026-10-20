@@ -14,7 +14,7 @@ import {
   revoke,
   userInfo,
 } from './oauth';
-import { refreshedToken, SignedOut, TOKEN_REFRESH_MARGIN_MS } from './refresh';
+import { credentialsOf, SignedOut, tokenOrThrow } from './refresh';
 import {
   clearCookie,
   cookie,
@@ -236,7 +236,9 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
 
     if (session === null) return null;
 
-    return (await directory().sessionOwner(session.id)) === session.owner ? session : null;
+    if ((await directory().sessionOwner(session.id)) !== session.owner) return null;
+
+    return (await directory().grantFor(session.owner)) === null ? null : session;
   };
 
   const logout = async (request: Request) => {
@@ -278,10 +280,10 @@ export const cloudflareAuth = (env: CloudflareAuthEnv, send: typeof fetch = fetc
 
     if (grant === null) return null;
 
-    if (grant.expiresAt > Date.now() + TOKEN_REFRESH_MARGIN_MS)
-      return { grant, token: grant.accessToken };
+    const { token } = tokenOrThrow(await directory().freshToken(owner, credentialsOf(env)));
+    const latest = (await directory().grantFor(owner)) ?? grant;
 
-    return { grant, token: await refreshedToken(env, grant, directory(), send) };
+    return { grant: latest, token };
   };
 
   const gatewayChoice = async (request: Request) => {

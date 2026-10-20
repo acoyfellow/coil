@@ -12,7 +12,7 @@ import {
   type ThreadDirectory,
 } from './agent';
 import { type AccountCredentials, accountModel } from './auth/account-models';
-import { refreshedToken, SignedOut, TOKEN_REFRESH_MARGIN_MS } from './auth/refresh';
+import { accountToken, replacedToken, SignedOut } from './auth/refresh';
 import { isCloudflareOwner, mayUseHostInference } from './auth/types';
 import {
   Browser,
@@ -305,21 +305,8 @@ export class Thread extends DurableObject<Env> {
     const directory = () => this.directory;
 
     return {
-      route: async () => {
-        const current = await directory().grantFor(owner);
-
-        if (current === null)
-          throw new SignedOut(
-            'Sign in with Cloudflare again: coil no longer has access to your account.',
-          );
-
-        const token =
-          current.expiresAt > Date.now() + TOKEN_REFRESH_MARGIN_MS
-            ? current.accessToken
-            : await refreshedToken(this.env, current, directory());
-
-        return { accountId: current.accountId, gateway: current.gateway, token };
-      },
+      route: () => accountToken(this.env, owner, directory()),
+      rejected: (token) => replacedToken(this.env, owner, token, directory()),
     };
   }
 

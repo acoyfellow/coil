@@ -66,6 +66,15 @@ const fromRow = (row: Row): ThreadSummary => ({
 });
 
 import {
+  isRevoked,
+  type OAuthClientCredentials,
+  refreshWith,
+  SIGNED_OUT_REASON,
+  TOKEN_REFRESH_MARGIN_MS,
+  type TokenOutcome,
+  UNAVAILABLE_REASON,
+} from './auth/refresh';
+import {
   DAY_MS,
   type InstanceStats,
   lastDays,
@@ -74,6 +83,9 @@ import {
   sourceOf,
   topCounts,
 } from './stats';
+
+const REFRESH_ATTEMPTS = 3;
+const REFRESH_BACKOFF_MS = 400;
 
 export const TURN_RESERVE = 0.5;
 
@@ -90,6 +102,8 @@ export type Grant = {
 };
 
 export class Directory extends DurableObject {
+  protected send: typeof fetch = (input, init) => fetch(input, init);
+
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env as never);
     ctx.storage.sql.exec(
@@ -182,6 +196,105 @@ export class Directory extends DurableObject {
           expiresAt: row.expires_at,
           scope: row.scope,
         };
+  }
+
+  private refreshing = new Map<string, Promise<TokenOutcome>>();
+
+  freshToken(
+    owner: string,
+    credentials: OAuthClientCredentials,
+    now = Date.now(),
+  ): Promise<TokenOutcome> {
+    const grant = this.grantFor(owner);
+
+    if (grant === null) return Promise.resolve({ _tag: 'SignedOut', reason: SIGNED_OUT_REASON });
+
+    if (grant.expiresAt > now + TOKEN_REFRESH_MARGIN_MS)
+      return Promise.resolve({
+        _tag: 'Ready',
+        token: grant.accessToken,
+        accountId: grant.accountId,
+        gateway: grant.gateway,
+      });
+
+    const running = this.refreshing.get(owner);
+
+    if (running !== undefined) return running;
+
+    const started = this.refreshGrant(grant, credentials).finally(() =>
+      this.refreshing.delete(owner),
+    );
+
+    this.refreshing.set(owner, started);
+
+    return started;
+  }
+
+  replaceToken(
+    owner: string,
+    rejected: string,
+    credentials: OAuthClientCredentials,
+  ): Promise<TokenOutcome> {
+    const grant = this.grantFor(owner);
+
+    if (grant === null) return Promise.resolve({ _tag: 'SignedOut', reason: SIGNED_OUT_REASON });
+
+    if (grant.accessToken !== rejected) return this.freshToken(owner, credentials);
+
+    this.saveGrant({ ...grant, expiresAt: 0 });
+
+    return this.freshToken(owner, credentials);
+  }
+
+  private async refreshGrant(
+    grant: Grant,
+    credentials: OAuthClientCredentials,
+  ): Promise<TokenOutcome> {
+    if (grant.refreshToken === null) {
+      this.dropGrant(grant.owner);
+
+      return { _tag: 'SignedOut', reason: SIGNED_OUT_REASON };
+    }
+
+    for (let attempt = 1; attempt <= REFRESH_ATTEMPTS; attempt += 1) {
+      try {
+        const tokens = await refreshWith(credentials, grant.refreshToken, this.send);
+        const latest = this.grantFor(grant.owner) ?? grant;
+
+        this.saveGrant({
+          ...latest,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken ?? grant.refreshToken,
+          expiresAt: tokens.expiresAt,
+          scope: tokens.scope === '' ? latest.scope : tokens.scope,
+        });
+
+        return {
+          _tag: 'Ready',
+          token: tokens.accessToken,
+          accountId: latest.accountId,
+          gateway: latest.gateway,
+        };
+      } catch (cause) {
+        if (isRevoked(cause)) {
+          console.warn('cloudflare refresh revoked', {
+            reason: cause instanceof Error ? cause.message : String(cause),
+          });
+          this.dropGrant(grant.owner);
+
+          return { _tag: 'SignedOut', reason: SIGNED_OUT_REASON };
+        }
+
+        console.warn('cloudflare refresh failed', {
+          attempt,
+          reason: cause instanceof Error ? cause.message : String(cause),
+        });
+        if (attempt < REFRESH_ATTEMPTS)
+          await new Promise((resolve) => setTimeout(resolve, REFRESH_BACKOFF_MS * attempt));
+      }
+    }
+
+    return { _tag: 'Unavailable', reason: UNAVAILABLE_REASON };
   }
 
   dropGrant(owner: string): void {
