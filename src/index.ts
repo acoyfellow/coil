@@ -173,7 +173,6 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
   if (pathname === `/assets/term-${TERM_VERSION}.js`)
     return script(TERM_JS, 'public, max-age=31536000, immutable');
 
-  if (pathname === '/sw.js') return script(serviceWorker(shellVersion()), 'no-cache');
 
   const socket = THREAD_SOCKET.exec(pathname);
 
@@ -242,6 +241,7 @@ const PUBLIC_PAGES: Readonly<Record<string, (origin: string) => Response>> = {
         'cache-control': 'public, max-age=3600',
       },
     }),
+  '/sw.js': () => script(serviceWorker(shellVersion()), 'no-cache'),
   '/llms.txt': (origin) =>
     new Response(llmsText(origin), {
       headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache' },
