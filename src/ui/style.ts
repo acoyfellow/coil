@@ -115,8 +115,15 @@ textarea{resize:none}
 .composer-inner:focus-within{border-color:var(--blue)}
 .composer textarea{display:block;border:0;padding:2px 0;min-height:40px;max-height:min(50dvh,calc(100dvh - 220px));field-sizing:content;overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;box-sizing:border-box;max-width:100%}
 .composer-inner{min-width:0}
-.composer-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.hint{font-size:11.5px;color:var(--faint);min-height:16px}
+.composer-inner{container-type:inline-size}
+.composer-foot{display:flex;align-items:center;gap:8px;min-width:0}
+.composer-foot>.meter{flex:0 1 auto;min-width:0}
+.composer-foot .meter .pop-wrap:first-child{min-width:0;flex:0 1 auto}
+.composer-foot #model{max-width:100%;overflow:hidden;text-overflow:ellipsis;display:block;line-height:22px}
+.composer-foot .meter .pop-wrap:not(:first-child){flex:none}
+.hint{flex:1 1 0;min-width:0;font-size:11.5px;line-height:15px;color:var(--faint);text-align:right;overflow-wrap:break-word}
+.composer-foot>#send,.composer-foot>#stop{flex:none;margin-left:auto}
+@container (max-width:440px){.hint{display:none}}
 #send{width:28px;height:28px;padding:0;justify-content:center;border-radius:50%;background:var(--orange);color:#fff;font-size:15px}
 #send:hover:not(:disabled){background:var(--orange);color:#fff;opacity:.9}
 #send .spin{border-color:rgba(255,255,255,.4);border-top-color:#fff}

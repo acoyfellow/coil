@@ -59,7 +59,7 @@ export const composer = (h: H, model: Model): Html => {
             [h.Class('composer-foot')],
             [
               ...(view === null || model.name === null ? [] : [meter(h, model, view, model.name)]),
-              h.div([h.Class('hint'), h.Id('hint')], [hint(model)]),
+              h.div([h.Class('hint'), h.Id('hint'), h.Title(hint(model))], [hint(model)]),
               working && model.name !== null
                 ? h.button(
                     [
