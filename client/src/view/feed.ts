@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import type { Html } from 'foldkit/html';
+import type { Html, HtmlBuilder } from 'foldkit/html';
 import type { ChatMessage, ThreadView, Turn } from '../../../shared/protocol';
 import { Message } from '../message';
 import { type LiveTool, type Model, ViewState } from '../model';
@@ -243,7 +243,7 @@ export const ranFor = (ms: number): string => {
   return `${seconds}s`;
 };
 
-const turnFooter = (h: H, turn: Turn): Html =>
+const turnFooter = <M>(h: HtmlBuilder<M>, turn: Turn): Html =>
   h.keyed('div')(
     `ran-${turn.seq}`,
     [h.Class('ran'), h.DataAttribute('turn', String(turn.seq))],
@@ -252,7 +252,7 @@ const turnFooter = (h: H, turn: Turn): Html =>
     ],
   );
 
-const noReply = (h: H, seq: number): Html =>
+const noReply = <M>(h: HtmlBuilder<M>, seq: number): Html =>
   h.keyed('div')(
     `no-reply-${seq}`,
     [h.Class('msg note'), h.DataAttribute('note', 'no-reply')],
@@ -284,25 +284,28 @@ const failure = (h: H, entry: ChatMessage): Html => {
   );
 };
 
-const withTurnFooters = (
-  h: H,
+export const withTurnFooters = <M>(
+  h: HtmlBuilder<M>,
   messages: readonly ChatMessage[],
   turns: readonly Turn[],
   render: (entry: ChatMessage) => Html | null,
+  busy = false,
 ): Html[] => {
   const finished = [...turns].filter((turn) => turn.ended > 0).sort((a, b) => a.seq - b.seq);
-  const prompts = messages.flatMap((entry, index) => (entry.role === 'user' ? [index] : []));
-  const offset = prompts.length - finished.length;
+  const allPrompts = messages.flatMap((entry, index) => (entry.role === 'user' ? [index] : []));
+  const prompts = busy ? allPrompts.slice(0, -1) : allPrompts;
+  const closed = busy ? finished.slice(0, prompts.length) : finished;
+  const offset = prompts.length - closed.length;
   const footerAfter = new Map<number, Turn>();
 
   const silent = new Set<number>();
 
-  finished.forEach((turn, position) => {
+  closed.forEach((turn, position) => {
     const promptIndex = prompts[position + offset];
 
     if (promptIndex === undefined) return;
 
-    const nextPrompt = prompts[position + offset + 1] ?? messages.length;
+    const nextPrompt = allPrompts[position + offset + 1] ?? messages.length;
     const replied = messages
       .slice(promptIndex + 1, nextPrompt)
       .some((entry) => entry.role === 'assistant' && entry.text !== '');
@@ -402,8 +405,12 @@ const pinsReader = (view: ThreadView): boolean => view.messages.at(-1)?.id === '
 
 const conversation = (h: H, model: Model, view: ThreadView): Html => {
   const results = toolResults(view.messages);
-  const items = withTurnFooters(h, view.messages, view.turns, (entry) =>
-    message(h, entry, results),
+  const items = withTurnFooters(
+    h,
+    view.messages,
+    view.turns,
+    (entry) => message(h, entry, results),
+    view.busy,
   );
   const live = [...liveItems(h, model), ...turnTimer(h, model, view)];
   const endKey = `${view.messages.length}:${model.live?.text.length ?? 0}:${model.live?.tools.length ?? 0}`;
