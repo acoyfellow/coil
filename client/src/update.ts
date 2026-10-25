@@ -121,7 +121,9 @@ const openThread = (model: Model, name: string | null): UpdateReturn => {
   return { model: next, commands: [LoadView({ name, refresh: false })] };
 };
 
-const liveFrom = (model: Model): Live => model.live ?? emptyLive;
+const liveFrom = (model: Model): Live => model.live ?? startedLive(model);
+
+const startedLive = (model: Model): Live => ({ ...emptyLive, startedAt: model.now });
 
 const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
   const name = model.name;
@@ -150,7 +152,9 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
 
       return {
         model:
-          event.busy && next.live === null ? modifyFields(next, { live: () => emptyLive }) : next,
+          event.busy && next.live === null
+            ? modifyFields(next, { live: () => startedLive(next) })
+            : next,
       };
     }
     case 'exec':
@@ -385,7 +389,7 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         const next = ensureTab(
           modifyFields(model, {
             view: () => ViewState.Ready({ value: view }),
-            live: (live) => (view.busy ? (live ?? emptyLive) : null),
+            live: (live) => (view.busy ? (live ?? startedLive(model)) : null),
           }),
         );
 
