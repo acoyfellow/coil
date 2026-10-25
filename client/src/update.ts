@@ -28,6 +28,7 @@ import {
   RevealModelOption,
   RunAction,
   RunOp,
+  SaveCollapsed,
   SaveDraft,
   SaveTheme,
   SendMessage,
@@ -655,6 +656,16 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       ),
     LeftApp: ({ href }) => ({ model, commands: [LoadPage({ href })] }),
     ToggledArchived: () => ({ model: modifyFields(model, { showArchived: (on) => !on }) }),
+    ToggledCollapsed: ({ key }) => {
+      const keys = model.collapsed.includes(key)
+        ? model.collapsed.filter((each) => each !== key)
+        : [...model.collapsed, key];
+
+      return {
+        model: modifyFields(model, { collapsed: () => keys }),
+        commands: [SaveCollapsed({ keys })],
+      };
+    },
     UpdatedListFilter: ({ value }) => ({ model: modifyFields(model, { listFilter: () => value }) }),
     ToggledRowMenu: ({ name }) => ({
       model: modifyFields(model, { rowMenu: (open) => (open === name ? null : name) }),

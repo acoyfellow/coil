@@ -74,6 +74,7 @@ export const Message = defineMessageUnion({
   ClosedModelMenu: {},
   ToggledUsage: {},
   ToggledArchived: {},
+  ToggledCollapsed: { key: Schema.String },
   LeftApp: { href: Schema.String },
   UpdatedListFilter: { value: Schema.String },
   ToggledRowMenu: { name: Schema.NullOr(Schema.String) },

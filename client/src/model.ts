@@ -121,6 +121,7 @@ export const Model = Schema.Struct({
   modelIndex: Schema.Number,
   usageOpen: Schema.Boolean,
   showArchived: Schema.Boolean,
+  collapsed: Schema.Array(Schema.String),
   listFilter: Schema.String,
   rowMenu: Schema.NullOr(Schema.String),
   notify: Schema.Literals(['unsupported', 'default', 'granted', 'denied']),

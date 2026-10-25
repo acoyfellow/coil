@@ -60,7 +60,14 @@ textarea{resize:none}
 .brand .new{width:28px;height:28px;padding:0;justify-content:center;border-radius:50%;background:var(--text);color:var(--bg);font-size:16px}
 .brand .new:hover:not(:disabled){background:var(--text);color:var(--bg);opacity:.85}
 .list{flex:1;overflow:auto;padding:2px 6px}
-.group{font-size:11.5px;color:var(--faint);padding:10px 8px 3px;display:flex;align-items:center;gap:8px}
+button.group{border-radius:0;white-space:normal;font:inherit;font-size:11.5px;color:var(--faint);padding:10px 8px 3px;display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;text-align:left;cursor:pointer}
+.group::before,.kids-toggle::before{content:"";width:0;height:0;border-left:4px solid currentColor;border-top:3.5px solid transparent;border-bottom:3.5px solid transparent;transition:transform .12s;flex:none}
+.group.open::before,.kids-toggle.open::before{transform:rotate(90deg)}
+button.group:hover:not(:disabled){background:transparent;color:var(--dim)}
+button.kids-toggle:hover:not(:disabled){background:transparent}
+.group:focus-visible,.kids-toggle:focus-visible{outline:2px solid var(--orange);outline-offset:-2px;border-radius:5px}
+button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:1;width:16px;height:22px;padding:0;border:0;background:transparent;color:var(--faint);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.kids-toggle:hover{color:var(--text)}
 .group::after{content:"";flex:1;border-top:1px solid var(--line)}
 .item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:inherit;text-decoration:none;min-width:0}
 .item:hover{background:var(--hover)}
@@ -339,7 +346,6 @@ button.usage:hover{background:var(--hover)}
 .usage-row b{color:var(--fg);font-weight:500}
 #stop{display:inline-flex;align-items:center;justify-content:center}
 #stop .icon{width:14px;height:14px;fill:currentColor}
-.archived-toggle{border:0;background:transparent;text-align:left;cursor:pointer;width:100%}
 .item.archived{display:flex;align-items:center;gap:8px;opacity:.7}
 .item.archived .restore{margin-left:auto;border:1px solid var(--line2);border-radius:6px;background:transparent;font-size:11.5px;color:var(--fg);padding:2px 8px}
 .tab-main .icon{width:14px;height:14px;margin-right:5px;vertical-align:-2px}

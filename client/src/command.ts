@@ -416,6 +416,33 @@ export const SaveDraft = Command.define('SaveDraft', {
     ).pipe(Effect.ignore, Effect.as(Message.CompletedEffect())),
 });
 
+const COLLAPSED_KEY = 'coil-collapsed';
+
+const collapsedFrom = (raw: string | null): readonly string[] => {
+  const parsed: unknown = raw === null ? [] : JSON.parse(raw);
+
+  return Array.isArray(parsed)
+    ? parsed.filter((each): each is string => typeof each === 'string')
+    : [];
+};
+
+export const storedCollapsed = (): readonly string[] =>
+  Effect.runSync(
+    Effect.try(() => collapsedFrom(globalThis.localStorage.getItem(COLLAPSED_KEY))).pipe(
+      Effect.orElseSucceed((): readonly string[] => []),
+    ),
+  );
+
+export const SaveCollapsed = Command.define('SaveCollapsed', {
+  args: { keys: Schema.Array(Schema.String) },
+  messages: [Message.CompletedEffect],
+  execute: ({ keys }) =>
+    Effect.try(() => globalThis.localStorage.setItem(COLLAPSED_KEY, JSON.stringify(keys))).pipe(
+      Effect.ignore,
+      Effect.as(Message.CompletedEffect()),
+    ),
+});
+
 export const systemIsDark = () =>
   globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
 

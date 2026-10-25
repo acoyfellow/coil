@@ -94,11 +94,54 @@ const rowTitle = (thread: ThreadSummary): string =>
     .filter((part): part is string => part !== null)
     .join(' · ');
 
-const row = (h: H, model: Model, thread: ThreadSummary, child: boolean): Html =>
+const isOpen = (model: Model, key: string) =>
+  model.listFilter.trim() !== '' || !model.collapsed.includes(key);
+
+const groupKey = (label: string) => `group:${label}`;
+
+const kidsKey = (name: string) => `kids:${name}`;
+
+const kidsToggle = (h: H, model: Model, thread: ThreadSummary, kids: number): Html[] => {
+  if (kids === 0) return [];
+
+  const open = isOpen(model, kidsKey(thread.name));
+
+  return [
+    h.button(
+      [
+        h.Class(`kids-toggle${open ? ' open' : ''}`),
+        h.Type('button'),
+        h.DataAttribute('kids-for', thread.name),
+        h.AriaExpanded(open),
+        h.AriaLabel(`${open ? 'Hide' : 'Show'} ${kids} child thread${kids === 1 ? '' : 's'}`),
+        h.OnClick(Message.ToggledCollapsed({ key: kidsKey(thread.name) })),
+      ],
+      [],
+    ),
+  ];
+};
+
+const groupHeader = (h: H, model: Model, label: string, count: number): Html => {
+  const open = isOpen(model, groupKey(label));
+
+  return h.button(
+    [
+      h.Class(`group${open ? ' open' : ''}`),
+      h.Type('button'),
+      h.DataAttribute('group', label),
+      h.AriaExpanded(open),
+      h.OnClick(Message.ToggledCollapsed({ key: groupKey(label) })),
+    ],
+    [`${label} ${count}`],
+  );
+};
+
+const row = (h: H, model: Model, thread: ThreadSummary, child: boolean, kids = 0): Html =>
   h.keyed('div')(
     thread.name,
     [h.Class(`row${model.rowMenu === thread.name ? ' menu-open' : ''}`)],
     [
+      ...kidsToggle(h, model, thread, kids),
       h.a(
         [
           h.Class(`item${thread.name === model.name ? ' on' : ''}${child ? ' child' : ''}`),
@@ -173,11 +216,13 @@ const archivedToggle = (h: H, model: Model, count: number): Html[] =>
     : [
         h.button(
           [
-            h.Class('group archived-toggle'),
+            h.Class(`group archived-toggle${model.showArchived ? ' open' : ''}`),
             h.Id('archived-toggle'),
+            h.Type('button'),
+            h.AriaExpanded(model.showArchived),
             h.OnClick(Message.ToggledArchived()),
           ],
-          [model.showArchived ? `Hide archived ${count}` : `Archived ${count}`],
+          [`Archived ${count}`],
         ),
       ];
 
@@ -257,12 +302,21 @@ const activeList = (h: H, model: Model, threads: readonly ThreadSummary[]): Html
 
     if (members.length === 0) return [];
 
+    const header = groupHeader(h, model, label, members.length);
+
+    if (!isOpen(model, groupKey(label))) return [header];
+
     return [
-      h.div([h.Class('group')], [`${label} ${members.length}`]),
-      ...members.flatMap((thread) => [
-        row(h, model, thread, false),
-        ...(children.get(thread.name) ?? []).map((kid) => row(h, model, kid, true)),
-      ]),
+      header,
+      ...members.flatMap((thread) => {
+        const kids = children.get(thread.name) ?? [];
+        const shown = isOpen(model, kidsKey(thread.name)) ? kids : [];
+
+        return [
+          row(h, model, thread, false, kids.length),
+          ...shown.map((kid) => row(h, model, kid, true)),
+        ];
+      }),
     ];
   });
 };

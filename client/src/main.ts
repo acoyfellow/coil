@@ -11,6 +11,7 @@ import {
   LoadView,
   LoadWho,
   notifyPermission,
+  storedCollapsed,
   storedDraft,
 } from './command';
 import type { Message } from './message';
@@ -55,6 +56,7 @@ export const initialModel = (flags: Flags): Model => ({
   modelIndex: 0,
   usageOpen: false,
   showArchived: false,
+  collapsed: storedCollapsed(),
   listFilter: '',
   rowMenu: null,
   notify: notifyPermission(),
