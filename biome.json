@@ -8,7 +8,8 @@
       "client/**",
       "shared/**",
       "!client/dist",
-      "!src/ui/*.generated.ts"
+      "!src/ui/*.generated.ts",
+      "!**/.wrangler"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
