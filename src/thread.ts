@@ -32,6 +32,9 @@ import {
   sandboxComputer,
   WORKSPACE,
 } from './computer';
+import { connectorsOf } from './connectors/config';
+import type { ConnectorStore } from './connectors/store';
+import { connectorTools } from './connectors/tools';
 import type { Directory, Grant, ThreadUpdate } from './directory';
 import { DIRECTORY_NAME } from './directory-name';
 import {
@@ -111,6 +114,7 @@ export type Env = {
   readonly ASSETS: Fetcher;
   readonly LOADER: WorkerLoader;
   readonly MODEL: string;
+  readonly COIL_COMMIT?: string;
   readonly AI_GATEWAY?: string;
   readonly MODEL_GATEWAY_URL?: string;
   readonly MODEL_GATEWAY_HEADER?: string;
@@ -123,6 +127,9 @@ export type Env = {
   readonly COIL_USER_GATEWAY?: string;
   readonly ACCESS_TEAM_DOMAIN?: string;
   readonly ACCESS_AUD?: string;
+  readonly CONNECTORS?: DurableObjectNamespace<ConnectorStore>;
+  readonly CONNECTORS_JSON?: string;
+  readonly CONNECTOR_SEAL_KEY?: string;
 };
 
 export type LiveEvent =
@@ -1551,6 +1558,10 @@ export class Thread extends DurableObject<Env> {
   }
 
   private plugins(): Extension[] {
+    return [...this.extensionPlugins(), ...this.connectorPlugins()];
+  }
+
+  private extensionPlugins(): Extension[] {
     const saved = this.ledger.extensions;
 
     if (saved === null) return [];
@@ -1560,6 +1571,23 @@ export class Thread extends DurableObject<Env> {
     return isExtensionReport(report) && report.tools.length > 0
       ? [extensionTools(() => this.awake(), saved.paths, report)]
       : [];
+  }
+
+  private connectorPlugins(): Extension[] {
+    const namespace = this.env.CONNECTORS;
+    const connectors = connectorsOf(this.env);
+    const owner = this.ledger.owner;
+
+    if (namespace === undefined || connectors.length === 0 || owner === '') return [];
+
+    const store = () => namespace.getByName(owner);
+
+    return [
+      connectorTools(connectors, {
+        accessToken: (id) => store().accessToken(id),
+        rejected: (id) => store().rejected(id),
+      }),
+    ];
   }
 
   async setExtensions(sources: string[]): Promise<string> {

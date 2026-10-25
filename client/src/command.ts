@@ -23,10 +23,10 @@ export const LoadWho = Command.define('LoadWho', {
   messages: [Message.LoadedWho],
   execute: Effect.gen(function* () {
     const client = yield* CoilClient;
-    const { who } = yield* client.WhoAmI();
+    const { who, connectors } = yield* client.WhoAmI();
 
-    return Message.LoadedWho({ who });
-  }).pipe(Effect.orElseSucceed(() => Message.LoadedWho({ who: '' }))),
+    return Message.LoadedWho({ who, connectors: connectors === true });
+  }).pipe(Effect.orElseSucceed(() => Message.LoadedWho({ who: '', connectors: false }))),
 });
 
 const AccountInfo = Schema.Struct({
@@ -543,6 +543,17 @@ export const FocusComposer = Command.define('FocusComposer', {
 
     box?.focus();
     box?.setSelectionRange(box.value.length, box.value.length);
+
+    return Message.CompletedEffect();
+  }),
+});
+
+export const FocusSettings = Command.define('FocusSettings', {
+  messages: [Message.CompletedEffect],
+  execute: Effect.sync(() => {
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLInputElement>('#settings-search')?.focus(),
+    );
 
     return Message.CompletedEffect();
   }),

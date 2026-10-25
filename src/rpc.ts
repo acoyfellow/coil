@@ -142,13 +142,17 @@ export type CoilApi = {
 
 const ThreadSummaryList = Schema.Array(ThreadSummary);
 
-export type Caller = { readonly who: string; readonly api: CoilApi };
+export type Caller = {
+  readonly who: string;
+  readonly api: CoilApi;
+  readonly connectors?: boolean;
+};
 
 export const handlersFor = (caller: Caller) => {
   const { api } = caller;
 
   return CoilRpcs.of({
-    WhoAmI: () => Effect.succeed({ who: caller.who }),
+    WhoAmI: () => Effect.succeed({ who: caller.who, connectors: caller.connectors === true }),
     GetSpend: () => attempt(() => api.spend()),
     SetSpendLimit: ({ dollars }) => attempt(() => api.setSpendLimit(dollars)),
     Sizes: () => Effect.succeed([...SIZES]),

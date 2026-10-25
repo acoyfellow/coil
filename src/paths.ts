@@ -1,7 +1,7 @@
 const APP_PAGE = /^\/(t\/[a-z0-9][a-z0-9-]{0,62})?\/?$/;
 
 const SERVER_PATH =
-  /^\/(api\/|mcp$|oauth\/|s\/|assets\/|app\/|brand\/|icons\/|cdn-cgi\/|sw\.js$|manifest\.webmanifest$|favicon\.ico$)/;
+  /^\/(api\/|mcp$|connectors(\/|$)|oauth\/|s\/|assets\/|app\/|brand\/|icons\/|cdn-cgi\/|sw\.js$|manifest\.webmanifest$|favicon\.ico$)/;
 
 export const PUBLIC_ROUTES = [
   '/docs',

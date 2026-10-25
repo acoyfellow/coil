@@ -85,6 +85,12 @@ const shortcuts = windowEvent('keydown', (event) => {
     return Message.PressedShortcut({ key: 'palette' });
   }
 
+  if ((key.metaKey || key.ctrlKey) && key.key === ',') {
+    key.preventDefault();
+
+    return Message.PressedShortcut({ key: 'settings' });
+  }
+
   if ((key.metaKey || key.ctrlKey) && key.shiftKey && key.key.toLowerCase() === 'n') {
     key.preventDefault();
 

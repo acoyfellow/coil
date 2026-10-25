@@ -9,10 +9,19 @@
     "bindings": [
       { "name": "THREAD", "class_name": "TestThread" },
       { "name": "DIRECTORY", "class_name": "Directory" },
-      { "name": "TEST_DIRECTORY", "class_name": "ScriptedDirectory" }
+      { "name": "TEST_DIRECTORY", "class_name": "ScriptedDirectory" },
+      { "name": "TEST_CONNECTORS", "class_name": "ScriptedConnectorStore" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["TestThread", "Directory", "ScriptedDirectory"] }
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "TestThread",
+        "Directory",
+        "ScriptedDirectory",
+        "ScriptedConnectorStore"
+      ]
+    }
   ]
 }

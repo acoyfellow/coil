@@ -21,11 +21,13 @@
   "durable_objects": {
     "bindings": [
       { "name": "THREAD", "class_name": "Thread" },
-      { "name": "DIRECTORY", "class_name": "Directory" }
+      { "name": "DIRECTORY", "class_name": "Directory" },
+      { "name": "CONNECTORS", "class_name": "ConnectorStore" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["Thread"] },
-    { "tag": "v2", "new_sqlite_classes": ["Directory"] }
+    { "tag": "v2", "new_sqlite_classes": ["Directory"] },
+    { "tag": "v3", "new_sqlite_classes": ["ConnectorStore"] }
   ]
 }

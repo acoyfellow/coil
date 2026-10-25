@@ -12,3 +12,4 @@ public/app/
 deploy/*.conf
 !deploy/example.conf
 wrangler.*.local.jsonc
+deploy/*.json

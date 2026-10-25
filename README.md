@@ -111,6 +111,8 @@ bun run ship -- deploy/mine.conf
 
 If `COIL_AUTH` is neither mode, the Worker answers 503. `bun run ship:all -- deploy/<a>.conf deploy/<b>.conf` ships several instances in parallel.
 
+The full procedure, the security rules for private instances, and connectors are in [`docs/deploy.md`](docs/deploy.md).
+
 **Public and private instances.** The repo holds the engine and `deploy/example.conf`. Your real instances live in `deploy/<name>.conf` files that git ignores: account ID, hostname, sign-in settings, image, and gateway settings. Keep several side by side (for example a personal one and a team one) and ship each with its own file. Nothing private is committed, and `bun run check` fails if an account ID or token appears in a tracked file.
 
 **Models** (all optional, in the same file)

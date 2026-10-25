@@ -13,6 +13,7 @@ import {
   FocusComposer,
   FocusModelSearch,
   FocusPalette,
+  FocusSettings,
   Install,
   JumpToLatest,
   KillLoops,
@@ -337,7 +338,9 @@ const stopFromKeyboard = (model: Model): UpdateReturn => {
 
 export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
-    LoadedWho: ({ who }) => ({ model: modifyFields(model, { who: () => who }) }),
+    LoadedWho: ({ who, connectors }) => ({
+      model: modifyFields(model, { who: () => who, connectors: () => connectors }),
+    }),
     LoadedAccount: ({ account, gateway }) => ({
       model: modifyFields(model, {
         account: () => (account === null ? null : { name: account, gateway }),
@@ -621,13 +624,17 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     }),
     PressedShortcut: ({ key }) =>
       key === 'stop'
-        ? stopFromKeyboard(model)
-        : {
-            model: modifyFields(model, {
-              palette: (open) => (open === null ? { query: '', index: 0 } : null),
-            }),
-            commands: [FocusPalette()],
-          },
+        ? model.settings !== null
+          ? { model: modifyFields(model, { settings: () => null }) }
+          : stopFromKeyboard(model)
+        : key === 'settings'
+          ? update(model, Message.OpenedSettings({ section: null }))
+          : {
+              model: modifyFields(model, {
+                palette: (open) => (open === null ? { query: '', index: 0 } : null),
+              }),
+              commands: [FocusPalette()],
+            },
     UpdatedPalette: ({ query }) => ({
       model: modifyFields(model, { palette: () => ({ query, index: 0 }) }),
     }),
@@ -651,6 +658,25 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       return chosen === undefined ? { model: closed } : update(closed, chosen.message);
     },
     ClosedPalette: () => ({ model: modifyFields(model, { palette: () => null }) }),
+    OpenedSettings: ({ section }) => ({
+      model: modifyFields(model, {
+        palette: () => null,
+        menuOpen: () => false,
+        settings: () => ({ query: '', section: section ?? 'account' }),
+      }),
+      commands: [FocusSettings()],
+    }),
+    ClosedSettings: () => ({ model: modifyFields(model, { settings: () => null }) }),
+    UpdatedSettingsQuery: ({ query }) => ({
+      model: modifyFields(model, {
+        settings: (open) => (open === null ? null : { ...open, query }),
+      }),
+    }),
+    ChoseSettingsSection: ({ section }) => ({
+      model: modifyFields(model, {
+        settings: (open) => (open === null ? null : { ...open, section }),
+      }),
+    }),
     ClickedKillLoops: () => ({ model, commands: [KillLoops()] }),
     KilledLoops: ({ names }) =>
       withCommands(

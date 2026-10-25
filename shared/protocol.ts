@@ -213,7 +213,10 @@ export const Answered = Schema.Struct({
   answer: Schema.String,
 });
 
-export const Who = Schema.Struct({ who: Schema.String });
+export const Who = Schema.Struct({
+  who: Schema.String,
+  connectors: Schema.optional(Schema.Boolean),
+});
 
 export const Spend = Schema.Struct({ spent: Schema.Number, limit: Schema.NullOr(Schema.Number) });
 

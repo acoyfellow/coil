@@ -11,10 +11,82 @@ import { Directory } from '../../src/directory';
 
 export { Directory };
 
+import { ConnectorStore } from '../../src/connectors/store';
+
 import { coil, sharedView } from '../../src/service';
 import { statsPage } from '../../src/stats-page';
 import { type Env, Thread } from '../../src/thread';
 import { bootSizes, crash, memoryComputer } from '../memory-computer';
+
+const CONNECTOR_UPSTREAM = 'https://mcp.test/mcp';
+
+const SCRIPTED_CONNECTORS = JSON.stringify({
+  'ax-mcp': {
+    upstream: CONNECTOR_UPSTREAM,
+    description: 'test portal',
+    auth: {
+      authorizationEndpoint: 'https://auth.test/authorize',
+      tokenEndpoint: 'https://auth.test/token',
+      registrationEndpoint: 'https://auth.test/register',
+      resource: 'https://mcp.test',
+    },
+    expose: ['wiki_search'],
+  },
+});
+
+export class ScriptedConnectorStore extends ConnectorStore {
+  private log: string[] = [];
+  private issued = 0;
+  private revoke = false;
+
+  constructor(ctx: DurableObjectState, env: Record<string, unknown>) {
+    super(ctx, {
+      ...env,
+      CONNECTORS_JSON: SCRIPTED_CONNECTORS,
+      CONNECTOR_SEAL_KEY: 'k'.repeat(40),
+    });
+    this.send = async (input, init) => {
+      const url = String(input);
+      const form = new URLSearchParams(
+        typeof init?.body === 'string' ? init.body : String(init?.body ?? ''),
+      );
+
+      this.log.push(`${url} ${form.get('grant_type') ?? ''}`);
+
+      if (url === 'https://auth.test/register') return Response.json({ client_id: 'client-1' });
+
+      if (url === 'https://auth.test/token') {
+        if (this.revoke) return new Response('revoked', { status: 400 });
+
+        this.issued += 1;
+
+        return Response.json({
+          access_token: `at-${this.issued}`,
+          refresh_token: `rt-${this.issued}`,
+          expires_in: form.get('grant_type') === 'authorization_code' ? 1 : 3600,
+        });
+      }
+
+      return new Response('unexpected', { status: 500 });
+    };
+  }
+
+  calls(): string[] {
+    return this.log;
+  }
+
+  revokeAll(): void {
+    this.revoke = true;
+  }
+
+  rawTokens(): unknown[] {
+    return this.ctx.storage.sql.exec('SELECT * FROM tokens').toArray();
+  }
+
+  pendingCount(): number {
+    return this.ctx.storage.sql.exec('SELECT COUNT(*) AS n FROM pending').one().n as number;
+  }
+}
 
 type TokenScript = 'ok' | 'revoked' | 'blip-then-ok' | 'down';
 
@@ -173,7 +245,10 @@ const scripted = (): ModelChoice => {
   return { provider: faux.provider, modelId: faux.models[0].id, options: {} };
 };
 
-type TestBindings = { readonly TEST_DIRECTORY: DurableObjectNamespace<ScriptedDirectory> };
+type TestBindings = {
+  readonly TEST_DIRECTORY: DurableObjectNamespace<ScriptedDirectory>;
+  readonly TEST_CONNECTORS: DurableObjectNamespace<ScriptedConnectorStore>;
+};
 
 export class TestThread extends Thread {
   async crashComputer() {
@@ -377,6 +452,46 @@ export default {
         lastAnswer:
           view.messages.filter((m) => m.role === 'assistant' && m.text !== '').at(-1)?.text ?? null,
         finalFiles: (await api.exec(name, ['bash', '-lc', 'ls'])).stdout,
+      });
+    }
+
+    if (url.pathname === '/connector-probe') {
+      const store = env.TEST_CONNECTORS.getByName(`cf:owner-${run}`);
+      const started = await store.start('ax-mcp', 'https://coil.test', '/t/abc');
+      const authorize = new URL(started.url);
+      const state = authorize.searchParams.get('state') ?? '';
+      const wrongState = await store.finish('ax-mcp', 'not-the-state', 'code');
+      const finished = await store.finish('ax-mcp', state, 'code-1');
+      const replay = await store.finish('ax-mcp', state, 'code-1');
+      const raw = await store.rawTokens();
+      const first = await store.accessToken('ax-mcp');
+      const together = await Promise.all([1, 2, 3].map(() => store.accessToken('ax-mcp')));
+      const calls = await store.calls();
+      const status = await store.status();
+      await store.revokeAll();
+      const afterReject = await store.rejected('ax-mcp');
+      const statusAfterRevoke = await store.status();
+
+      return Response.json({
+        authorize: {
+          origin: authorize.origin + authorize.pathname,
+          clientId: authorize.searchParams.get('client_id'),
+          redirect: authorize.searchParams.get('redirect_uri'),
+          method: authorize.searchParams.get('code_challenge_method'),
+          resource: authorize.searchParams.get('resource'),
+          hasChallenge: (authorize.searchParams.get('code_challenge') ?? '').length >= 43,
+        },
+        wrongState,
+        finished,
+        replay,
+        rawLeaks: JSON.stringify(raw).includes('at-1') || JSON.stringify(raw).includes('rt-1'),
+        first,
+        together,
+        refreshCalls: calls.filter((line) => line.endsWith('refresh_token')).length,
+        status,
+        afterReject,
+        statusAfterRevoke,
+        pending: await store.pendingCount(),
       });
     }
 

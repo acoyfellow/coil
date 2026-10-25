@@ -57,12 +57,19 @@ else
   vars=(--var "COIL_AUTH:cloudflare" --var "OAUTH_CLIENT_ID:$COIL_OAUTH_CLIENT_ID")
   [ -z "${COIL_USER_GATEWAY:-}" ] || vars+=(--var "COIL_USER_GATEWAY:$COIL_USER_GATEWAY")
 fi
+vars+=(--var "COIL_COMMIT:$(git rev-parse HEAD)")
 [ -z "${COIL_MODEL:-}" ] || vars+=(--var "MODEL:$COIL_MODEL")
 [ -z "${COIL_AI_GATEWAY:-}" ] || vars+=(--var "AI_GATEWAY:$COIL_AI_GATEWAY")
 [ -z "${COIL_MODEL_GATEWAY_URL:-}" ] || vars+=(
   --var "MODEL_GATEWAY_URL:$COIL_MODEL_GATEWAY_URL"
   --var "MODEL_GATEWAY_HEADER:${COIL_MODEL_GATEWAY_HEADER:-authorization}"
 )
+
+if [ -n "${COIL_CONNECTORS_FILE:-}" ]; then
+  [ -r "$COIL_CONNECTORS_FILE" ] || { echo "COIL_CONNECTORS_FILE $COIL_CONNECTORS_FILE is not readable" >&2; exit 2; }
+  connectors=$(node -e 'const fs=require("fs");process.stdout.write(JSON.stringify(JSON.parse(fs.readFileSync(process.argv[1],"utf8"))))' "$COIL_CONNECTORS_FILE")
+  vars+=(--var "CONNECTORS_JSON:$connectors")
+fi
 
 deploy() {
   if [ "$COIL_WORKERS_DEV" = 1 ]; then
@@ -78,6 +85,17 @@ if [ -n "${COIL_MODEL_GATEWAY_TOKEN_COMMAND:-}" ]; then
   [ -n "$token" ] || { echo "COIL_MODEL_GATEWAY_TOKEN_COMMAND printed nothing" >&2; exit 1; }
   printf '%s' "$token" | npx wrangler secret put MODEL_GATEWAY_TOKEN -c "$COIL_WRANGLER_CONFIG" >/dev/null
   echo "model gateway token stored as a Worker secret"
+fi
+
+if [ -n "${COIL_CONNECTORS_FILE:-}" ]; then
+  listed=$(CLOUDFLARE_ACCOUNT_ID="$COIL_ACCOUNT_ID" npx wrangler secret list -c "$COIL_WRANGLER_CONFIG" 2>/dev/null || true)
+  case "$listed" in
+    *'"name": "CONNECTOR_SEAL_KEY"'* | *'"name":"CONNECTOR_SEAL_KEY"'*) echo "connector seal key is already a Worker secret" ;;
+    *)
+      openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put CONNECTOR_SEAL_KEY -c "$COIL_WRANGLER_CONFIG" >/dev/null
+      echo "connector seal key generated and stored as a Worker secret"
+      ;;
+  esac
 fi
 
 if [ "$auth" = cloudflare ]; then

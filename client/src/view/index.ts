@@ -8,6 +8,7 @@ import { feed } from './feed';
 import { palette } from './palette';
 import { panel } from './panel';
 import { type H, spinner } from './parts';
+import { settings } from './settings';
 import { side } from './side';
 
 const SIZE_LABELS: Record<(typeof SIZES)[number], string> = {
@@ -167,6 +168,7 @@ export const view = (model: Model, h: H): Document => ({
       ),
       newThreadDialog(h, model),
       palette(h, model),
+      settings(h, model),
       ...toasts(h, model),
     ],
   ),

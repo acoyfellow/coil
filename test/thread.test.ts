@@ -270,3 +270,29 @@ test('one spend limit, set by each person: none by default, blocks new turns onc
   expect(out.cleared.limit).toBeNull();
   expect(out.badLimit).toMatch(/positive dollar amount/);
 });
+
+test('a connector signs in with PKCE and a one-use state, seals its tokens, refreshes once for many callers, and forgets a revoked grant', {
+  timeout: 30_000,
+}, async () => {
+  const out = await get('/connector-probe');
+
+  expect(out.authorize).toEqual({
+    origin: 'https://auth.test/authorize',
+    clientId: 'client-1',
+    redirect: 'https://coil.test/connectors/ax-mcp/callback',
+    method: 'S256',
+    resource: 'https://mcp.test/',
+    hasChallenge: true,
+  });
+  expect(out.wrongState.ok).toBe(false);
+  expect(out.finished).toEqual({ ok: true, back: '/t/abc' });
+  expect(out.replay.ok).toBe(false);
+  expect(out.rawLeaks).toBe(false);
+  expect(out.first).toBe('at-2');
+  expect(out.together).toEqual(['at-2', 'at-2', 'at-2']);
+  expect(out.refreshCalls).toBe(1);
+  expect(out.status.map((each: { id: string }) => each.id)).toEqual(['ax-mcp']);
+  expect(out.afterReject).toBeNull();
+  expect(out.statusAfterRevoke).toEqual([]);
+  expect(out.pending).toBe(0);
+});

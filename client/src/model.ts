@@ -46,6 +46,10 @@ export type Live = typeof Live.Type;
 
 export const emptyLive: Live = { startedAt: null, text: '', tools: [], compacting: false };
 
+export const SettingsSection = Schema.Literals(['account', 'usage', 'app', 'connectors']);
+
+export type SettingsSection = typeof SettingsSection.Type;
+
 export const Action = Schema.Literals(['compact', 'pause', 'fork', 'size']);
 
 export type Action = typeof Action.Type;
@@ -121,12 +125,14 @@ export const Model = Schema.Struct({
   modelIndex: Schema.Number,
   usageOpen: Schema.Boolean,
   showArchived: Schema.Boolean,
+  connectors: Schema.Boolean,
   collapsed: Schema.Array(Schema.String),
   listFilter: Schema.String,
   rowMenu: Schema.NullOr(Schema.String),
   notify: Schema.Literals(['unsupported', 'default', 'granted', 'denied']),
   uploading: Schema.Number,
   palette: Schema.NullOr(Schema.Struct({ query: Schema.String, index: Schema.Number })),
+  settings: Schema.NullOr(Schema.Struct({ query: Schema.String, section: SettingsSection })),
   addMenuOpen: Schema.Boolean,
   drawer: Drawer,
   newThread: NewThreadForm,

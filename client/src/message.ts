@@ -11,10 +11,10 @@ import {
   ThreadSummary,
   ThreadView,
 } from '../../shared/protocol';
-import { Action, Theme, ThreadOp } from './model';
+import { Action, SettingsSection, Theme, ThreadOp } from './model';
 
 export const Message = defineMessageUnion({
-  LoadedWho: { who: Schema.String },
+  LoadedWho: { who: Schema.String, connectors: Schema.Boolean },
   LoadedAccount: { account: Schema.NullOr(Schema.String), gateway: Schema.NullOr(Schema.String) },
   LoadedSpend: { spent: Schema.Number, limit: Schema.NullOr(Schema.Number) },
   ClickedSpendLimit: {},
@@ -74,6 +74,10 @@ export const Message = defineMessageUnion({
   ClosedModelMenu: {},
   ToggledUsage: {},
   ToggledArchived: {},
+  OpenedSettings: { section: Schema.NullOr(SettingsSection) },
+  ClosedSettings: {},
+  UpdatedSettingsQuery: { query: Schema.String },
+  ChoseSettingsSection: { section: SettingsSection },
   ToggledCollapsed: { key: Schema.String },
   LeftApp: { href: Schema.String },
   UpdatedListFilter: { value: Schema.String },

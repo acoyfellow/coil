@@ -1,6 +1,8 @@
 import { Context } from 'effect';
 import { gate } from './auth/gate';
 import { CapabilityInputError, capabilityNamed } from './capabilities';
+import { connectorsOf } from './connectors/config';
+import { connectorRoute, isConnectorPath } from './connectors/routes';
 import { DIRECTORY_NAME } from './directory-name';
 import { docsPage, llmsText } from './docs';
 import { mcp } from './mcp';
@@ -19,6 +21,7 @@ import { sharedPage } from './ui/shared';
 import { serviceWorker } from './ui/sw';
 import { TERM_JS, TERM_VERSION } from './ui/term.generated';
 
+export { ConnectorStore } from './connectors/store';
 export { Directory } from './directory';
 export { CoilBridge } from './run';
 export { Thread } from './thread';
@@ -160,7 +163,21 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
   const url = new URL(request.url);
   const { pathname } = url;
 
-  if (isRpcPath(pathname)) return rpcHandler(caller)(request, Context.empty());
+  if (isRpcPath(pathname))
+    return rpcHandler({
+      ...caller,
+      connectors: env.CONNECTORS !== undefined && connectorsOf(env).length > 0,
+    })(request, Context.empty());
+
+  if (isConnectorPath(pathname) && env.CONNECTORS !== undefined) {
+    const answer = await connectorRoute(
+      request,
+      { ...env, CONNECTORS: env.CONNECTORS },
+      caller.who,
+    );
+
+    if (answer !== null) return answer;
+  }
 
   if (pathname === '/mcp' && request.method === 'POST')
     return mcp(request, { env, who: caller.who, api: caller.api });
@@ -169,6 +186,12 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
 
   if (capability?.[1] !== undefined && request.method === 'POST')
     return runCapability(request, caller, capability[1]);
+
+  if (pathname === '/api/version')
+    return Response.json(
+      { commit: env.COIL_COMMIT ?? 'unknown' },
+      { headers: { 'cache-control': 'no-store' } },
+    );
 
   if (pathname === `/assets/term-${TERM_VERSION}.js`)
     return script(TERM_JS, 'public, max-age=31536000, immutable');

@@ -3,7 +3,7 @@ import type { ThreadSummary } from '../../../shared/protocol';
 import { Message } from '../message';
 import { type Model, ThreadsState } from '../model';
 import { pathForThread } from '../route';
-import { type H, phaseKey, phaseLabel, short, skeleton } from './parts';
+import { type H, icon, phaseKey, phaseLabel, short, skeleton } from './parts';
 
 const DAY_MS = 86_400_000;
 
@@ -182,33 +182,6 @@ const signedInLabel = (model: Model) => {
     ? model.account.name
     : `${model.account.name} · ${model.account.gateway}`;
 };
-
-const signOut = (h: H, who: string): Html[] =>
-  isCloudflareUser(who)
-    ? [
-        h.a(
-          [
-            h.Id('gateway-link'),
-            h.Class('sign-out gateway-link'),
-            h.Href('/oauth/gateway'),
-            h.DataAttribute('tip', 'Pick which AI Gateway on your account runs model calls'),
-          ],
-          ['Gateway'],
-        ),
-        h.form(
-          [h.Id('sign-out'), h.Class('sign-out'), h.Method('post'), h.Action('/oauth/logout')],
-          [
-            h.button(
-              [
-                h.Type('submit'),
-                h.DataAttribute('tip', 'Sign out and remove coil access to your account'),
-              ],
-              ['Sign out'],
-            ),
-          ],
-        ),
-      ]
-    : [];
 
 const archivedToggle = (h: H, model: Model, count: number): Html[] =>
   count === 0
@@ -399,43 +372,25 @@ export const side = (h: H, model: Model): Html =>
             ],
             [signedInLabel(model)],
           ),
-          ...signOut(h, model.who),
           h.button(
             [
               h.Id('spend'),
               h.Class('spend'),
-              h.Title('Your spend across all threads. Click to set a limit.'),
-              h.OnClick(Message.ClickedSpendLimit()),
+              h.DataAttribute('tip', 'Your spend across all threads'),
+              h.OnClick(Message.OpenedSettings({ section: 'usage' })),
             ],
             [spendLabel(model.spend)],
           ),
           h.button(
             [
-              h.Id('notify'),
-              h.Hidden(model.notify !== 'default'),
-              h.DataAttribute('tip', 'Get a notification when a thread or loop finishes (⌘⇧N)'),
-              h.Attribute('aria-keyshortcuts', 'Meta+Shift+N Control+Shift+N'),
-              h.OnClick(Message.ClickedNotify()),
+              h.Id('settings-open'),
+              h.Class('settings-open'),
+              h.AriaLabel('Settings'),
+              h.DataAttribute('tip', 'Settings (⌘,)'),
+              h.Attribute('aria-keyshortcuts', 'Meta+Comma Control+Comma'),
+              h.OnClick(Message.OpenedSettings({ section: null })),
             ],
-            ['Notify me'],
-          ),
-          h.button(
-            [
-              h.Id('install'),
-              h.Hidden(!model.installable),
-              h.DataAttribute('tip', 'Install coil as an app'),
-              h.OnClick(Message.ClickedInstall()),
-            ],
-            ['Install'],
-          ),
-          h.button(
-            [
-              h.Id('theme'),
-              h.DataAttribute('tip', 'Switch light or dark'),
-              h.AriaLabel('Theme'),
-              h.OnClick(Message.ClickedTheme()),
-            ],
-            ['◐'],
+            [icon(h, 'settings')],
           ),
         ],
       ),

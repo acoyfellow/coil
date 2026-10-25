@@ -14,6 +14,7 @@ const USED = {
   archive: 'archive',
   trash: 'trash-2',
   share: 'share-2',
+  settings: 'settings',
 };
 
 const inner = (name) => {
