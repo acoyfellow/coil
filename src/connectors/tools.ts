@@ -9,7 +9,7 @@ export type ConnectorTokens = {
 };
 
 export const CONNECT_HINT = (connector: Connector) =>
-  `Not connected to ${connector.id}. Ask the user to open the sidebar, click Connectors, and connect ${connector.id}; then try again.`;
+  `Not connected to ${connector.id}. Ask the user to open Settings (the gear, or ⌘,), choose Connectors, and connect ${connector.id}; then try again.`;
 
 const toolName = (connector: Connector, tool: string) =>
   `${connector.id.replaceAll('-', '_')}__${tool}`.slice(0, 64);
