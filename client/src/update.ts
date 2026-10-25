@@ -34,6 +34,7 @@ import {
   SaveTheme,
   SendMessage,
   ShowNotifications,
+  SubmitConnectorAction,
   storedDraft,
   systemIsDark,
   UploadFiles,
@@ -340,6 +341,13 @@ export const update = (model: Model, message: Message): UpdateReturn =>
   Message.match<UpdateReturn>(message, {
     LoadedWho: ({ who, connectors }) => ({
       model: modifyFields(model, { who: () => who, connectors: () => connectors }),
+    }),
+    ChoseConnectorAction: ({ id, action }) => ({
+      model: modifyFields(model, { palette: () => null }),
+      commands: [SubmitConnectorAction({ id, action })],
+    }),
+    LoadedConnectors: ({ connectors }) => ({
+      model: modifyFields(model, { connectorList: () => connectors }),
     }),
     LoadedAccount: ({ account, gateway }) => ({
       model: modifyFields(model, {
@@ -666,7 +674,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       }),
       commands: [FocusSettings()],
     }),
-    ClosedSettings: () => ({ model: modifyFields(model, { settings: () => null }) }),
+    ClosedSettings: () => ({
+      model: modifyFields(model, { settings: () => null, connectorProblem: () => null }),
+    }),
     UpdatedSettingsQuery: ({ query }) => ({
       model: modifyFields(model, {
         settings: (open) => (open === null ? null : { ...open, query }),

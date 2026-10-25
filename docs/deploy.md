@@ -79,3 +79,31 @@ A connector is a remote MCP server that each user signs in to with their own OAu
 - **Tokens are per user and sealed.** Each user gets their own `ConnectorStore` Durable Object. Access and refresh tokens are sealed with AES-GCM under a key derived from `CONNECTOR_SEAL_KEY` and that user's identity, so one user's token cannot be opened as another's. The agent never sees a token. It calls the tool, and the Worker adds the token.
 - One refresh runs at a time for each user and connector. If the server refuses the refresh (400, 401 or 403), coil forgets the grant, and the agent tells the user to connect again.
 - Rotating `CONNECTOR_SEAL_KEY` disconnects every user.
+
+### Users connect from Settings
+
+A user connects and disconnects in **Settings → Connectors** (the gear, ⌘, or ⌘K, then "Connect &lt;id&gt;"). There is no separate page: `/connectors` sends the user to `/?settings=connectors`. After the sign-in, or if it fails, coil returns the user to the same dialog, which shows the result.
+
+### Allow the exact callback on the OAuth server
+
+The OAuth server must accept coil's callback during dynamic client registration. For a Cloudflare Access MCP portal, open **Zero Trust → Access controls → MCP Portals → \<portal\> → Managed OAuth → Allowed redirect URIs** and add the exact callback of each connector on each instance:
+
+```text
+https://<instance-host>/connectors/<connector-id>/callback
+```
+
+- **Add the exact URI.** A `/*` wildcard entry is accepted by the form but does not match during registration (checked 2026-10-25). Registration then fails with `redirect_uri is not allowed by the account configuration`, and the Settings dialog shows that message.
+- Do not widen the portal's access policy. The allowed redirect URIs only control where the OAuth answer may go; the portal's own policy still decides who may sign in.
+- To check before a user tries, register a test client:
+
+```sh
+curl -sS -X POST https://<team>.cloudflareaccess.com/cdn-cgi/access/oauth/registration \
+  -H 'content-type: application/json' \
+  -d '{"client_name":"coil check","redirect_uris":["https://<instance-host>/connectors/<id>/callback"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none"}'
+```
+
+A `client_id` in the answer means the callback is allowed.
+
+### Code Mode portals
+
+If the portal turns Code Mode on, `tools/list` shows only portal tools (`portal_codemode_search`, `portal_codemode_execute`, …). coil still calls the allowed tools by name. The `<id>__describe` tool then reads their schemas through `portal_codemode_search`, so the agent sees the same allowlisted schemas either way.

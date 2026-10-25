@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { defineMessageUnion } from 'foldkit/message';
 import {
+  ConnectorState,
   DirEntry,
   LiveEvent,
   ModelOption,
@@ -76,6 +77,8 @@ export const Message = defineMessageUnion({
   ToggledArchived: {},
   OpenedSettings: { section: Schema.NullOr(SettingsSection) },
   ClosedSettings: {},
+  LoadedConnectors: { connectors: Schema.Array(ConnectorState) },
+  ChoseConnectorAction: { id: Schema.String, action: Schema.Literals(['start', 'disconnect']) },
   UpdatedSettingsQuery: { query: Schema.String },
   ChoseSettingsSection: { section: SettingsSection },
   ToggledCollapsed: { key: Schema.String },

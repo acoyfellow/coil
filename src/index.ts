@@ -2,7 +2,7 @@ import { Context } from 'effect';
 import { gate } from './auth/gate';
 import { CapabilityInputError, capabilityNamed } from './capabilities';
 import { connectorsOf } from './connectors/config';
-import { connectorRoute, isConnectorPath } from './connectors/routes';
+import { connectorRoute, connectorStates, isConnectorPath } from './connectors/routes';
 import { DIRECTORY_NAME } from './directory-name';
 import { docsPage, llmsText } from './docs';
 import { mcp } from './mcp';
@@ -161,6 +161,10 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
     return rpcHandler({
       ...caller,
       connectors: env.CONNECTORS !== undefined && connectorsOf(env).length > 0,
+      listConnectors: () =>
+        env.CONNECTORS === undefined
+          ? Promise.resolve([])
+          : connectorStates({ ...env, CONNECTORS: env.CONNECTORS }, caller.who),
     })(request, Context.empty());
 
   if (isConnectorPath(pathname) && env.CONNECTORS !== undefined) {

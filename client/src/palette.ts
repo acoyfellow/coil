@@ -39,6 +39,14 @@ const actionsFor = (model: Model): PaletteItem[] => {
             hint: 'settings',
             message: Message.OpenedSettings({ section: 'connectors' }),
           },
+          ...model.connectorList.map((connector) => ({
+            label: `${connector.connected ? 'Disconnect' : 'Connect'} ${connector.id}`,
+            hint: 'connector',
+            message: Message.ChoseConnectorAction({
+              id: connector.id,
+              action: connector.connected ? 'disconnect' : 'start',
+            }),
+          })),
         ]
       : []),
   ];

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { ConnectorConfigError, parseConnectors } from '../src/connectors/config';
 import { McpUnauthorized, openMcp } from '../src/connectors/mcp-client';
 import { SealKeyMissing, seal, unseal } from '../src/connectors/seal';
+import { codeModeSearchFor, describeFromCodeMode } from '../src/connectors/tools';
 
 const portal = {
   upstream: 'https://mcp.test/mcp',
@@ -126,5 +127,36 @@ describe('mcp client', () => {
     await expect(openMcp('https://mcp.test/mcp', 'tok', server([], 401))).rejects.toThrow(
       McpUnauthorized,
     );
+  });
+});
+
+describe('code mode portal describe', () => {
+  const connector = {
+    id: 'ax-mcp',
+    upstream: 'https://mcp.test/mcp',
+    description: 'portal',
+    auth: portal.auth,
+    expose: ['wiki_search_wiki'],
+  };
+
+  test('the search program asks only for allowed tools', () => {
+    expect(codeModeSearchFor(['wiki_search_wiki'])).toContain('["wiki_search_wiki"]');
+  });
+
+  test('a code mode answer becomes allowed tools with schemas', () => {
+    const answer = JSON.stringify({
+      result: [
+        { name: 'wiki_search_wiki', description: 'search', inputSchema: { type: 'object' } },
+        { name: 'gitlab_delete_project', description: 'no', inputSchema: {} },
+      ],
+    });
+
+    expect(JSON.parse(describeFromCodeMode(connector, answer))).toEqual([
+      { tool: 'ax_mcp__wiki_search_wiki', description: 'search', arguments: { type: 'object' } },
+    ]);
+  });
+
+  test('an answer it cannot read is passed through', () => {
+    expect(describeFromCodeMode(connector, 'plain text')).toBe('plain text');
   });
 });

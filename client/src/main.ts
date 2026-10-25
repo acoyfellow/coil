@@ -5,6 +5,7 @@ import { MODELS } from '../../shared/models';
 import { DEFAULT_SIZE } from '../../shared/protocol';
 import {
   LoadAccount,
+  LoadConnectors,
   LoadModels,
   LoadSpend,
   LoadThreads,
@@ -15,7 +16,7 @@ import {
   storedDraft,
 } from './command';
 import type { Message } from './message';
-import { FileView, type Model, Theme, ThreadsState, ViewState } from './model';
+import { FileView, type Model, SettingsSection, Theme, ThreadsState, ViewState } from './model';
 import { threadFromPath } from './route';
 import type { CoilClient } from './rpc';
 
@@ -27,6 +28,8 @@ export const Flags = Schema.Struct({
   online: Schema.Boolean,
   theme: Theme,
   openNew: Schema.Boolean,
+  openSettings: Schema.optional(Schema.NullOr(SettingsSection)),
+  connectorProblem: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
 export type Flags = typeof Flags.Type;
@@ -63,7 +66,12 @@ export const initialModel = (flags: Flags): Model => ({
   notify: notifyPermission(),
   uploading: 0,
   palette: null,
-  settings: null,
+  settings:
+    flags.openSettings === undefined || flags.openSettings === null
+      ? null
+      : { query: '', section: flags.openSettings },
+  connectorList: [],
+  connectorProblem: flags.connectorProblem ?? null,
   addMenuOpen: false,
   drawer: 'none',
   newThread: { open: flags.openNew, repo: '', title: '', size: DEFAULT_SIZE, creating: false },
@@ -82,6 +90,7 @@ export const init = (flags: Flags, url: Url): Update.Return<Model, Message, Coil
   model: withStoredDraft(initialModel({ ...flags, name: flags.name ?? threadFromUrl(url) })),
   commands: [
     LoadWho(),
+    LoadConnectors(),
     LoadAccount(),
     LoadSpend(),
     LoadModels(),

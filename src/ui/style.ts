@@ -104,6 +104,14 @@ button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:
 .settings-button:hover{background:var(--hover)}
 .settings-button.primary{background:var(--text);color:var(--bg);border-color:var(--text)}
 .settings-button.danger{color:var(--bad)}
+.settings-connector{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.settings-connector form{margin:0}
+.settings-connector-name{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.settings-connector-name span{font-family:var(--mono);font-size:13px}
+.settings-connector-name small{color:var(--faint);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.settings-state{font:11.5px var(--mono);color:var(--faint)}
+.settings-state.on{color:var(--good,#16a34a)}
+.settings-alert{color:var(--bad);font-size:13px;margin:0 0 10px}
 .settings-note{color:var(--faint);font-size:12.5px;margin:10px 0 0}
 @media (max-width:620px){.dialog-backdrop:has(.settings){padding-top:0;align-items:stretch}.dialog.settings{width:100vw;max-height:100dvh;height:100dvh;border-radius:0}.settings-body{grid-template-columns:1fr;grid-template-rows:auto 1fr}.settings-nav{flex-direction:row;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}.settings-nav button{flex:none}.settings-nav button small{display:none}}
 

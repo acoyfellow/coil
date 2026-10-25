@@ -19,6 +19,32 @@ export const reasonOf = (error: CoilError | RpcClientError): string => {
   }
 };
 
+export const SubmitConnectorAction = Command.define('SubmitConnectorAction', {
+  args: { id: Schema.String, action: Schema.Literals(['start', 'disconnect']) },
+  messages: [Message.CompletedEffect],
+  execute: ({ id, action }) =>
+    Effect.sync(() => {
+      const form = document.createElement('form');
+
+      form.method = 'post';
+      form.action = `/connectors/${encodeURIComponent(id)}/${action}`;
+      document.body.append(form);
+      form.submit();
+
+      return Message.CompletedEffect();
+    }),
+});
+
+export const LoadConnectors = Command.define('LoadConnectors', {
+  messages: [Message.LoadedConnectors],
+  execute: Effect.gen(function* () {
+    const client = yield* CoilClient;
+    const connectors = yield* client.ListConnectors();
+
+    return Message.LoadedConnectors({ connectors: [...connectors] });
+  }).pipe(Effect.orElseSucceed(() => Message.LoadedConnectors({ connectors: [] }))),
+});
+
 export const LoadWho = Command.define('LoadWho', {
   messages: [Message.LoadedWho],
   execute: Effect.gen(function* () {

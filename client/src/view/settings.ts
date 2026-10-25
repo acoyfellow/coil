@@ -1,4 +1,5 @@
 import type { Html } from 'foldkit/html';
+import type { ConnectorState } from '../../../shared/protocol';
 import { Message } from '../message';
 import type { Model, SettingsSection } from '../model';
 import type { H } from './parts';
@@ -183,23 +184,51 @@ const appPane = (h: H, model: Model): Html[] => [
   h.p([h.Class('settings-note')], ['Shortcuts: ⌘K search, ⌘, settings, ⌘⇧N notifications.']),
 ];
 
-const connectorsPane = (h: H): Html[] => [
+const connectorRow = (h: H, connector: ConnectorState): Html =>
+  h.keyed('div')(
+    `connector-${connector.id}`,
+    [h.Class('settings-connector'), h.DataAttribute('connector', connector.id)],
+    [
+      h.div(
+        [h.Class('settings-connector-name')],
+        [h.span([], [connector.id]), h.small([], [connector.description])],
+      ),
+      h.span(
+        [h.Class(connector.connected ? 'settings-state on' : 'settings-state')],
+        [connector.connected ? 'connected' : 'not connected'],
+      ),
+      h.form(
+        [
+          h.Method('post'),
+          h.Action(`/connectors/${connector.id}/${connector.connected ? 'disconnect' : 'start'}`),
+        ],
+        [
+          h.button(
+            [
+              h.Type('submit'),
+              h.Class(connector.connected ? 'settings-button' : 'settings-button primary'),
+            ],
+            [connector.connected ? 'Disconnect' : 'Connect'],
+          ),
+        ],
+      ),
+    ],
+  );
+
+const connectorsPane = (h: H, model: Model): Html[] => [
   h.h3([], ['Connectors']),
+  ...(model.connectorProblem === null
+    ? []
+    : [h.p([h.Class('settings-alert'), h.Role('alert')], [model.connectorProblem])]),
   h.p(
     [h.Class('settings-note')],
     [
       'Connect a tool server once with your own sign-in. The agent then uses it; it never sees your token.',
     ],
   ),
-  h.div(
-    [h.Class('settings-actions')],
-    [
-      h.a(
-        [h.Id('connectors-link'), h.Class('settings-button primary'), h.Href('/connectors')],
-        ['Manage connectors'],
-      ),
-    ],
-  ),
+  ...(model.connectorList.length === 0
+    ? [h.p([h.Class('settings-note')], ['Loading connectors…'])]
+    : model.connectorList.map((connector) => connectorRow(h, connector))),
 ];
 
 const pane = (h: H, model: Model, section: SettingsSection): Html[] => {
@@ -211,7 +240,7 @@ const pane = (h: H, model: Model, section: SettingsSection): Html[] => {
     case 'app':
       return appPane(h, model);
     case 'connectors':
-      return connectorsPane(h);
+      return connectorsPane(h, model);
   }
 };
 

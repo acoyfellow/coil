@@ -6,6 +6,7 @@ import {
   type Base,
   type CoilError,
   CoilRpcs,
+  type ConnectorState,
   type DirEntry,
   type ExecResult,
   Failed,
@@ -146,6 +147,7 @@ export type Caller = {
   readonly who: string;
   readonly api: CoilApi;
   readonly connectors?: boolean;
+  readonly listConnectors?: () => Promise<readonly ConnectorState[]>;
 };
 
 export const handlersFor = (caller: Caller) => {
@@ -153,6 +155,7 @@ export const handlersFor = (caller: Caller) => {
 
   return CoilRpcs.of({
     WhoAmI: () => Effect.succeed({ who: caller.who, connectors: caller.connectors === true }),
+    ListConnectors: () => attempt(async () => (await caller.listConnectors?.()) ?? []),
     GetSpend: () => attempt(() => api.spend()),
     SetSpendLimit: ({ dollars }) => attempt(() => api.setSpendLimit(dollars)),
     Sizes: () => Effect.succeed([...SIZES]),

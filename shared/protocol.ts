@@ -218,6 +218,14 @@ export const Who = Schema.Struct({
   connectors: Schema.optional(Schema.Boolean),
 });
 
+export const ConnectorState = Schema.Struct({
+  id: Schema.String,
+  description: Schema.String,
+  connected: Schema.Boolean,
+});
+
+export type ConnectorState = typeof ConnectorState.Type;
+
 export const Spend = Schema.Struct({ spent: Schema.Number, limit: Schema.NullOr(Schema.Number) });
 
 export class UnknownThread extends Schema.TaggedError<UnknownThread>()('UnknownThread', {
@@ -255,6 +263,7 @@ const target = { name: Schema.String };
 
 export const CoilRpcs = RpcGroup.make(
   Rpc.make('WhoAmI', { success: Who, error: CoilError }),
+  Rpc.make('ListConnectors', { success: Schema.Array(ConnectorState), error: CoilError }),
   Rpc.make('GetSpend', { success: Spend, error: CoilError }),
   Rpc.make('SetSpendLimit', {
     payload: { dollars: Schema.NullOr(Schema.Number) },

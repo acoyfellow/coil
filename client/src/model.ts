@@ -1,6 +1,7 @@
 import { Schema } from 'effect';
 import { defineTaggedUnion } from 'foldkit/schema';
 import {
+  ConnectorState,
   DirEntry,
   type LiveEvent,
   ModelOption,
@@ -126,6 +127,8 @@ export const Model = Schema.Struct({
   usageOpen: Schema.Boolean,
   showArchived: Schema.Boolean,
   connectors: Schema.Boolean,
+  connectorList: Schema.Array(ConnectorState),
+  connectorProblem: Schema.NullOr(Schema.String),
   collapsed: Schema.Array(Schema.String),
   listFilter: Schema.String,
   rowMenu: Schema.NullOr(Schema.String),

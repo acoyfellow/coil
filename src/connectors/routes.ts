@@ -1,5 +1,4 @@
 import { type ConnectorEnv, connectorNamed, connectorsOf } from './config';
-import { connectorsPage } from './page';
 import type { ConnectorStore } from './store';
 
 export type ConnectorRouteEnv = ConnectorEnv & {
@@ -13,22 +12,21 @@ export const isConnectorPath = (pathname: string) => ROUTE.test(pathname);
 
 export const storeFor = (env: ConnectorRouteEnv, owner: string) => env.CONNECTORS.getByName(owner);
 
-export const connectorsHtmlResponse = (body: string, status = 200) =>
-  new Response(body, {
-    status,
-    headers: {
-      'content-type': 'text/html; charset=utf-8',
-      'cache-control': 'no-store',
-      'x-robots-tag': 'noindex',
-      'referrer-policy': 'same-origin',
-    },
-  });
-
 const redirect = (location: string) =>
   new Response(null, {
     status: 303,
     headers: { location, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' },
   });
+
+export const connectorStates = async (env: ConnectorRouteEnv, owner: string) => {
+  const connected = new Set((await storeFor(env, owner).status()).map((each) => each.id));
+
+  return connectorsOf(env).map((connector) => ({
+    id: connector.id,
+    description: connector.description,
+    connected: connected.has(connector.id),
+  }));
+};
 
 const backOf = (request: Request) => {
   const referer = URL.parse(request.headers.get('referer') ?? '');
@@ -38,21 +36,12 @@ const backOf = (request: Request) => {
   return RETURN_PATH.test(path) ? path : '/';
 };
 
-const listing = async (
-  env: ConnectorRouteEnv,
-  owner: string,
-  problem: string | null,
-  status = 200,
-) => {
-  const connected = new Set((await storeFor(env, owner).status()).map((each) => each.id));
+export const settingsPath = (back: string, problem: string | null = null) => {
+  const query = new URLSearchParams({ settings: 'connectors' });
 
-  return connectorsHtmlResponse(
-    connectorsPage(
-      connectorsOf(env).map((connector) => ({ connector, connected: connected.has(connector.id) })),
-      problem,
-    ),
-    status,
-  );
+  if (problem !== null) query.set('connector_error', problem.slice(0, 300));
+
+  return `${RETURN_PATH.test(back) ? back : '/'}?${query.toString()}`;
 };
 
 const reason = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
@@ -70,20 +59,22 @@ export const connectorRoute = async (
   const [, id, action] = match;
 
   if (id === undefined || action === undefined)
-    return request.method === 'GET' ? listing(env, owner, null) : null;
+    return request.method === 'GET' ? redirect(settingsPath('/')) : null;
 
   if (connectorNamed(env, id) === null)
-    return listing(env, owner, `No connector named ${id}.`, 404);
+    return redirect(settingsPath('/', `No connector named ${id}.`));
 
   const store = storeFor(env, owner);
 
   if (action === 'start' && request.method === 'POST') {
+    const back = backOf(request);
+
     try {
-      return redirect((await store.start(id, url.origin, backOf(request))).url);
+      return redirect((await store.start(id, url.origin, back)).url);
     } catch (cause) {
       console.error('connector start failed', { connector: id, reason: reason(cause) });
 
-      return listing(env, owner, `Could not start sign-in for ${id}: ${reason(cause)}`, 502);
+      return redirect(settingsPath(back, `Could not start sign-in for ${id}: ${reason(cause)}`));
     }
   }
 
@@ -93,26 +84,28 @@ export const connectorRoute = async (
     const refused = url.searchParams.get('error');
 
     if (refused !== null)
-      return listing(env, owner, `Sign-in for ${id} was refused: ${refused}`, 400);
+      return redirect(settingsPath('/', `Sign-in for ${id} was refused: ${refused}`));
 
     if (state === '' || code === '')
-      return listing(env, owner, 'The sign-in answer is incomplete.', 400);
+      return redirect(settingsPath('/', 'The sign-in answer is incomplete.'));
 
     try {
       const finished = await store.finish(id, state, code);
 
-      return finished.ok ? redirect('/connectors') : listing(env, owner, finished.reason, 400);
+      return redirect(
+        finished.ok ? settingsPath(finished.back) : settingsPath('/', finished.reason),
+      );
     } catch (cause) {
       console.error('connector callback failed', { connector: id, reason: reason(cause) });
 
-      return listing(env, owner, `Could not finish sign-in for ${id}: ${reason(cause)}`, 502);
+      return redirect(settingsPath('/', `Could not finish sign-in for ${id}: ${reason(cause)}`));
     }
   }
 
   if (action === 'disconnect' && request.method === 'POST') {
     await store.disconnect(id);
 
-    return redirect('/connectors');
+    return redirect(settingsPath(backOf(request)));
   }
 
   return new Response('method not allowed', { status: 405 });
