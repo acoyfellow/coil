@@ -135,6 +135,8 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
     case 'page':
       return { model };
     case 'state': {
+      if (model.sending && !event.busy) return { model };
+
       const view = viewOf(model);
       const wasBusy = view?.busy ?? false;
       const next = withView(model, (current) => ({
@@ -385,8 +387,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       model: modifyFields(model, { drawer: () => 'none' as const }),
       commands: [PushUrl({ url: pathForThread(name) })],
     }),
-    LoadedView: ({ name, view }) =>
+    LoadedView: ({ name, view: loaded }) =>
       forCurrent(model, name, () => {
+        const view = model.sending ? { ...loaded, busy: true } : loaded;
         const next = ensureTab(
           modifyFields(model, {
             view: () => ViewState.Ready({ value: view }),
