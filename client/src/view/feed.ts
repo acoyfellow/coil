@@ -352,8 +352,10 @@ const welcome = (h: H): Html =>
   );
 
 const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
-  const startedAt =
-    view.turns.find((turn) => turn.ended === 0)?.at ?? model.live?.startedAt ?? null;
+  const starts = [view.turns.find((turn) => turn.ended === 0)?.at, model.live?.startedAt].filter(
+    (at): at is number => typeof at === 'number',
+  );
+  const startedAt = starts.length === 0 ? null : Math.min(...starts, model.now);
 
   if (!view.busy || startedAt === null) return [];
 
