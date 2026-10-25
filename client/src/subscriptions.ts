@@ -150,7 +150,7 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
     { working: Schema.Boolean },
     {
       modelToDependencies: (model) => ({
-        working: model.view._tag === 'Ready' && model.view.value.busy,
+        working: model.live !== null || (model.view._tag === 'Ready' && model.view.value.busy),
       }),
       dependenciesToStream: ({ working }) =>
         working

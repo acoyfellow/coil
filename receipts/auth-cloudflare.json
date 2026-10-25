@@ -1,8 +1,8 @@
 {
   "ok": true,
-  "base": "https://coil.coey.dev",
+  "base": "https://coil-dev.coy.workers.dev",
   "model": "@cf/zai-org/glm-5.3",
-  "thread": "auth-receipt-400d4f",
+  "thread": "auth-receipt-1f03aa",
   "checks": {
     "anonymousRefused": true,
     "signedInCreates": true,
@@ -12,6 +12,6 @@
   },
   "answer": "coil auth ok",
   "error": null,
-  "seconds": 7,
-  "at": "2026-10-15T19:23:13.275Z"
+  "seconds": 40,
+  "at": "2026-10-18T00:23:28.418Z"
 }
