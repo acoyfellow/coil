@@ -185,12 +185,18 @@ const ready = (h: H, view: ThreadView): Html =>
     ],
   );
 
+const uniqueById = <T extends { readonly id: string }>(items: readonly T[]): T[] => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => !seen.has(item.id) && seen.add(item.id) !== undefined);
+};
+
 const liveItems = (h: H, model: Model): Html[] => {
   const live = model.live;
 
   if (live === null) return [];
 
-  const tools = live.tools.map((each: LiveTool) =>
+  const tools = uniqueById(live.tools).map((each: LiveTool) =>
     tool(
       h,
       `live-${each.id}`,
@@ -305,7 +311,13 @@ const withTurnFooters = (
     if (!replied) silent.add(nextPrompt - 1);
   });
 
+  const seen = new Set<string>();
+
   return messages.flatMap((entry, index) => {
+    if (seen.has(entry.id)) return [];
+
+    seen.add(entry.id);
+
     const item = entry.role === 'toolResult' ? null : render(entry);
     const footer = footerAfter.get(index);
 

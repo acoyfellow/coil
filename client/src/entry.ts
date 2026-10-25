@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Effect, Option } from 'effect';
 import { Runtime, Url } from 'foldkit';
 import { storedTheme } from './command';
 import { installLayout } from './layout';
@@ -49,6 +49,19 @@ const application = Runtime.makeApplication({
   resources: CoilClientLive,
   container: document.getElementById('root'),
   devTools: false,
+  crash: {
+    report: ({ error, message }) => {
+      const body = JSON.stringify({
+        error: error.message,
+        stack: (error.stack ?? '').split('\n').slice(0, 12).join('\n'),
+        message: Option.match(message, { onNone: () => null, onSome: (each) => each._tag }),
+        agent: navigator.userAgent,
+        path: globalThis.location.pathname,
+      });
+
+      navigator.sendBeacon('/api/crash', new Blob([body], { type: 'application/json' }));
+    },
+  },
 });
 
 installLayout();

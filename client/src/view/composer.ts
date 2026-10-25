@@ -16,7 +16,7 @@ const hint = (model: Model): string => {
   if (view === null) return '';
   if (model.uploading > 0)
     return `Uploading ${model.uploading} file${model.uploading === 1 ? '' : 's'}…`;
-  if (view.busy) return 'Working. You can leave; it keeps going.';
+  if (view.busy) return '';
   if (view.phase === 'paused') return 'Paused. Sending resumes it from the saved disk.';
 
   return touchKeyboard() ? '' : 'Enter sends · Shift+Enter for a new line';

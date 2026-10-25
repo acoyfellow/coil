@@ -187,6 +187,14 @@ const route = async (request: Request, env: Env, caller: Owner): Promise<Respons
 
   if (events?.[1] !== undefined) return caller.api.events(events[1], request);
 
+  if (pathname === '/api/crash' && request.method === 'POST') {
+    const report = (await request.text()).slice(0, 4000);
+
+    console.error('client crash', { who: caller.who, report });
+
+    return new Response(null, { status: 204 });
+  }
+
   if (pathname.startsWith('/api/'))
     return (
       (await serveRest(request, handlersFor(caller))) ??

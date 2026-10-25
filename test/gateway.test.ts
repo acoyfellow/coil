@@ -7,6 +7,7 @@ import {
   externalBaseUrl,
   gatewayModel,
   isGatewayModel,
+  rewriteBody,
   upstreamId,
 } from '../src/gateway';
 
@@ -147,5 +148,45 @@ describe('an external model gateway', () => {
     expect(seen[0]?.headers['cf-access-token']).toBe('tok');
     expect(seen[0]?.headers['x-api-key']).toBeUndefined();
     expect(seen[0]?.headers.authorization).toBeUndefined();
+  });
+});
+
+describe('Workers AI chat bodies', () => {
+  const chat = (messages: unknown[]) =>
+    new Request('https://api.cloudflare.com/client/v4/accounts/a/ai/v1/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ model: 'm', messages }),
+    });
+
+  it('text-only array content becomes a string and null assistant content becomes empty', async () => {
+    const body = await rewriteBody(
+      chat([
+        { role: 'system', content: [{ type: 'text', text: 'be brief' }] },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'a' },
+            { type: 'text', text: 'b' },
+          ],
+        },
+        { role: 'assistant', content: null, tool_calls: [{ id: '1' }] },
+      ]),
+    );
+
+    expect(JSON.parse(String(body)).messages).toEqual([
+      { role: 'system', content: 'be brief' },
+      { role: 'user', content: 'a\nb' },
+      { role: 'assistant', content: '', tool_calls: [{ id: '1' }] },
+    ]);
+  });
+
+  it('content with an image stays an array', async () => {
+    const parts = [
+      { type: 'text', text: 'look' },
+      { type: 'image_url', image_url: { url: 'data:x' } },
+    ];
+    const body = await rewriteBody(chat([{ role: 'user', content: parts }]));
+
+    expect(JSON.parse(String(body)).messages[0].content).toEqual(parts);
   });
 });

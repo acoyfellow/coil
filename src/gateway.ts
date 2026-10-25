@@ -46,15 +46,54 @@ export const adaptiveThinking = (body: JsonBody): JsonBody => {
 
 const isAnthropicMessages = (url: string) => /\/anthropic\/v1\/messages(\?|$)/.test(url);
 
+const isWorkersAIChat = (url: string) => /\/ai\/v1\/chat\/completions(\?|$)/.test(url);
+
+const textOnly = (parts: readonly unknown[]): string | null => {
+  const texts = parts.map((part) =>
+    typeof part === 'object' &&
+    part !== null &&
+    'type' in part &&
+    part.type === 'text' &&
+    'text' in part &&
+    typeof part.text === 'string'
+      ? part.text
+      : null,
+  );
+
+  return texts.every((text): text is string => text !== null) ? texts.join('\n') : null;
+};
+
+const plainContent = (message: unknown): unknown => {
+  if (typeof message !== 'object' || message === null || !('content' in message)) return message;
+
+  const { content } = message;
+
+  if (content === null) return { ...message, content: '' };
+
+  if (!Array.isArray(content)) return message;
+
+  const text = textOnly(content);
+
+  return text === null ? message : { ...message, content: text };
+};
+
+export const plainTextMessages = (body: JsonBody): JsonBody =>
+  Array.isArray(body.messages) ? { ...body, messages: body.messages.map(plainContent) } : body;
+
 export const rewriteBody = async (request: Request): Promise<BodyInit | null> => {
   if (request.method === 'GET' || request.method === 'HEAD') return null;
 
   const text = await request.text();
+  const rewrite = isAnthropicMessages(request.url)
+    ? adaptiveThinking
+    : isWorkersAIChat(request.url)
+      ? plainTextMessages
+      : null;
 
-  if (!isAnthropicMessages(request.url)) return text;
+  if (rewrite === null) return text;
 
   try {
-    return JSON.stringify(adaptiveThinking(JSON.parse(text) as JsonBody));
+    return JSON.stringify(rewrite(JSON.parse(text) as JsonBody));
   } catch {
     return text;
   }
