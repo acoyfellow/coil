@@ -13,14 +13,14 @@ export const isConnectorPath = (pathname: string) => ROUTE.test(pathname);
 
 export const storeFor = (env: ConnectorRouteEnv, owner: string) => env.CONNECTORS.getByName(owner);
 
-const html = (body: string, status = 200) =>
+export const connectorsHtmlResponse = (body: string, status = 200) =>
   new Response(body, {
     status,
     headers: {
       'content-type': 'text/html; charset=utf-8',
       'cache-control': 'no-store',
       'x-robots-tag': 'noindex',
-      'referrer-policy': 'no-referrer',
+      'referrer-policy': 'same-origin',
     },
   });
 
@@ -46,7 +46,7 @@ const listing = async (
 ) => {
   const connected = new Set((await storeFor(env, owner).status()).map((each) => each.id));
 
-  return html(
+  return connectorsHtmlResponse(
     connectorsPage(
       connectorsOf(env).map((connector) => ({ connector, connected: connected.has(connector.id) })),
       problem,

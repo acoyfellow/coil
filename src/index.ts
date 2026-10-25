@@ -7,6 +7,7 @@ import { DIRECTORY_NAME } from './directory-name';
 import { docsPage, llmsText } from './docs';
 import { mcp } from './mcp';
 import { notFoundPage } from './not-found-page';
+import { isCrossOriginWrite } from './origin';
 import { isKnownPath } from './paths';
 import { PLAYER_VIDEO, playerPage, withRanges } from './player';
 import { serveRest } from './rest';
@@ -124,13 +125,6 @@ const admit = async (request: Request, env: Env): Promise<Admission> => {
   return result.kind === 'response'
     ? { refused: result.response }
     : { caller: { who: result.identity.who, api: coil(env, result.identity.who) } };
-};
-
-const isCrossOriginWrite = (request: Request) => {
-  const origin = request.headers.get('Origin');
-  const isWrite = request.method !== 'GET' && request.method !== 'HEAD';
-
-  return isWrite && origin !== null && origin !== new URL(request.url).origin;
 };
 
 const script = (body: string, cache: string) =>
