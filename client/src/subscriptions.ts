@@ -154,7 +154,7 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
       }),
       dependenciesToStream: ({ working }) =>
         working
-          ? Stream.tick(TURN_TICK).pipe(
+          ? Stream.concat(Stream.make(undefined), Stream.tick(TURN_TICK)).pipe(
               Stream.mapEffect(() => now),
               Stream.map((at) => Message.TickedTurn({ now: at })),
             )

@@ -245,7 +245,8 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
   }
 };
 
-const send = (model: Model): UpdateReturn => {
+const send = (stale: Model): UpdateReturn => {
+  const model = modifyFields(stale, { now: () => Date.now() });
   const text = model.draft.trim();
   const view = viewOf(model);
 
