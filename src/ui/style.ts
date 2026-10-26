@@ -344,6 +344,7 @@ button.usage:hover{background:var(--hover)}
 .usage-head span{font:12px var(--mono);color:var(--dim);white-space:nowrap}
 .usage-hint{margin:6px 0 0;padding-top:6px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
 .ran{display:flex;align-items:center;gap:10px;margin:2px 0 6px;font:12px var(--mono);color:var(--faint)}
+.ran-label{display:inline-flex;align-items:center;gap:8px}
 .ran::before,.ran::after{content:"";flex:1;height:1px;background:var(--line)}
 @media (hover:hover){
   .bar,.tabs{position:relative;z-index:40}

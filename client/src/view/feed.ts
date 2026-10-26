@@ -219,16 +219,6 @@ const liveItems = (h: H, model: Model): Html[] => {
       ),
     ];
 
-  if (live.tools.every((each) => each.done))
-    return [
-      ...tools,
-      h.keyed('div')(
-        'live-wait',
-        [h.Class('msg'), h.Id('live-wait')],
-        [h.div([h.Class('label')], [spinner(h), live.compacting ? 'compacting…' : 'thinking…'])],
-      ),
-    ];
-
   return tools;
 };
 
@@ -366,6 +356,9 @@ const welcome = (h: H): Html =>
     ],
   );
 
+const waitingForModel = (model: Model) =>
+  model.live !== null && model.live.text === '' && model.live.tools.every((each) => each.done);
+
 const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
   const starts = [view.turns.find((turn) => turn.ended === 0)?.at, model.live?.startedAt].filter(
     (at): at is number => typeof at === 'number',
@@ -378,7 +371,18 @@ const turnTimer = (h: H, model: Model, view: ThreadView): Html[] => {
     h.keyed('div')(
       'turn-timer',
       [h.Class('ran running'), h.Id('turn-timer'), h.AriaLive('off')],
-      [`Running for ${ranFor(Math.max(0, model.now - startedAt))}`],
+      [
+        h.span(
+          [h.Class('ran-label')],
+          [
+            h.span(
+              waitingForModel(model) ? [h.Id('live-wait'), h.Class('spin')] : [h.Class('spin')],
+              [],
+            ),
+            `${model.live?.compacting === true ? 'Compacting' : 'Running'} for ${ranFor(Math.max(0, model.now - startedAt))}`,
+          ],
+        ),
+      ],
     ),
   ];
 };
