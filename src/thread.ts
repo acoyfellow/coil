@@ -134,6 +134,7 @@ export type Env = {
 
 export type LiveEvent =
   | { readonly type: 'text'; readonly delta: string }
+  | { readonly type: 'thinking'; readonly delta: string }
   | {
       readonly type: 'tool_start';
       readonly id: string;
@@ -190,9 +191,12 @@ export const childName = (parent: string, index: number) =>
 const toLive = (event: AgentEvent): LiveEvent[] => {
   switch (event.type) {
     case 'message_update':
-      return event.changes.flatMap((change) =>
-        change.type === 'text_delta' ? [{ type: 'text' as const, delta: change.delta }] : [],
-      );
+      return event.changes.flatMap((change): LiveEvent[] => {
+        if (change.type === 'text_delta') return [{ type: 'text' as const, delta: change.delta }];
+        if (change.type === 'thinking_delta')
+          return [{ type: 'thinking' as const, delta: change.delta }];
+        return [];
+      });
     case 'tool_execution_start':
       return [
         {

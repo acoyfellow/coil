@@ -39,13 +39,20 @@ export type LiveTool = typeof LiveTool.Type;
 export const Live = Schema.Struct({
   startedAt: Schema.NullOr(Schema.Number),
   text: Schema.String,
+  thinking: Schema.String,
   tools: Schema.Array(LiveTool),
   compacting: Schema.Boolean,
 });
 
 export type Live = typeof Live.Type;
 
-export const emptyLive: Live = { startedAt: null, text: '', tools: [], compacting: false };
+export const emptyLive: Live = {
+  startedAt: null,
+  text: '',
+  thinking: '',
+  tools: [],
+  compacting: false,
+};
 
 export const SettingsSection = Schema.Literals(['account', 'usage', 'app', 'connectors']);
 

@@ -527,6 +527,21 @@ const textOf = (content: unknown): string => {
     .join('\n');
 };
 
+const thinkingOf = (content: unknown): string =>
+  Array.isArray(content)
+    ? content
+        .flatMap((part) => {
+          const typed = part as { type?: string; thinking?: string };
+
+          return typed.type === 'thinking' &&
+            typeof typed.thinking === 'string' &&
+            typed.thinking.trim() !== ''
+            ? [typed.thinking]
+            : [];
+        })
+        .join('\n\n')
+    : '';
+
 const toolCallsOf = (content: unknown) =>
   Array.isArray(content)
     ? content.flatMap((part) => {
@@ -562,6 +577,7 @@ export const entriesToMessages = (entries: readonly ChatEntry[]): Message[] =>
         ...(callId === undefined ? {} : { toolCallId: callId }),
       };
       const calls = message.role === 'assistant' ? toolCallsOf(content) : [];
+      const thought = message.role === 'assistant' ? thinkingOf(content) : '';
       const failure = (message as { errorMessage?: string }).errorMessage;
       const said =
         textOf(content) === '' && failure !== undefined && failure !== ''
@@ -569,7 +585,10 @@ export const entriesToMessages = (entries: readonly ChatEntry[]): Message[] =>
           : textOf(content);
 
       return [
-        ...(said === '' && calls.length > 0 ? [] : [{ ...base, text: said }]),
+        ...(thought === ''
+          ? []
+          : [{ ...base, id: `${base.id}:thinking`, role: 'thinking', text: thought }]),
+        ...(said === '' && (calls.length > 0 || thought !== '') ? [] : [{ ...base, text: said }]),
         ...calls.map((tool) => ({
           ...base,
           id: `${base.id}:${tool.id}`,
@@ -629,6 +648,8 @@ const totalsOf = (buckets: Record<string, unknown>): UsageTotals => {
   return { input, output, cacheRead, cost };
 };
 
+const THINKING_LEVEL = 'low';
+
 export const openAgent = async (
   storage: DurableObjectStorage,
   model: ModelChoice,
@@ -684,6 +705,8 @@ export const openAgent = async (
   const conversation = await harness.root(CONTEXT, {
     agent: { model: { provider: model.provider.id, modelId: model.modelId } },
   });
+
+  await conversation.configure({ thinkingLevel: THINKING_LEVEL }, CONTEXT);
 
   harness.resume();
 

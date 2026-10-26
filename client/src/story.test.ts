@@ -203,6 +203,27 @@ describe('sending', () => {
 });
 
 describe('live stream', () => {
+  test('streamed reasoning builds up live and clears when a tool starts', () => {
+    story(
+      update,
+      given(opened({ busy: true })),
+      message(
+        Message.ReceivedEvent({ name: 'demo', event: { _tag: 'thinking', delta: 'Check ' } }),
+      ),
+      message(
+        Message.ReceivedEvent({ name: 'demo', event: { _tag: 'thinking', delta: 'the repo' } }),
+      ),
+      model((current) => expect(current.live?.thinking).toBe('Check the repo')),
+      message(
+        Message.ReceivedEvent({
+          name: 'demo',
+          event: { _tag: 'tool_start', id: 'c1', name: 'run', args: '{"command":"ls"}' },
+        }),
+      ),
+      model((current) => expect(current.live?.thinking).toBe('')),
+    );
+  });
+
   test('streamed text and tools build the live turn, and the end of the turn reloads the view', () => {
     story(
       update,

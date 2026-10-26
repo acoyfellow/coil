@@ -401,6 +401,7 @@ export const RPC_PATH = '/api/rpc';
 export const LiveEvent = Schema.Union([
   Schema.TaggedStruct('hello', {}),
   Schema.TaggedStruct('text', { delta: Schema.String }),
+  Schema.TaggedStruct('thinking', { delta: Schema.String }),
   Schema.TaggedStruct('tool_start', {
     id: Schema.String,
     name: Schema.String,

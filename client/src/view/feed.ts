@@ -54,6 +54,19 @@ const tool = (
 
 const richText = (h: H, text: string): Html => markdown(h, text);
 
+const thinking = (h: H, key: string, text: string, streaming: boolean): Html =>
+  h.keyed('details')(
+    key,
+    [h.Class(`thinking${streaming ? ' streaming' : ''}`), ...(streaming ? [h.Open(true)] : [])],
+    [
+      h.summary(
+        [],
+        [streaming ? spinner(h) : h.span([h.Class('caret')], ['▶']), h.b([], ['Reasoning'])],
+      ),
+      h.div([h.Class('body')], [text]),
+    ],
+  );
+
 const message = (h: H, entry: ChatMessage, results: ReadonlyMap<string, string>): Html | null => {
   if (entry.role === 'tool' && entry.tool !== undefined) {
     const output = results.get(entry.tool.id) ?? null;
@@ -69,6 +82,9 @@ const message = (h: H, entry: ChatMessage, results: ReadonlyMap<string, string>)
       exit?.[1] !== undefined && exit[1] !== '0',
     );
   }
+
+  if (entry.role === 'thinking' && entry.text !== '')
+    return thinking(h, entry.id, entry.text, false);
 
   if (entry.kind === 'pi.compaction')
     return h.keyed('div')(
@@ -209,9 +225,13 @@ const liveItems = (h: H, model: Model): Html[] => {
     ),
   );
 
+  const thought =
+    live.thinking === '' ? [] : [thinking(h, 'live-thinking', live.thinking, live.text === '')];
+
   if (live.text !== '')
     return [
       ...tools,
+      ...thought,
       h.keyed('div')(
         'live-text',
         [h.Class('msg assistant'), h.Id('live-text')],
@@ -219,7 +239,7 @@ const liveItems = (h: H, model: Model): Html[] => {
       ),
     ];
 
-  return tools;
+  return [...tools, ...thought];
 };
 
 export const ranFor = (ms: number): string => {

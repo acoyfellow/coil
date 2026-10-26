@@ -186,6 +186,12 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
           live: () => ({ ...liveFrom(model), text: liveFrom(model).text + event.delta }),
         }),
       };
+    case 'thinking':
+      return {
+        model: modifyFields(model, {
+          live: () => ({ ...liveFrom(model), thinking: liveFrom(model).thinking + event.delta }),
+        }),
+      };
     case 'tool_start':
       return {
         model: modifyFields(
@@ -194,6 +200,7 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
             live: () => ({
               ...liveFrom(model),
               text: '',
+              thinking: '',
               tools: [
                 ...liveFrom(model).tools,
                 {
@@ -237,7 +244,9 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
       };
     case 'turn_end':
       return {
-        model: modifyFields(model, { live: () => ({ ...liveFrom(model), text: '' }) }),
+        model: modifyFields(model, {
+          live: () => ({ ...liveFrom(model), text: '', thinking: '' }),
+        }),
         commands: [RefreshViewSoon({ name }), LoadSpend()],
       };
     case 'compaction':

@@ -131,6 +131,7 @@ button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:
 .msg.user{align-items:flex-end}
 .msg.user .body{background:var(--you);border:1px solid var(--you-line);border-radius:12px;padding:8px 12px;max-width:85%;white-space:pre-wrap;word-break:break-word}
 .msg.assistant .body{white-space:pre-wrap;word-break:break-word}
+.thinking{margin:6px 0;color:var(--dim);font-size:13px}.thinking summary{cursor:pointer;display:flex;gap:6px;align-items:center;list-style:none}.thinking summary::-webkit-details-marker{display:none}.thinking .body{border-left:2px solid var(--line,#8884);padding:2px 10px;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;font-style:italic}
 .msg.summary .body{border-left:2px solid var(--blue);padding:2px 10px;color:var(--dim);white-space:pre-wrap;font-size:13px;max-height:160px;overflow:auto}
 .msg .body pre.code{margin:6px 0;padding:8px 10px;background:var(--raise);border-radius:6px;font:12px/1.5 var(--mono);white-space:pre-wrap;overflow:auto}
 .tool summary{list-style:none;cursor:pointer;padding:1px 0;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim)}
