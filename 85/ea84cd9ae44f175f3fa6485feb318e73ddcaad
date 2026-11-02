@@ -1,0 +1,119 @@
+README.md
+  s_32f3749aee7339::t_cd3ca098248f77 6,21,68,140,142,189
+computer/Dockerfile
+  s_5f045b53b1dfb4::t_591009e551d72f 7,15-16,22
+computer/webkit-host.py
+  s_5f045b53b1dfb4::t_6d3a65a5aff2cd 1-319
+docs/storyline.md
+  s_5f045b53b1dfb4::t_be44440f40250c 61
+experiments/webkit-only/CONTRACT.md
+  s_5f045b53b1dfb4::t_3196af007a2605 1-78
+experiments/webkit-only/harness.ts
+  s_5f045b53b1dfb4::t_cb536105c12d65 1-353
+experiments/webkit-only/images/base.Dockerfile
+  s_5f045b53b1dfb4::t_474ffa5434f27f 1-4
+experiments/webkit-only/images/chrome.Dockerfile
+  s_5f045b53b1dfb4::t_481a403645fabb 1-2
+experiments/webkit-only/images/package.json
+  s_5f045b53b1dfb4::t_3eba82e02603cb 1
+experiments/webkit-only/images/webkit.Dockerfile
+  s_5f045b53b1dfb4::t_d1bc83ba387b4f 1-2
+experiments/webkit-only/real-image-check.sh
+  s_5f045b53b1dfb4::t_56bfc4d675b860 1-46
+experiments/webkit-only/run.sh
+  s_5f045b53b1dfb4::t_70bbaee7018c66 1-18
+experiments/webkit-only/runs/real-image/output.txt
+  s_5f045b53b1dfb4::t_8199e7723b4a4f 1-11
+experiments/webkit-only/runs/run-1/chrome.json
+  s_5f045b53b1dfb4::t_6fb99d0742ea53 1
+experiments/webkit-only/runs/run-1/chrome.stderr
+  s_5f045b53b1dfb4::t_e643ae19767d6e 1-2
+experiments/webkit-only/runs/run-1/webkit.json
+  s_48b2cfd9e5d78c::t_2707f22b920d0b 1
+experiments/webkit-only/runs/run-1/webkit.stderr
+  s_48b2cfd9e5d78c::t_44456aed223675 1-4
+experiments/webkit-only/runs/run-2/chrome.json
+  s_48b2cfd9e5d78c::t_a68bbddfdafc0f 1
+experiments/webkit-only/runs/run-2/chrome.stderr
+  s_48b2cfd9e5d78c::t_a9381fee7b9e8f 1-2
+experiments/webkit-only/runs/run-2/webkit.json
+  s_48b2cfd9e5d78c::t_c9c7a265e381c5 1
+experiments/webkit-only/runs/run-2/webkit.stderr
+  s_48b2cfd9e5d78c::t_311d71fcd3afcd 1-4
+experiments/webkit-only/runs/run-3/chrome.json
+  s_48b2cfd9e5d78c::t_2b1d642fdff1c0 1
+experiments/webkit-only/runs/run-3/chrome.stderr
+  s_48b2cfd9e5d78c::t_47cc3db954750a 1-2
+experiments/webkit-only/runs/run-3/webkit.json
+  s_48b2cfd9e5d78c::t_942bdc31a46096 1
+experiments/webkit-only/runs/run-3/webkit.stderr
+  s_5f045b53b1dfb4::t_74f58f41212f84 1-4
+experiments/webkit-only/runs/slow-run-1/chrome.json
+  s_5f045b53b1dfb4::t_820449a7c0e3db 1
+experiments/webkit-only/runs/slow-run-1/chrome.stderr
+  s_5f045b53b1dfb4::t_d92d0d055ed37c 1-2
+experiments/webkit-only/runs/slow-run-1/webkit.json
+  s_32f3749aee7339::t_f385a80f3b0ad9 1
+experiments/webkit-only/runs/slow-run-1/webkit.stderr
+  s_32f3749aee7339::t_bf289b9d38a311 1-4
+experiments/webkit-only/runs/slow-run-2/chrome.json
+  s_5f045b53b1dfb4::t_419f3def15cdc9 1
+experiments/webkit-only/runs/slow-run-2/chrome.stderr
+  s_32f3749aee7339::t_9f24ca1f2233ac 1-2
+experiments/webkit-only/runs/slow-run-2/webkit.json
+  s_5f045b53b1dfb4::t_5096e52cba7e13 1
+experiments/webkit-only/runs/slow-run-2/webkit.stderr
+  s_5f045b53b1dfb4::t_95715466024840 1-4
+experiments/webkit-only/runs/slow-run-3/chrome.json
+  s_5f045b53b1dfb4::t_2bbaa66c26ed64 1
+experiments/webkit-only/runs/slow-run-3/chrome.stderr
+  s_5f045b53b1dfb4::t_f9ed391a6564c7 1-2
+experiments/webkit-only/runs/slow-run-3/webkit.json
+  s_5f045b53b1dfb4::t_0682cbba11f79f 1
+experiments/webkit-only/runs/slow-run-3/webkit.stderr
+  s_5f045b53b1dfb4::t_6aca9dfec59cfd 1-4
+experiments/webkit-only/score.ts
+  s_5f045b53b1dfb4::t_ef571deb4a7b5b 1-85
+src/agent.ts
+  s_5f045b53b1dfb4::t_75aa928c909f70 99
+src/browser.ts
+  s_5f045b53b1dfb4::t_ab474e95a4de7f 49-85,88-114,117,121-122,137,139,144-164,181,186,188,192,200,202-204,207,209,211-213,215-217,219,221-224,239,247,263-267,273,277,281,285,289,292-293,296-299,303,307-308,314,318,320,322,328,333-342,345
+src/docs-guide.ts
+  s_5f045b53b1dfb4::t_44615f761f50ab 23,95,114,230
+src/thread.ts
+  s_32f3749aee7339::t_ca063011dd2332 598
+test/surfaces.test.ts
+  s_5f045b53b1dfb4::t_9bee46d6611918 128-143,145-152,154-204,206-235,237-241,248,252,254,257-267,271,277-280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "85ea84cd9ae44f175f3fa6485feb318e73ddcaad",
+  "prompts": {},
+  "sessions": {
+    "s_32f3749aee7339": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a19ccb-b18f-71d7-845e-c8249be3adff",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    },
+    "s_48b2cfd9e5d78c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "019ff130-6f0d-770a-adb2-c454f944b8e9",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    },
+    "s_5f045b53b1dfb4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a177a9-20df-71ac-82c2-3c2b52888d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
