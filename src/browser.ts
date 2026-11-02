@@ -6,23 +6,6 @@ export const VNC_PORT = 5900;
 
 export const DISPLAY = ':99';
 
-const chromium = () =>
-  [
-    '/usr/bin/chromium',
-    '--start-maximized',
-    '--window-position=0,0',
-    '--test-type',
-    '--disable-infobars',
-    '--no-sandbox',
-    '--disable-dev-shm-usage',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--remote-debugging-pipe',
-    `--window-size=${VIEWPORT.width},${VIEWPORT.height}`,
-    '--user-data-dir=/root/.browser',
-    'about:blank',
-  ].join(' ');
-
 const startDisplay = [
   'if ! pgrep -x Xvfb >/dev/null; then',
   '  rm -f /tmp/.X99-lock /tmp/.X11-unix/X99',
@@ -35,23 +18,6 @@ const startDisplay = [
 ].join('\n');
 
 export const displayArgs = () => ['bash', '-c', startDisplay];
-
-export const browserArgs = () => [
-  'bash',
-  '-c',
-  `${startDisplay}\npkill -x chromium; rm -f /root/.browser/Singleton*\nDISPLAY=${DISPLAY} exec ${chromium()} 3<&0 4>&1 1>&2 2>/tmp/browser.log`,
-];
-
-export const browserEnv = () => ({ ...SHELL_ENV, HOME: '/root' });
-
-type CdpMessage = {
-  id?: number;
-  method?: string;
-  params?: Record<string, unknown>;
-  result?: Record<string, unknown>;
-  error?: { message: string };
-  sessionId?: string;
-};
 
 export type PageState = { readonly url: string; readonly title: string };
 
@@ -80,33 +46,83 @@ export const normalizeUrl = (input: string) => {
   return /^(https?|about|data|file):/i.test(url) ? url : `http://${url}`;
 };
 
+export const WEBKIT_HOST = '/opt/coil/webkit-host.py';
+
+export const WEBKIT_PIDFILE = '/tmp/coil-webkit.pid';
+
+export const WEBKIT_ENV = {
+  LIBGL_ALWAYS_SOFTWARE: '1',
+  WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: '1',
+  WEBKIT_DISABLE_COMPOSITING_MODE: '1',
+  WEBKIT_DISABLE_DMABUF_RENDERER: '1',
+  GDK_BACKEND: 'x11',
+  NO_AT_BRIDGE: '1',
+} as const;
+
+export type BrowserCookie = {
+  readonly name: string;
+  readonly value: string;
+  readonly domain: string;
+  readonly path: string;
+  readonly expires: number | null;
+  readonly httpOnly: boolean;
+  readonly secure: boolean;
+};
+
+type HostMessage = {
+  id?: number;
+  method?: string;
+  params?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  error?: { message: string };
+};
+
+export type HostPipes = {
+  readonly stdin: WritableStream<Uint8Array> | null;
+  readonly stdout: ReadableStream<Uint8Array> | null;
+  readonly exitCode: Promise<number>;
+};
+
 const LOG_LINES = 200;
+
+export const browserEnv = () => ({ ...SHELL_ENV, HOME: '/root', ...WEBKIT_ENV });
+
+export const browserArgs = () => ['bash', '-c', `${startDisplay}\n${browserCommand(DISPLAY)}`];
+
+export const browserCommand = (display: string) =>
+  `[ -f ${WEBKIT_PIDFILE} ] && kill -9 "$(cat ${WEBKIT_PIDFILE})" 2>/dev/null; exec 3>&1 1>/tmp/browser.log 2>&1; DISPLAY=${display} COIL_PROTOCOL_FD=3 exec dbus-run-session -- python3 -u ${WEBKIT_HOST}`;
+
+export const SNAPSHOT_SCRIPT = `(() => {
+  const out = [];
+  let n = 0;
+  document.querySelectorAll('[data-coil-ref]').forEach((el) => el.removeAttribute('data-coil-ref'));
+  for (const el of document.querySelectorAll('a,button,input,textarea,select,[role=button],[onclick],summary,label')) {
+    const r = el.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0 || r.bottom < 0 || r.top > innerHeight) continue;
+    const ref = 'e' + (++n);
+    el.setAttribute('data-coil-ref', ref);
+    const text = (el.innerText || el.value || el.placeholder || el.getAttribute('aria-label') || el.title || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+    out.push(ref + ' ' + el.tagName.toLowerCase() + (el.type ? '[' + el.type + ']' : '') + ' "' + text + '" @' + Math.round(r.x + r.width / 2) + ',' + Math.round(r.y + r.height / 2));
+    if (n >= 80) break;
+  }
+  const body = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n').slice(0, 2500);
+  return 'url: ' + location.href + '\\ntitle: ' + document.title + '\\n\\n' + out.join('\\n') + '\\n\\ntext:\\n' + body;
+})()`;
+
+export const refCenterScript = (ref: string) =>
+  `(() => { const el = document.querySelector('[data-coil-ref="${ref.replace(/[^a-z0-9]/gi, '')}"]'); if (!el) return ''; el.scrollIntoView({block:'center'}); const r = el.getBoundingClientRect(); return Math.round(r.x + r.width / 2) + ',' + Math.round(r.y + r.height / 2); })()`;
 
 export class Browser {
   private next = 0;
-  private readonly waiting = new Map<number, (m: CdpMessage) => void>();
+  private readonly waiting = new Map<number, (message: HostMessage) => void>();
   private readonly input: WritableStreamDefaultWriter<Uint8Array>;
   private readonly encoder = new TextEncoder();
-  private session = '';
   private closed = false;
+  private logs: string[] = [];
+  readonly ready: Promise<void>;
   readonly closedListeners = new Set<() => void>();
   readonly pages = new Set<(page: PageState) => void>();
   page: PageState = { url: 'about:blank', title: '' };
-
-  constructor(
-    process: ExecProcess,
-    private readonly abort: AbortController,
-  ) {
-    if (process.stdin === null || process.stdout === null)
-      throw new Error('Chromium did not return its pipes');
-
-    this.input = process.stdin.getWriter();
-    this.pump(process.stdout as ReadableStream<Uint8Array>).catch(() => this.fail());
-    process.exitCode.then(
-      () => this.fail(),
-      () => this.fail(),
-    );
-  }
 
   static async launch(container: Container): Promise<Browser> {
     const abort = new AbortController();
@@ -118,11 +134,32 @@ export class Browser {
       stdout: 'pipe',
       stderr: 'ignore',
     });
-    const browser = new Browser(process, abort);
+    const browser = new Browser(process, () => abort.abort());
 
-    await browser.attach();
+    await browser.ready;
 
     return browser;
+  }
+
+  constructor(
+    process: HostPipes,
+    private readonly stop: () => void = () => undefined,
+  ) {
+    if (process.stdin === null || process.stdout === null)
+      throw new Error('The browser did not return its pipes');
+
+    this.input = process.stdin.getWriter();
+
+    let markReady: () => void = () => undefined;
+
+    this.ready = new Promise((resolve) => {
+      markReady = resolve;
+    });
+    this.pump(process.stdout, markReady).catch(() => this.fail());
+    process.exitCode.then(
+      () => this.fail(),
+      () => this.fail(),
+    );
   }
 
   get alive() {
@@ -141,20 +178,18 @@ export class Browser {
     this.waiting.clear();
   }
 
-  private async pump(stdout: ReadableStream<Uint8Array>) {
+  private async pump(stdout: ReadableStream<Uint8Array>, markReady: () => void) {
     const split = nulFrames();
-
-    const processEnded = () => this.fail();
 
     try {
       for await (const chunk of stdout)
-        for (const text of split(chunk)) this.dispatch(JSON.parse(text) as CdpMessage);
+        for (const text of split(chunk)) this.dispatch(JSON.parse(text) as HostMessage, markReady);
     } finally {
-      processEnded();
+      this.fail();
     }
   }
 
-  private dispatch(message: CdpMessage) {
+  private dispatch(message: HostMessage, markReady: () => void) {
     if (message.id !== undefined) {
       this.waiting.get(message.id)?.(message);
       this.waiting.delete(message.id);
@@ -162,41 +197,31 @@ export class Browser {
       return;
     }
 
-    if (
-      message.method === 'Page.frameNavigated' &&
-      (message.params as { frame?: { parentId?: string } })?.frame?.parentId === undefined
-    ) {
-      void this.refreshPage();
+    const params = message.params ?? {};
 
-      return;
+    if (message.method === 'ready') {
+      this.setPage(params);
+      markReady();
     }
 
-    if (message.method === 'Page.loadEventFired') void this.refreshPage();
+    if (message.method === 'page') this.setPage(params);
 
-    if (message.method === 'Runtime.consoleAPICalled') {
-      const params = message.params as {
-        type?: string;
-        args?: { value?: unknown; description?: string }[];
-      };
-      const text = (params.args ?? [])
-        .map((arg) => (arg.value === undefined ? (arg.description ?? '') : String(arg.value)))
-        .join(' ');
+    if (message.method === 'load') this.setPage(params);
 
-      this.remember(`[${params.type ?? 'log'}] ${text}`);
-    }
-
-    if (message.method === 'Runtime.exceptionThrown') {
-      const params = message.params as {
-        exceptionDetails?: { text?: string; exception?: { description?: string } };
-      };
-
-      this.remember(
-        `[error] ${params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? 'exception'}`,
-      );
-    }
+    if (message.method === 'console')
+      this.remember(`[${String(params.type ?? 'log')}] ${String(params.text ?? '')}`);
   }
 
-  private logs: string[] = [];
+  private setPage(params: Record<string, unknown>) {
+    const url = typeof params.url === 'string' ? params.url : this.page.url;
+    const title = typeof params.title === 'string' ? params.title : this.page.title;
+
+    if (url === this.page.url && title === this.page.title) return;
+
+    this.page = { url, title };
+
+    for (const listener of this.pages) listener(this.page);
+  }
 
   private remember(line: string) {
     this.logs.push(line.slice(0, 2000));
@@ -211,20 +236,15 @@ export class Browser {
     return lines;
   }
 
-  send(
-    method: string,
-    params: Record<string, unknown> = {},
-    browserLevel = false,
-  ): Promise<CdpMessage> {
+  private send(method: string, params: Record<string, unknown> = {}): Promise<HostMessage> {
     if (this.closed) return Promise.resolve({ error: { message: 'browser exited' } });
 
     const id = ++this.next;
-    const message = { id, method, params, ...(browserLevel ? {} : { sessionId: this.session }) };
 
     return new Promise((resolve) => {
       this.waiting.set(id, resolve);
       this.input
-        .write(this.encoder.encode(`${JSON.stringify(message)}\0`))
+        .write(this.encoder.encode(`${JSON.stringify({ id, method, params })}\0`))
         .catch(() => resolve({ error: { message: 'browser pipe closed' } }));
     });
   }
@@ -237,167 +257,91 @@ export class Browser {
     return reply.result ?? {};
   }
 
-  private async attach() {
-    const targets = await this.send('Target.getTargets', {}, true);
-    const infos = (targets.result?.targetInfos ?? []) as { targetId: string; type: string }[];
-    const page = infos.find((t) => t.type === 'page');
-    const targetId =
-      page?.targetId ??
-      ((await this.send('Target.createTarget', { url: 'about:blank' }, true)).result
-        ?.targetId as string);
-    const attached = await this.send('Target.attachToTarget', { targetId, flatten: true }, true);
-
-    this.session = attached.result?.sessionId as string;
-    await this.call('Page.enable');
-    await this.call('Runtime.enable');
-  }
-
-  private async refreshPage() {
-    const reply = await this.send('Runtime.evaluate', {
-      expression: 'JSON.stringify([location.href, document.title])',
-      returnByValue: true,
-    });
-    const value = (reply.result?.result as { value?: string } | undefined)?.value;
-
-    if (value === undefined) return;
-
-    const [url, title] = JSON.parse(value) as [string, string];
-
-    this.page = { url, title };
-
-    for (const listener of this.pages) listener(this.page);
-  }
-
   async open(url: string): Promise<PageState> {
     const target = normalizeUrl(url);
-    const loaded = new Promise<void>((resolve) => {
-      const timer = setTimeout(resolve, 15_000);
-      const listener = () => {
-        clearTimeout(timer);
-        this.pages.delete(listener);
-        resolve();
-      };
 
-      this.pages.add(listener);
-    });
-    const reply = await this.call('Page.navigate', { url: target });
-
-    if (typeof reply.errorText === 'string' && reply.errorText !== '')
-      throw new Error(`Could not open ${target}: ${reply.errorText}`);
-
-    await loaded;
-    await this.refreshPage();
+    try {
+      await this.call('open', { url: target });
+    } catch (cause) {
+      throw new Error(`Could not open ${target}: ${(cause as Error).message}`);
+    }
 
     return this.page;
   }
 
   async newTab(url = 'about:blank') {
-    await this.send('Target.createTarget', { url, newWindow: false }, true);
+    await this.open(url);
   }
 
   async back() {
-    await this.call('Runtime.evaluate', { expression: 'history.back()' });
+    await this.call('back');
   }
 
   async forward() {
-    await this.call('Runtime.evaluate', { expression: 'history.forward()' });
+    await this.call('forward');
   }
 
   async reload() {
-    await this.call('Page.reload');
+    await this.call('reload');
   }
 
   async click(x: number, y: number) {
-    for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])
-      await this.call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+    await this.call('click', { x, y });
   }
 
-  async scroll(x: number, y: number, dx: number, dy: number) {
-    await this.call('Input.dispatchMouseEvent', {
-      type: 'mouseWheel',
-      x,
-      y,
-      deltaX: dx,
-      deltaY: dy,
-    });
+  async scroll(x: number, y: number, _dx: number, dy: number) {
+    await this.call('scroll', { x, y, dy });
   }
 
-  async key(event: {
-    type: 'keyDown' | 'keyUp' | 'char';
-    key?: string;
-    code?: string;
-    text?: string;
-    keyCode?: number;
-    modifiers?: number;
-  }) {
-    await this.call('Input.dispatchKeyEvent', {
-      type: event.type,
-      key: event.key,
-      code: event.code,
-      text: event.text,
-      windowsVirtualKeyCode: event.keyCode,
-      modifiers: event.modifiers ?? 0,
-    });
+  async key(event: { type: 'keyDown' | 'keyUp' | 'char'; key?: string }) {
+    if (event.type !== 'keyDown' || event.key === undefined) return;
+
+    await this.call('key', { key: event.key });
   }
 
   async type(text: string) {
-    await this.call('Input.insertText', { text });
+    await this.call('type', { text });
   }
 
   async evaluate(expression: string): Promise<string> {
-    const reply = await this.call('Runtime.evaluate', {
-      expression,
-      returnByValue: true,
-      awaitPromise: true,
-    });
-    const exception = reply.exceptionDetails as { text?: string } | undefined;
-
-    if (exception) throw new Error(exception.text ?? 'evaluation failed');
-
-    const value = (reply.result as { value?: unknown } | undefined)?.value;
+    const result = await this.call('evaluate', { expression });
+    const value = result.value;
 
     return typeof value === 'string' ? value : JSON.stringify(value ?? null);
   }
 
   async snapshot(): Promise<string> {
-    return this.evaluate(`(() => {
-      const out = [];
-      let n = 0;
-      document.querySelectorAll('[data-coil-ref]').forEach((el) => el.removeAttribute('data-coil-ref'));
-      for (const el of document.querySelectorAll('a,button,input,textarea,select,[role=button],[onclick],summary,label')) {
-        const r = el.getBoundingClientRect();
-        if (r.width === 0 || r.height === 0 || r.bottom < 0 || r.top > innerHeight) continue;
-        const ref = 'e' + (++n);
-        el.setAttribute('data-coil-ref', ref);
-        const text = (el.innerText || el.value || el.placeholder || el.getAttribute('aria-label') || el.title || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
-        out.push(ref + ' ' + el.tagName.toLowerCase() + (el.type ? '[' + el.type + ']' : '') + ' "' + text + '" @' + Math.round(r.x + r.width / 2) + ',' + Math.round(r.y + r.height / 2));
-        if (n >= 80) break;
-      }
-      const body = (document.body ? document.body.innerText : '').replace(/\\n{3,}/g, '\\n\\n').slice(0, 2500);
-      return 'url: ' + location.href + '\\ntitle: ' + document.title + '\\n\\n' + out.join('\\n') + '\\n\\ntext:\\n' + body;
-    })()`);
+    return this.evaluate(SNAPSHOT_SCRIPT);
   }
 
   async clickRef(ref: string) {
-    const at = await this.evaluate(
-      `(() => { const el = document.querySelector('[data-coil-ref="${ref.replace(/[^a-z0-9]/gi, '')}"]'); if (!el) return ''; el.scrollIntoView({block:'center'}); const r = el.getBoundingClientRect(); return Math.round(r.x + r.width / 2) + ',' + Math.round(r.y + r.height / 2); })()`,
-    );
+    const at = await this.evaluate(refCenterScript(ref));
 
-    if (at === '') throw new Error(`No element ${ref}. Take a new snapshot.`);
+    if (at === '' || at === 'null') throw new Error(`No element ${ref}. Take a new snapshot.`);
 
-    const [x, y] = at.split(',').map(Number);
+    const [x, y] = at.replace(/"/g, '').split(',').map(Number);
 
     await this.click(x ?? 0, y ?? 0);
   }
 
   async screenshot(): Promise<string> {
-    const shot = await this.call('Page.captureScreenshot', { format: 'jpeg', quality: 70 });
+    const shot = await this.call('screenshot');
 
     return shot.data as string;
   }
 
+  async cookies(): Promise<BrowserCookie[]> {
+    const result = await this.call('getCookies');
+
+    return (result.cookies ?? []) as BrowserCookie[];
+  }
+
+  async setCookies(cookies: readonly BrowserCookie[]) {
+    await this.call('setCookies', { cookies });
+  }
+
   close() {
     this.fail();
-    this.abort.abort();
+    this.stop();
   }
 }

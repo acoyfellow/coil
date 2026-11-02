@@ -1,0 +1,11 @@
+ready_ms 2256
+console: {'type': 'log', 'text': 'real image ready'}
+open {'url': 'http://127.0.0.1:8123/page.html', 'title': ''}
+title {'value': 'coil real image'}
+click {'value': [28.8125, 99.375]}
+count {'value': '1'}
+screenshot_png_bytes 7090
+vnc_log S" missing on display ":99".
+
+The VNC desktop is:      26d4adc0574a:0
+PORT=5900

@@ -20,7 +20,7 @@ const rows = (pairs: readonly (readonly [string, string])[]) =>
 const OVERVIEW: GuideSection = {
   id: 'overview',
   title: 'What coil is',
-  html: `<p class="lede">coil gives every agent thread its own Linux computer in the cloud. The thread has an agent, terminals, a real Chrome window, and a disk. You and the agent use the same ones, from any device.</p>
+  html: `<p class="lede">coil gives every agent thread its own Linux computer in the cloud. The thread has an agent, terminals, a real WebKit browser window (the engine Safari uses), and a disk. You and the agent use the same ones, from any device.</p>
 <p>coil is one Cloudflare Worker. It is a working showcase of the Developer Platform primitives, each doing the job it is built for:</p>
 ${rows([
   [
@@ -92,7 +92,7 @@ const QUICKSTART: GuideSection = {
 <li><div><b>Start a thread.</b> Optionally give it a Git repository; coil clones it into <code>/workspace</code>.</div></li>
 <li><div><b>Pick a model</b> from the chip under the message box. Models that start with <code>gateway/</code> go through your AI Gateway.</div></li>
 <li><div><b>Ask for something real.</b> For example: &ldquo;Build a counter page, serve it on port 3000, open it in the browser and click plus three times.&rdquo;</div></li>
-<li><div><b>Watch the computer</b> on the right: terminals, files, and the live Chrome window the agent drives.</div></li>
+<li><div><b>Watch the computer</b> on the right: terminals, files, and the live browser window the agent drives.</div></li>
 <li><div><b>Pause</b> when you are done. The disk is saved. Come back later and the thread resumes.</div></li>
 </ol>`,
 };
@@ -111,7 +111,7 @@ const THREADS: GuideSection = {
     ],
     [
       'A real browser',
-      'Headed Chrome in the same computer, shown over VNC. It reaches the agent&rsquo;s <code>localhost</code>. The agent drives the same window you see.',
+      'A headed WebKit browser (the engine Safari uses) in the same computer, shown over VNC. It reaches the agent&rsquo;s <code>localhost</code>. The agent drives the same window you see.',
     ],
     [
       'Pause',
@@ -227,7 +227,7 @@ const LIMITS: GuideSection = {
   html: `<ul>
 <li><b>Passkeys and security keys do not work in the cloud browser.</b> Password and TOTP logins work and stay logged in.</li>
 <li><b>A resumed computer gets its disk back, not its processes.</b> Terminals reopen in the same folders. Servers the agent started are gone until something starts them again.</li>
-<li><b>The browser comes back on its last page, not its state.</b> Chrome reopens the last web page it had open, with its cookies. The page reloads, so anything held only in the page starts over.</li>
+<li><b>The browser comes back on its last page, not its state.</b> The browser reopens the last web page it had open, with its cookies. The page reloads, so anything held only in the page starts over.</li>
 <li><b>Agent commands stop after 120 seconds.</b> Start servers in the background. API and MCP commands stop after 10 minutes.</li>
 <li><b>A Pi extension tool call stops after about 280 seconds.</b> Only tools load; extension commands and shortcuts are reported as unsupported.</li>
 <li><b>Computers have internet access.</b> coil is not a sandbox for hostile code.</li>

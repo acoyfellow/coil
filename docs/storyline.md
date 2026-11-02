@@ -58,4 +58,4 @@ click in its browser while it works.
 
 The agent and I share one computer. I typed in its terminal and clicked in its browser while it
 worked, then it clicked the same page. Each coil thread is a Cloudflare Container with tmux and
-Chromium inside. Open source, deploy your own: github.com/acoyfellow/coil
+WebKit inside. Open source, deploy your own: github.com/acoyfellow/coil
