@@ -1,0 +1,35 @@
+experiments/cmux-browser/CONTRACT.md
+  s_5f045b53b1dfb4::t_0b9a1a551769f4 1-28
+experiments/cmux-browser/run.ts
+  s_5f045b53b1dfb4::t_8b69743babfbec 1-140
+experiments/cmux-browser/runs/disproof-terminal/results.json
+  s_5f045b53b1dfb4::t_83c646d9af37fd 1-68
+experiments/cmux-browser/runs/real-1/results.json
+  s_5f045b53b1dfb4::t_454bee4e11587c 1-168
+experiments/cmux-browser/runs/real-2/results.json
+  s_5f045b53b1dfb4::t_70486590006b3c 1-168
+experiments/cmux-browser/runs/real-3/results.json
+  s_5f045b53b1dfb4::t_82951e46a9e794 1-168
+experiments/cmux-browser/score.ts
+  s_5f045b53b1dfb4::t_7eab4297c5e997 1-52
+src/browser-cmux.ts
+  s_5f045b53b1dfb4::t_2c86305f811e2c 1-69
+test/browser-cmux.test.ts
+  s_5f045b53b1dfb4::t_b6975195741806 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "982e1e4e702cf090072a9f8201a21f2d3640b665",
+  "prompts": {},
+  "sessions": {
+    "s_5f045b53b1dfb4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a177a9-20df-71ac-82c2-3c2b52888d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
