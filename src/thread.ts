@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import type { AgentEvent, Extension, HarnessSettings } from '@earendil-works/pi-durable';
+import type { Extension, HarnessSettings } from '@earendil-works/pi-durable';
 import { GATEWAY_MODELS, type ModelInfo, modelInfo as pinnedModelInfo } from '../shared/models';
 import {
   type Agent,
@@ -54,6 +54,7 @@ import {
   type Surface,
   type Turn,
 } from './ledger';
+import { liveEvents } from './live';
 import { decide, digest, type LoopSpec, type LoopState, validSpec } from './loop';
 import { workersAI } from './model';
 import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
@@ -187,41 +188,6 @@ const AUTO_KEEP_TOKENS = 20_000;
 
 export const childName = (parent: string, index: number) =>
   `${parent.slice(0, 50)}-c${index}`.replace(/-+/g, '-');
-
-const toLive = (event: AgentEvent): LiveEvent[] => {
-  switch (event.type) {
-    case 'message_update':
-      return event.changes.flatMap((change): LiveEvent[] => {
-        if (change.type === 'text_delta') return [{ type: 'text' as const, delta: change.delta }];
-        if (change.type === 'thinking_delta')
-          return [{ type: 'thinking' as const, delta: change.delta }];
-        return [];
-      });
-    case 'tool_execution_start':
-      return [
-        {
-          type: 'tool_start',
-          id: event.toolCallId,
-          name: event.toolName,
-          args: JSON.stringify(event.args),
-        },
-      ];
-    case 'tool_execution_update':
-      return event.output !== undefined && 'append' in event.output && event.output.append
-        ? [{ type: 'tool_output', id: event.toolCallId, append: event.output.append }]
-        : [];
-    case 'tool_execution_end':
-      return [{ type: 'tool_end', id: event.toolCallId, name: event.toolName }];
-    case 'turn_end':
-      return [{ type: 'turn_end' }];
-    case 'compaction_start':
-      return [{ type: 'compaction', phase: 'start' }];
-    case 'compaction_end':
-      return [{ type: 'compaction', phase: 'end' }];
-    default:
-      return [];
-  }
-};
 
 export class Thread extends DurableObject<Env> {
   protected readonly ledger: Ledger;
@@ -752,8 +718,9 @@ export class Thread extends DurableObject<Env> {
       this.plugins(),
     )
       .then(async (agent) => {
-        this.unwatch ??= await agent.watch((events) => {
-          for (const event of events) for (const live of toLive(event)) this.emit(live);
+        const toLive = liveEvents();
+        this.unwatch ??= await agent.watch((view) => {
+          for (const live of toLive(view)) this.emit(live);
         });
 
         return agent;

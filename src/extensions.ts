@@ -1,5 +1,4 @@
 import type { JsonValue } from '@earendil-works/chord';
-import { Type } from '@earendil-works/pi-ai';
 import {
   defineExtension,
   defineTool,
@@ -215,7 +214,7 @@ export const extensionTools = (
         defineTool({
           name: tool.name,
           description: `${tool.description} (pi extension ${tool.extension})`,
-          parameters: Type.Unsafe(schemaOf(tool.parameters)),
+          parameters: schemaOf(tool.parameters),
           replay: 'unsafe',
           executionMode: 'sequential',
           execute: async (args) => {

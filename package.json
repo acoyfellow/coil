@@ -22,26 +22,27 @@
     "ship:all": "bash scripts/ship-all.sh"
   },
   "dependencies": {
-    "@cloudflare/sandbox": "1.0.0",
-    "@earendil-works/chord": "1.2.0",
-    "@earendil-works/pi-ai": "1.2.0",
-    "@earendil-works/pi-durable": "1.2.0",
-    "@effect/platform-browser": "4.0.0",
+    "@cloudflare/sandbox": "1.0.3",
+    "@earendil-works/chord": "1.5.0",
+    "@earendil-works/pi-ai": "1.5.0",
+    "@earendil-works/pi-durable": "1.5.0",
+    "@earendil-works/pi-schema": "1.5.0",
+    "@effect/platform-browser": "4.1.2",
     "@novnc/novnc": "1.7.0",
     "cloudterm": "github:acoyfellow/cloudterm#2fbaeb4",
-    "effect": "4.0.0",
-    "foldkit": "0.166.0"
+    "effect": "4.1.2",
+    "foldkit": "0.170.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.15",
-    "@cloudflare/workers-types": "^5.20261010.1",
-    "@foldkit/vite-plugin": "0.26.1",
+    "@biomejs/biome": "2.6.4",
+    "@cloudflare/workers-types": "^5.20261102.1",
+    "@foldkit/vite-plugin": "0.29.0",
     "esbuild": "^0.28.2",
-    "happy-dom": "^20.14.6",
-    "lucide-static": "^1.55.0",
-    "typescript": "^5.9.3",
-    "vite": "8.3.3",
-    "vitest": "^5.0.3",
-    "wrangler": "4.149.0"
+    "happy-dom": "^21.0.4",
+    "lucide-static": "^1.66.0",
+    "typescript": "^7.0.2",
+    "vite": "8.3.5",
+    "vitest": "^5.0.5",
+    "wrangler": "4.156.1"
   }
 }

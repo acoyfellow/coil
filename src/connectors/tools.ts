@@ -1,5 +1,5 @@
-import { Type } from '@earendil-works/pi-ai';
 import { defineExtension, defineTool, type Extension } from '@earendil-works/pi-durable';
+import { params } from '../schema';
 import type { Connector } from './config';
 import { type McpTool, McpUnauthorized, openMcp } from './mcp-client';
 
@@ -107,7 +107,7 @@ const describeTool = (connector: Connector, tokens: ConnectorTokens, send: typeo
   defineTool({
     name: describeName(connector),
     description: `List the ${connector.id} tools you may call, with their argument schemas. ${connector.description}`,
-    parameters: Type.Object({}),
+    parameters: params({}),
     replay: 'safe',
     executionMode: 'parallel',
     execute: async () => {
@@ -150,7 +150,7 @@ export const connectorTools = (
         defineTool({
           name: toolName(connector, tool),
           description: `${tool} from the ${connector.id} connector (${connector.description}). Arguments follow that tool's own schema: call ${describeName(connector)} first to read it.`,
-          parameters: Type.Unsafe({ type: 'object', additionalProperties: true }),
+          parameters: { type: 'object', additionalProperties: true },
           replay: 'unsafe',
           executionMode: 'parallel',
           execute: async (args) => {
