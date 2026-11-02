@@ -57,7 +57,8 @@ export const attachTerminal = (host: HTMLElement, thread: string, id: string): (
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
   const send = (data: string | Uint8Array) => {
-    if (socket?.readyState === WebSocket.OPEN) socket.send(data);
+    if (socket?.readyState === WebSocket.OPEN)
+      socket.send(typeof data === 'string' ? data : new Uint8Array(data));
   };
 
   const showStatus = (...nodes: (Node | string)[]) => {

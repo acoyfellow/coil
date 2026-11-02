@@ -150,7 +150,7 @@ export const fetchCatalog = async (
   return entries.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 };
 
-export const isFresh = (stored: StoredCatalog | null, now: number): stored is StoredCatalog =>
+export const isFresh = (stored: StoredCatalog | null, now: number): boolean =>
   stored !== null && stored.entries.length > 0 && now - stored.fetchedAt < CATALOG_TTL_MS;
 
 export const mergeCatalog = (
@@ -173,7 +173,7 @@ export const loadCatalog = async (source: CatalogSource): Promise<StoredCatalog>
   const stored = await source.stored();
   const now = source.now();
 
-  if (isFresh(stored, now)) return stored;
+  if (stored !== null && isFresh(stored, now)) return stored;
 
   try {
     const fresh = { entries: await source.fetchLive(), fetchedAt: now };
