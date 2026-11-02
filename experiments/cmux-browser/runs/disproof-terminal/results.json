@@ -1,0 +1,68 @@
+{
+ "surface": "surface:16",
+ "origin": "http://127.0.0.1:65446",
+ "results": [
+  {
+   "task": "open-local",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  },
+  {
+   "task": "click-three-times",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  },
+  {
+   "task": "type-into-ref",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  },
+  {
+   "task": "type-then-enter-submits",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  },
+  {
+   "task": "follow-link",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  },
+  {
+   "task": "logs-and-look",
+   "ok": false,
+   "detail": "Error: invalid_params: Surface is not a browser"
+  }
+ ],
+ "calls": [
+  {
+   "method": "open",
+   "ms": 53.08995900000001,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 40.827042000000006,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 44.26370800000001,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 41.56375,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 42.48358300000001,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 53.53529100000003,
+   "ok": false
+  }
+ ]
+}
