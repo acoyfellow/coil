@@ -1,0 +1,19 @@
+src/browser.ts
+  s_5f045b53b1dfb4::t_64f5376f4e8266 54,294-299
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7082ff12670b06713201a5164ed260d3977f6ee1",
+  "prompts": {},
+  "sessions": {
+    "s_5f045b53b1dfb4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a177a9-20df-71ac-82c2-3c2b52888d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
