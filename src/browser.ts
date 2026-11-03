@@ -51,7 +51,7 @@ export const BROWSER_DID_NOT_START =
 
 export const WEBKIT_HOST = '/opt/coil/webkit-host.py';
 
-export const TITLE_WAIT_MS = 500;
+export const TITLE_WAIT_MS = 150;
 
 export const BROWSER_START_TIMEOUT_MS = 30_000;
 
@@ -290,6 +290,12 @@ export class Browser {
       this.page = { url: loaded.url, title: loaded.title };
 
     if (this.page.title === '') await this.untilTitled(TITLE_WAIT_MS);
+
+    if (this.page.title === '') {
+      const title = await this.evaluate('document.title').catch(() => '');
+
+      if (title !== '' && title !== 'null') this.page = { ...this.page, title };
+    }
 
     return this.page;
   }
