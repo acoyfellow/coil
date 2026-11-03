@@ -276,11 +276,16 @@ export class Browser {
   async open(url: string): Promise<PageState> {
     const target = normalizeUrl(url);
 
+    let loaded: Record<string, unknown>;
+
     try {
-      await this.call('open', { url: target });
+      loaded = await this.call('open', { url: target });
     } catch (cause) {
       throw new Error(`Could not open ${target}: ${(cause as Error).message}`);
     }
+
+    if (typeof loaded.url === 'string' && typeof loaded.title === 'string')
+      this.page = { url: loaded.url, title: loaded.title };
 
     return this.page;
   }

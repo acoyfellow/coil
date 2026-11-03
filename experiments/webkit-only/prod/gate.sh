@@ -11,18 +11,14 @@ bad() { printf 'FAIL  %s\n' "$1"; fail=1; }
 
 call() {
   local name="$1" body="$2"
-  cmux browser "$surface" eval --script "window.gateOut=undefined;window.gateT0=performance.now();fetch('/api/capabilities/${name}',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(${body})}).then(async r=>{window.gateOut=JSON.stringify({status:r.status,ms:Math.round(performance.now()-window.gateT0),text:await r.text()})}).catch(e=>{window.gateOut=JSON.stringify({status:0,ms:0,text:String(e)})});'s'" >/dev/null
-  for _ in 1 2 3 4; do
-    cmux browser "$surface" wait --function "window.gateOut!==undefined" --timeout-ms 25000 >/dev/null 2>&1 && break
-  done
-  cmux browser "$surface" eval --script "String(window.gateOut)"
+  cmux browser "$surface" eval --script "(async()=>{const t0=performance.now();try{const r=await fetch('/api/capabilities/${name}',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(${body})});const text=await r.text();return JSON.stringify({status:r.status,ms:Math.round(performance.now()-t0),text})}catch(e){return JSON.stringify({status:0,ms:0,text:String(e)})}})()"
 }
 
 field() { python3 -c 'import json,sys
 try: print(json.loads(sys.stdin.read())[sys.argv[1]])
 except Exception: print("")' "$1"; }
 
-version=$(cmux browser "$surface" eval --script "window.gateV=undefined;fetch('/api/version').then(r=>r.json()).then(j=>{window.gateV=j.commit});'s'" >/dev/null; cmux browser "$surface" wait --function "window.gateV!==undefined" --timeout-ms 15000 >/dev/null 2>&1; cmux browser "$surface" eval --script "String(window.gateV)")
+version=$(cmux browser "$surface" eval --script "fetch('/api/version').then(r=>r.json()).then(j=>j.commit)")
 [ "$version" = "$expected" ] && pass "version $version" || bad "version $version, expected $expected"
 
 check() {
@@ -45,7 +41,7 @@ check "snapshot" browser_snapshot "{\"name\":\"${thread}\"}" "e1"
 check "click" browser_click "{\"name\":\"${thread}\",\"ref\":\"e1\"}" "iana.org"
 check "display shows the page" thread_exec "{\"name\":\"${thread}\",\"command\":\"DISPLAY=:99 xdotool search --onlyvisible --name . getwindowname %@ 2>/dev/null | head -5\"}" "coil"
 
-host=$(call shell_exec "{\"name\":\"${thread}\",\"command\":\"pgrep -f webkit-host.py >/dev/null && echo webkit-host-running; pgrep -f /usr/lib/chromium/chromium >/dev/null && echo chrome-running; true\"}" | field text)
+host=$(call thread_exec "{\"name\":\"${thread}\",\"command\":\"pgrep -f webkit-host.py >/dev/null && echo webkit-host-running; pgrep -f /usr/lib/chromium/chromium >/dev/null && echo chrome-running; true\"}" | field text)
 case "$host" in *webkit-host-running*) pass "webkit host running" ;; *) bad "webkit host not running: ${host:0:200}" ;; esac
 case "$host" in *chrome-running*) bad "chrome still running" ;; *) pass "no chrome" ;; esac
 
