@@ -1,0 +1,45 @@
+.gitignore
+  s_5f045b53b1dfb4::t_33aed74dddde7c 16
+experiments/webkit-only/prod/cap.sh
+  s_5f045b53b1dfb4::t_585ef7e1fa259a 1-10
+experiments/webkit-only/prod/exec.sh
+  s_5f045b53b1dfb4::t_5b88bbd4ab16e6 1-10
+experiments/webkit-only/prod/gate.sh
+  s_5f045b53b1dfb4::t_f4abb2c5055f30 1-52
+experiments/webkit-only/prod/old-disk-check.sh
+  s_5f045b53b1dfb4::t_0b61502cdc1e1f 1-16
+scripts/build-webkit-patch.sh
+  s_5f045b53b1dfb4::t_46dc6b94ee957a 1-29
+src/browser.ts
+  s_5f045b53b1dfb4::t_72ce4bdeb8c4f9 49-51,54-55,128,144,146-150,165,167,169,171-172,188
+src/thread.ts
+  s_4cdf0e285652d9::t_bde88db8f58489 64,553-554
+src/webkit-patch.ts
+  s_4cdf0e285652d9::t_39dee0872c5ecc 1-103
+test/webkit-patch.test.ts
+  s_5f045b53b1dfb4::t_fab962c12de3ba 1-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "30f5d34beccac9a24213a3cd19bab166d7299fa3",
+  "prompts": {},
+  "sessions": {
+    "s_4cdf0e285652d9": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a11219-c0d2-76a7-a2cf-75eec4c2966e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    },
+    "s_5f045b53b1dfb4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a177a9-20df-71ac-82c2-3c2b52888d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
