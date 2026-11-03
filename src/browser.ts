@@ -46,7 +46,12 @@ export const normalizeUrl = (input: string) => {
   return /^(https?|about|data|file):/i.test(url) ? url : `http://${url}`;
 };
 
+export const BROWSER_DID_NOT_START =
+  'The browser did not start. Its log is /tmp/browser.log in the thread computer.';
+
 export const WEBKIT_HOST = '/opt/coil/webkit-host.py';
+
+export const BROWSER_START_TIMEOUT_MS = 30_000;
 
 export const WEBKIT_PIDFILE = '/tmp/coil-webkit.pid';
 
@@ -120,6 +125,7 @@ export class Browser {
   private closed = false;
   private logs: string[] = [];
   readonly ready: Promise<void>;
+  private failReady: (cause: Error) => void = () => undefined;
   readonly closedListeners = new Set<() => void>();
   readonly pages = new Set<(page: PageState) => void>();
   page: PageState = { url: 'about:blank', title: '' };
@@ -135,8 +141,13 @@ export class Browser {
       stderr: 'ignore',
     });
     const browser = new Browser(process, () => abort.abort());
+    const timer = setTimeout(() => browser.close(), BROWSER_START_TIMEOUT_MS);
 
-    await browser.ready;
+    try {
+      await browser.ready;
+    } finally {
+      clearTimeout(timer);
+    }
 
     return browser;
   }
@@ -151,10 +162,14 @@ export class Browser {
     this.input = process.stdin.getWriter();
 
     let markReady: () => void = () => undefined;
+    let markFailed: (cause: Error) => void = () => undefined;
 
-    this.ready = new Promise((resolve) => {
+    this.ready = new Promise((resolve, reject) => {
       markReady = resolve;
+      markFailed = reject;
     });
+    this.ready.catch(() => undefined);
+    this.failReady = markFailed;
     this.pump(process.stdout, markReady).catch(() => this.fail());
     process.exitCode.then(
       () => this.fail(),
@@ -170,6 +185,7 @@ export class Browser {
     if (this.closed) return;
 
     this.closed = true;
+    this.failReady(new Error(BROWSER_DID_NOT_START));
 
     for (const listener of this.closedListeners) listener();
 

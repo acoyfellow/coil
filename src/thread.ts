@@ -61,6 +61,7 @@ import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
 import { DEFAULT_SIZE, type Size } from './size';
 import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
 import { pipeSocket } from './vnc';
+import { ensureWebkit } from './webkit-patch';
 
 const TURN_DIFF_LIMIT = 60_000;
 
@@ -548,6 +549,8 @@ export class Thread extends DurableObject<Env> {
       const container = this.ctx.container;
 
       if (container === undefined) throw new Error('This Durable Object has no container binding');
+
+      await ensureWebkit(container, this.env.ASSETS);
 
       const browser = await Browser.launch(container);
       const saved = restorableUrl(this.ledger.browserUrl);
