@@ -3,7 +3,7 @@
 </p>
 
 <p align="center"><b>Agent threads with their own computer, in the cloud.</b><br>
-Each thread gets terminals, a real Chrome window, and a disk. You and the agent use the same ones, from any device.</p>
+Each thread gets terminals, a real WebKit browser window (the engine Safari uses), and a disk. You and the agent use the same ones, from any device.</p>
 
 <p align="center">
   <a href="#quick-start-for-agents">For agents</a> ·
@@ -18,7 +18,7 @@ Each thread gets terminals, a real Chrome window, and a disk. You and the agent 
   <img src="docs/hero-light-v6.png" alt="A coil thread: chat on the left, the thread's computer on the right with a counter page the agent built and opened in its own Chrome.">
 </picture>
 
-<sub>One prompt. The agent wrote a page, served it on <code>localhost:3000</code>, opened it in the thread's own Chrome, clicked <b>+</b> three times, and read back <b>3</b>. <a href="docs/demo-counter.mp4">Watch the 8-second clip</a>.</sub>
+<sub>One prompt. The agent wrote a page, served it on <code>localhost:3000</code>, opened it in the thread's own browser, clicked <b>+</b> three times, and read back <b>3</b>. <a href="docs/demo-counter.mp4">Watch the 8-second clip</a>.</sub>
 
 coil is one Cloudflare Worker. Every thread is a [Durable Object](https://developers.cloudflare.com/durable-objects/) that runs a [Pi](https://github.com/earendil-works/pi) agent and owns a [Container](https://developers.cloudflare.com/containers/). It installs as a PWA. There is no desktop app, browser extension, or local helper.
 
@@ -65,7 +65,7 @@ The MCP tools, in the order the server lists them:
 | --- | --- |
 | **A computer per thread** | `/workspace` is a git repo (or a clone of the repo you give). bash, git, node, python3, curl, ripgrep, jq. The image's git refuses force-push. |
 | **Terminals** | As many as you want. Each is a tmux session the agent can use too. Reload the page and the shell is still there. |
-| **A real browser** | Headed Chrome in the same computer, shown over VNC. It opens the agent's `localhost:3000`. Tabs, menus, and DevTools work. The agent drives the same window with browser tools; the panel follows it. Logins persist across pauses. |
+| **A real browser** | Headed WebKit, the engine Safari uses, in the same computer, shown over VNC. It opens the agent's `localhost:3000`. It is one page with no tabs: back, forward, reload, and the address bar in the panel work. The agent drives the same window with browser tools; the panel follows it. Logins persist across pauses. |
 | **Pause, fork, compact** | Pause saves the disk and stops the computer. Fork starts a new thread from this disk plus a summary. Compact records the summary and the disk together, so they always match. |
 | **Child threads** | The agent can give a side task to a child thread with its own computer and wait for the answer. Threads can also message each other (`thread_message`, `thread_wait`). |
 | **Pi extensions** | Load stock Pi extensions into a thread with `thread_extensions`, from an https git URL (optionally `#ref` or `#ref:subdir`) or a `./path` inside `/workspace`. Their tools run inside the thread's computer. The agent can call them from its next turn. |
@@ -137,8 +137,9 @@ Real containers in Docker and real Workers AI. Open `http://localhost:8787/`. `L
 - **Passkeys and security keys do not work in the cloud browser.** The key is on your device; WebAuthn only signs for the page's own site. Password + TOTP logins work and stay logged in.
 - **Idle threads pause after 9 minutes** with no turn, command, or open terminal or browser. The next action resumes them.
 - **A resumed computer gets its disk back, not its processes.** Terminals reopen in the same folders. Servers the agent started are gone until something starts them again.
-- **The browser comes back on its last page, not its state.** After a restart, Chrome reopens the last `http`, `https`, or `file` URL it had open, with its cookies. The page reloads, so anything held only in the page (a counter, a form) starts over.
+- **The browser comes back on its last page, not its state.** After a restart, the browser reopens the last `http`, `https`, or `file` URL it had open, with its cookies. The page reloads, so anything held only in the page (a counter, a form) starts over.
 - **The browser view is 1280×800, scaled to fit.**
+- **The browser has one page and no tabs.** The panel's new-tab button opens the page in the same view.
 - **Agent commands stop after 120 seconds.** Start servers in the background. API and MCP commands stop after 10 minutes. Output is cut at 256 KB.
 - **A Pi extension tool call stops after about 280 seconds.** Only tools load. Extension commands and shortcuts are reported as unsupported.
 - **The model gateway token is minted once per deploy.** `ship` runs `COIL_MODEL_GATEWAY_TOKEN_COMMAND` on every run. If that token expires, `gateway/*` turns fail until you run `bun run ship -- deploy/<name>.conf` again. The chat shows `The model call failed:` and then the gateway's response; coil has no message of its own for an expired token.
@@ -185,7 +186,7 @@ Real containers in Docker and real Workers AI. Open `http://localhost:8787/`. `L
 | [`src/extensions.ts`](src/extensions.ts), [`computer/pi-host.mjs`](computer/pi-host.mjs) | Pi extensions: sources, and the host that runs them in the computer |
 | [`src/thread.ts`](src/thread.ts) | One thread: boot, pause, compact, fork, children, loops, live events |
 | [`src/gateway.ts`](src/gateway.ts) | Model routing: Workers AI, AI Gateway, external gateways |
-| [`src/browser.ts`](src/browser.ts) | Xvfb, x11vnc, and Chrome over a CDP pipe |
+| [`src/browser.ts`](src/browser.ts) | Xvfb, x11vnc, and WebKit over a pipe to [`computer/webkit-host.py`](computer/webkit-host.py) |
 | [`src/terminal.ts`](src/terminal.ts) | tmux over a PTY WebSocket with flow control |
 | [`client/src/`](client/src) | The web client ([foldkit](https://github.com/foldkit/foldkit) on [Effect](https://effect.website)) |
 | [`computer/Dockerfile`](computer/Dockerfile) | The computer image |

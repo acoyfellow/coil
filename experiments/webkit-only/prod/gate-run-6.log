@@ -1,0 +1,8 @@
+PASS  version 7082ff12670b06713201a5164ed260d3977f6ee1
+PASS  open example.com 170 ms
+PASS  eval title 169 ms
+PASS  snapshot 141 ms
+PASS  click 682 ms
+PASS  display shows the page 310 ms
+PASS  webkit host running
+PASS  no chrome

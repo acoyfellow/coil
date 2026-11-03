@@ -1,0 +1,8 @@
+PASS  version c05b6f669ee710256e74452d6c5e5c597d991677
+PASS  open example.com 180 ms
+PASS  eval title 114 ms
+PASS  snapshot 124 ms
+PASS  click 705 ms
+PASS  display shows the page 363 ms
+PASS  webkit host running
+PASS  no chrome

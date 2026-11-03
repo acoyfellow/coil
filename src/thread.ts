@@ -61,6 +61,7 @@ import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
 import { DEFAULT_SIZE, type Size } from './size';
 import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
 import { pipeSocket } from './vnc';
+import { ensureWebkit } from './webkit-patch';
 
 const TURN_DIFF_LIMIT = 60_000;
 
@@ -165,22 +166,6 @@ const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 export class ThreadBusy extends Error {
   override readonly name = 'ThreadBusy';
 }
-
-const KEY_CODES: Record<string, number> = {
-  Enter: 13,
-  Tab: 9,
-  Escape: 27,
-  Backspace: 8,
-  ArrowUp: 38,
-  ArrowDown: 40,
-  ArrowLeft: 37,
-  ArrowRight: 39,
-  Delete: 46,
-  Home: 36,
-  End: 35,
-  PageUp: 33,
-  PageDown: 34,
-};
 
 const MANUAL_KEEP_TOKENS = 200;
 
@@ -565,6 +550,8 @@ export class Thread extends DurableObject<Env> {
 
       if (container === undefined) throw new Error('This Durable Object has no container binding');
 
+      await ensureWebkit(container, this.env.ASSETS);
+
       const browser = await Browser.launch(container);
       const saved = restorableUrl(this.ledger.browserUrl);
 
@@ -611,8 +598,7 @@ export class Thread extends DurableObject<Env> {
       key: async (key) => {
         const browser = await this.openBrowser();
 
-        await browser.key({ type: 'keyDown', key, code: key, keyCode: KEY_CODES[key] });
-        await browser.key({ type: 'keyUp', key, code: key, keyCode: KEY_CODES[key] });
+        await browser.key({ type: 'keyDown', key });
         await new Promise((r) => setTimeout(r, 300));
 
         return `pressed ${key}; now at ${page(browser.page)}`;

@@ -125,50 +125,159 @@ describe('workspace paths', () => {
   });
 });
 
-describe('closing the browser', () => {
-  const fakeChromium = () => {
-    const stdout = new TransformStream<Uint8Array, Uint8Array>();
-    const stdin = new WritableStream<Uint8Array>();
-    let exit: (code: number) => void = () => undefined;
-    const exitCode = new Promise<number>((resolve) => {
-      exit = resolve;
+const fakeHost = () => {
+  const toBrowser = new TransformStream<Uint8Array, Uint8Array>();
+  const fromBrowser: string[] = [];
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const writer = toBrowser.writable.getWriter();
+  let exit: (code: number) => void = () => undefined;
+  const exitCode = new Promise<number>((resolve) => {
+    exit = resolve;
+  });
+  const stdin = new WritableStream<Uint8Array>({
+    write: (chunk) => {
+      fromBrowser.push(...decoder.decode(chunk).split('\0').filter(Boolean));
+    },
+  });
+  const say = (message: unknown) => writer.write(encoder.encode(`${JSON.stringify(message)}\0`));
+
+  return {
+    process: { stdin, stdout: toBrowser.readable, exitCode },
+    sent: () =>
+      fromBrowser.map(
+        (frame) => JSON.parse(frame) as { id: number; method: string; params: unknown },
+      ),
+    say,
+    exit,
+  };
+};
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+describe('the WebKit host protocol', () => {
+  it('is ready on the host ready event and opens a bare host over http', async () => {
+    const host = fakeHost();
+    const browser = new Browser(host.process);
+
+    await host.say({ method: 'ready', params: { url: 'about:blank', title: '' } });
+    await browser.ready;
+
+    const opening = browser.open('localhost:3000');
+
+    await flush();
+    expect(host.sent()[0]).toMatchObject({
+      method: 'open',
+      params: { url: 'http://localhost:3000' },
     });
 
-    return {
-      process: { stdin, stdout: stdout.readable, exitCode } as unknown as ExecProcess,
-      exit,
-    };
-  };
+    await host.say({ method: 'load', params: { url: 'http://localhost:3000/', title: 'Home' } });
+    await host.say({
+      id: host.sent()[0]?.id,
+      result: { url: 'http://localhost:3000/', title: 'Home' },
+    });
 
+    await expect(opening).resolves.toEqual({ url: 'http://localhost:3000/', title: 'Home' });
+  });
+
+  it('keeps console lines the page wrote, including during load', async () => {
+    const host = fakeHost();
+    const browser = new Browser(host.process);
+
+    await host.say({ method: 'console', params: { type: 'log', text: 'fixture ready' } });
+    await host.say({ method: 'console', params: { type: 'error', text: 'boom' } });
+    await flush();
+
+    expect(browser.consoleLogs(true)).toEqual(['[log] fixture ready', '[error] boom']);
+    expect(browser.consoleLogs(false)).toEqual([]);
+  });
+
+  it('reports a host error as a rejected call', async () => {
+    const host = fakeHost();
+    const browser = new Browser(host.process);
+    const typing = browser.type('ada');
+
+    await flush();
+    await host.say({ id: host.sent()[0]?.id, error: { message: 'no editable element has focus' } });
+
+    await expect(typing).rejects.toThrow('no editable element has focus');
+  });
+
+  it('round-trips the cookie jar, HttpOnly included', async () => {
+    const host = fakeHost();
+    const browser = new Browser(host.process);
+    const jar = [
+      {
+        name: 'sid',
+        value: 'abc',
+        domain: 'example.com',
+        path: '/',
+        expires: null,
+        httpOnly: true,
+        secure: true,
+      },
+    ];
+    const reading = browser.cookies();
+
+    await flush();
+    await host.say({ id: host.sent()[0]?.id, result: { cookies: jar } });
+    await expect(reading).resolves.toEqual(jar);
+
+    const writing = browser.setCookies(jar);
+
+    await flush();
+    expect(host.sent()[1]).toMatchObject({ method: 'setCookies', params: { cookies: jar } });
+    await host.say({ id: host.sent()[1]?.id, result: { count: 1 } });
+    await expect(writing).resolves.toBeUndefined();
+  });
+});
+
+describe('closing the browser', () => {
   it('fails calls that are waiting and tells every viewer, instead of hanging', async () => {
-    const chromium = fakeChromium();
-    const browser = new Browser(chromium.process, new AbortController());
+    const host = fakeHost();
+    let stopped = false;
+    const browser = new Browser(host.process, () => {
+      stopped = true;
+    });
     let viewerClosed = false;
 
     browser.closedListeners.add(() => {
       viewerClosed = true;
     });
 
-    const pending = browser.send('Page.navigate', { url: 'http://localhost:3000' });
+    const pending = browser.evaluate('1 + 1');
 
     browser.close();
 
-    await expect(pending).resolves.toEqual({ error: { message: 'browser exited' } });
+    await expect(pending).rejects.toThrow('browser exited');
     expect(viewerClosed).toBe(true);
+    expect(stopped).toBe(true);
     expect(browser.alive).toBe(false);
+  });
+
+  it('rejects every call after the browser process exits', async () => {
+    const host = fakeHost();
+    const browser = new Browser(host.process);
+
+    host.exit(137);
+    await flush();
+
+    await expect(browser.open('localhost:3000')).rejects.toThrow('browser exited');
+    await expect(browser.screenshot()).rejects.toThrow('browser exited');
   });
 });
 
 describe('browser launch', () => {
-  it('runs one headed Chromium on a virtual display shared over VNC', async () => {
+  it('runs one headed WebKit on a virtual display shared over VNC, with no Chromium', async () => {
     const { browserArgs } = await import('../src/browser');
     const script = browserArgs().join(' ');
 
-    expect(script).not.toContain('--headless');
     expect(script).toContain('Xvfb :99');
     expect(script).toContain('x11vnc -display :99 -rfbport 5900');
-    expect(script).toContain('DISPLAY=:99 exec /usr/bin/chromium');
-    expect(script).toContain('--test-type');
+    expect(script).toContain(
+      'DISPLAY=:99 COIL_PROTOCOL_FD=3 exec dbus-run-session -- python3 -u /opt/coil/webkit-host.py',
+    );
+    expect(script).not.toContain('chromium');
     expect(script).not.toContain('pkill -f');
   });
 });
