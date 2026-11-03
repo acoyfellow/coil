@@ -41,7 +41,7 @@ check "snapshot" browser_snapshot "{\"name\":\"${thread}\"}" "e1"
 check "click" browser_click "{\"name\":\"${thread}\",\"ref\":\"e1\"}" "iana.org"
 check "display shows the page" thread_exec "{\"name\":\"${thread}\",\"command\":\"DISPLAY=:99 xdotool search --onlyvisible --name . getwindowname %@ 2>/dev/null | head -5\"}" "coil"
 
-host=$(call thread_exec "{\"name\":\"${thread}\",\"command\":\"pgrep -f webkit-host.py >/dev/null && echo webkit-host-running; pgrep -f /usr/lib/chromium/chromium >/dev/null && echo chrome-running; true\"}" | field text)
+host=$(call thread_exec "{\"name\":\"${thread}\",\"command\":\"pgrep -f [w]ebkit-host.py >/dev/null && echo webkit-host-running; pgrep -f [u]sr/lib/chromium/chromium >/dev/null && echo chrome-running; true\"}" | field text)
 case "$host" in *webkit-host-running*) pass "webkit host running" ;; *) bad "webkit host not running: ${host:0:200}" ;; esac
 case "$host" in *chrome-running*) bad "chrome still running" ;; *) pass "no chrome" ;; esac
 

@@ -51,6 +51,8 @@ export const BROWSER_DID_NOT_START =
 
 export const WEBKIT_HOST = '/opt/coil/webkit-host.py';
 
+export const TITLE_WAIT_MS = 500;
+
 export const BROWSER_START_TIMEOUT_MS = 30_000;
 
 export const WEBKIT_PIDFILE = '/tmp/coil-webkit.pid';
@@ -287,7 +289,25 @@ export class Browser {
     if (typeof loaded.url === 'string' && typeof loaded.title === 'string')
       this.page = { url: loaded.url, title: loaded.title };
 
+    if (this.page.title === '') await this.untilTitled(TITLE_WAIT_MS);
+
     return this.page;
+  }
+
+  private untilTitled(ms: number) {
+    return new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        this.pages.delete(watch);
+        resolve();
+      };
+      const watch = (page: PageState) => {
+        if (page.title !== '') done();
+      };
+      const timer = setTimeout(done, ms);
+
+      this.pages.add(watch);
+    });
   }
 
   async newTab(url = 'about:blank') {
