@@ -49,6 +49,10 @@ if [ "${COIL_SKIP_BUILD:-0}" != 1 ]; then
   node scripts/build-term.mjs
   bash scripts/check.sh
 fi
+[ -s public/webkit-patch/parts.txt ] && [ -s public/webkit-patch/sha256.txt ] || {
+  echo "public/webkit-patch is missing. Threads saved before WebKit need it. Run: bash scripts/build-webkit-patch.sh" >&2
+  exit 2
+}
 node scripts/with-image.mjs
 
 if [ "$auth" = access ]; then
