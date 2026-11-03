@@ -18,7 +18,11 @@ field() { python3 -c 'import json,sys
 try: print(json.loads(sys.stdin.read())[sys.argv[1]])
 except Exception: print("")' "$1"; }
 
-version=$(cmux browser "$surface" eval --script "fetch('/api/version').then(r=>r.json()).then(j=>j.commit)")
+version=""
+for _ in 1 2 3; do
+  version=$(cmux browser "$surface" eval --script "fetch('/api/version',{cache:'no-store'}).then(r=>r.json()).then(j=>j.commit)" 2>&1) && [ -n "$version" ] && break
+  version=""
+done
 [ "$version" = "$expected" ] && pass "version $version" || bad "version $version, expected $expected"
 
 check() {
