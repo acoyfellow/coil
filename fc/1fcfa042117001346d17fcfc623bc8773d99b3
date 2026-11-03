@@ -1,0 +1,21 @@
+experiments/webkit-only/prod/gate.sh
+  s_5f045b53b1dfb4::t_8a8791102c92d3 14,21,44
+src/browser.ts
+  s_5f045b53b1dfb4::t_74d9b12485eee7 279-280,282,287-289
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fc1fcfa042117001346d17fcfc623bc8773d99b3",
+  "prompts": {},
+  "sessions": {
+    "s_5f045b53b1dfb4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a177a9-20df-71ac-82c2-3c2b52888d76",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Jordan Coeyman <jcoeyman@cloudflare.com>"
+    }
+  }
+}
