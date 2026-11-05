@@ -1,0 +1,168 @@
+{
+ "surface": "http://127.0.0.1:9333",
+ "origin": "http://127.0.0.1:59458",
+ "results": [
+  {
+   "task": "open-local",
+   "ok": true,
+   "detail": "ok"
+  },
+  {
+   "task": "click-three-times",
+   "ok": true,
+   "detail": "ok"
+  },
+  {
+   "task": "type-into-ref",
+   "ok": true,
+   "detail": "ok"
+  },
+  {
+   "task": "type-then-enter-submits",
+   "ok": true,
+   "detail": "ok"
+  },
+  {
+   "task": "follow-link",
+   "ok": true,
+   "detail": "ok"
+  },
+  {
+   "task": "logs-and-look",
+   "ok": true,
+   "detail": "ok"
+  }
+ ],
+ "calls": [
+  {
+   "method": "open",
+   "ms": 106.58583300000001,
+   "ok": true
+  },
+  {
+   "method": "evaluate",
+   "ms": 0.16662499999999625,
+   "ok": true
+  },
+  {
+   "method": "open",
+   "ms": 104.86745799999998,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 1.3110420000000147,
+   "ok": true
+  },
+  {
+   "method": "click",
+   "ms": 102.719458,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 0.9520829999999592,
+   "ok": true
+  },
+  {
+   "method": "click",
+   "ms": 102.414916,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 0.8726669999999785,
+   "ok": true
+  },
+  {
+   "method": "click",
+   "ms": 102.42558300000002,
+   "ok": true
+  },
+  {
+   "method": "evaluate",
+   "ms": 0.19116700000006404,
+   "ok": true
+  },
+  {
+   "method": "open",
+   "ms": 104.94720900000004,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 0.7168329999999514,
+   "ok": true
+  },
+  {
+   "method": "type",
+   "ms": 1.370333999999957,
+   "ok": true
+  },
+  {
+   "method": "evaluate",
+   "ms": 0.6437919999999622,
+   "ok": true
+  },
+  {
+   "method": "open",
+   "ms": 104.67425000000003,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 0.9119170000000167,
+   "ok": true
+  },
+  {
+   "method": "type",
+   "ms": 1.4624169999999594,
+   "ok": true
+  },
+  {
+   "method": "key",
+   "ms": 103.88379099999997,
+   "ok": true
+  },
+  {
+   "method": "evaluate",
+   "ms": 0.1871249999999236,
+   "ok": true
+  },
+  {
+   "method": "open",
+   "ms": 106.48170800000003,
+   "ok": true
+  },
+  {
+   "method": "snapshot",
+   "ms": 0.9794169999998985,
+   "ok": true
+  },
+  {
+   "method": "click",
+   "ms": 101.83191699999998,
+   "ok": true
+  },
+  {
+   "method": "evaluate",
+   "ms": 0.2065829999999096,
+   "ok": true
+  },
+  {
+   "method": "open",
+   "ms": 104.83837500000004,
+   "ok": true
+  },
+  {
+   "method": "logs",
+   "ms": 0.29645800000002964,
+   "ok": true
+  },
+  {
+   "method": "look",
+   "ms": 35.423249999999825,
+   "ok": true
+  }
+ ]
+}

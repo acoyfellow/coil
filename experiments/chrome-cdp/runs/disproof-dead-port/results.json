@@ -1,0 +1,68 @@
+{
+ "surface": "http://127.0.0.1:9399",
+ "origin": "http://127.0.0.1:59483",
+ "results": [
+  {
+   "task": "open-local",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+   "task": "click-three-times",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+   "task": "type-into-ref",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+   "task": "type-then-enter-submits",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+   "task": "follow-link",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  },
+  {
+   "task": "logs-and-look",
+   "ok": false,
+   "detail": "Unable to connect. Is the computer able to access the url?"
+  }
+ ],
+ "calls": [
+  {
+   "method": "open",
+   "ms": 0.06062499999999815,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 0.00333299999999781,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 0.00216700000000003,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 0.0015000000000000568,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 0.0012919999999994047,
+   "ok": false
+  },
+  {
+   "method": "open",
+   "ms": 0.0014170000000000016,
+   "ok": false
+  }
+ ]
+}
