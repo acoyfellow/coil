@@ -57,7 +57,9 @@ if [ "$thread" = none ]; then
   list_out=$(call thread_list "{}")
   list_text=$(printf '%s' "$list_out" | field text)
   thread=$(printf '%s' "$list_text" | python3 -c 'import sys,json
-try: print(json.loads(sys.stdin.read())[0]["name"])
+try:
+  threads=json.loads(sys.stdin.read())
+  print([t["name"] for t in threads if t.get("model")][0])
 except Exception: print("none")')
   if [ "$thread" = none ]; then bad "no thread to use: ${list_text:0:200}"; exit 1; fi
   echo "$thread" > /tmp/coil-parity-thread
@@ -134,12 +136,13 @@ window_send_reset=$(cmux browser "$surface" eval --script "window.sendOut=undefi
 
 ensure_surface
 call browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" >/dev/null
-check "7a new tab" browser_new_tab "{\"name\":\"${thread}\",\"url\":\"https://example.org\"}" "Example Domain"
+check "7a new tab" browser_new_tab "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" "Example Domain"
 tabs_out=$(call browser_list_tabs "{\"name\":\"${thread}\"}")
 tabs_text=$(printf '%s' "$tabs_out" | field text)
 tab_index=$(printf '%s' "$tabs_text" | python3 -c 'import sys,json
 try:
   tabs=json.loads(sys.stdin.read())
+  if isinstance(tabs,str): tabs=json.loads(tabs)
   print([t["index"] for t in tabs if "example.com" in t.get("url","")][0])
 except Exception:
   print(-1)')

@@ -24,6 +24,7 @@ import {
   worthRemembering,
 } from './browser';
 import { compactionPolicy } from './compaction';
+import { seal, unseal } from './connectors/seal';
 import {
   type Computer,
   type Entry,
@@ -160,6 +161,8 @@ export type LiveEvent =
 const IMAGE = 'computer';
 
 const IDLE_CHECK_MS = 1000;
+
+const COOKIE_JAR_KEY = 'browser-cookie-jar';
 
 const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 
@@ -531,6 +534,42 @@ export class Thread extends DurableObject<Env> {
       this.surfacesChanged([...current, { id: 'b1', kind: 'browser', title: 'browser' }]);
   }
 
+  private async saveCookieJar(): Promise<void> {
+    if (this.browser === undefined) return;
+
+    try {
+      const browser = await this.browser;
+      const cookies = await browser.cookies();
+
+      if (cookies.length === 0) {
+        await this.ctx.storage.delete(COOKIE_JAR_KEY);
+        return;
+      }
+
+      const owner = await this.ownerEmail();
+      const sealed = await seal(this.env.CONNECTOR_SEAL_KEY, owner, JSON.stringify(cookies));
+
+      await this.ctx.storage.put(COOKIE_JAR_KEY, sealed);
+    } catch {
+      return;
+    }
+  }
+
+  private async restoreCookieJar(browser: Browser): Promise<void> {
+    try {
+      const sealed = await this.ctx.storage.get(COOKIE_JAR_KEY);
+
+      if (typeof sealed !== 'string' || sealed === '') return;
+
+      const owner = await this.ownerEmail();
+      const cookies = JSON.parse(await unseal(this.env.CONNECTOR_SEAL_KEY, owner, sealed));
+
+      await browser.setCookies(cookies);
+    } catch {
+      return;
+    }
+  }
+
   private openBrowser(): Promise<Browser> {
     const existing = this.browser;
 
@@ -553,6 +592,9 @@ export class Thread extends DurableObject<Env> {
       await ensureWebkit(container, this.env.ASSETS);
 
       const browser = await Browser.launch(container);
+
+      await this.restoreCookieJar(browser);
+
       const saved = restorableUrl(this.ledger.browserUrl);
 
       browser.pages.add((page) => {
@@ -1129,6 +1171,7 @@ export class Thread extends DurableObject<Env> {
     };
 
     this.ledger.record(pair);
+    await this.saveCookieJar();
     void this.browser?.then((b) => b.close()).catch(() => undefined);
     this.browser = undefined;
     await box.destroy();
