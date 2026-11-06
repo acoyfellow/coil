@@ -136,7 +136,7 @@ window_send_reset=$(cmux browser "$surface" eval --script "window.sendOut=undefi
 
 ensure_surface
 call browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" >/dev/null
-check "7a new tab" browser_new_tab "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" "Example Domain"
+check "7a new tab" browser_new_tab "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" "https://example.com/"
 tabs_out=$(call browser_list_tabs "{\"name\":\"${thread}\"}")
 tabs_text=$(printf '%s' "$tabs_out" | field text)
 tab_index=$(printf '%s' "$tabs_text" | python3 -c 'import sys,json
