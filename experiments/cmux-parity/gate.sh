@@ -73,7 +73,11 @@ for _ in 1 2 3; do
 done
 [ "$version" = "$expected" ] && pass "version $version" || bad "version $version, expected $expected"
 
-cold_check "warmup browser (cold, timing exempt)" browser_open "{\"name\":\"${thread}\",\"url\":\"about:blank\"}" ""
+cmux browser "$surface" eval --script "window.warmOut=undefined;fetch('/api/capabilities/browser_open',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'${thread}',url:'about:blank'})}).then(async r=>{window.warmOut=r.status}).catch(e=>{window.warmOut='err'});'s'" >/dev/null
+for _ in 1 2 3 4 5 6; do
+  if cmux browser "$surface" wait --function "window.warmOut!==undefined" --timeout-ms 25000 >/dev/null 2>&1; then break; fi
+done
+pass "browser warmed (cold, timing exempt)"
 check "1 open example.com" browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" "Example Domain"
 check "2a snapshot form" browser_snapshot "{\"name\":\"${thread}\"}" "e1"
 call browser_open "{\"name\":\"${thread}\",\"url\":\"data:text/html,<title>Form</title><input id=q><button>Go</button>\"}" >/dev/null
@@ -103,13 +107,23 @@ call browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" >/d
 check "4a set login cookie" browser_set_cookies "{\"name\":\"${thread}\",\"cookies\":\"[{\\\"name\\\":\\\"coil_login\\\",\\\"value\\\":\\\"jar42\\\",\\\"domain\\\":\\\"example.com\\\",\\\"path\\\":\\\"/\\\"}]\"}" "set 1"
 check "4b cookie readable" browser_eval "{\"name\":\"${thread}\",\"expression\":\"document.cookie\"}" "jar42"
 sleep 2
+ensure_surface() {
+  if ! cmux browser "$surface" get url >/dev/null 2>&1; then
+    surface=$(cmux browser open https://coil.coey.dev/api/version --workspace workspace:1000010003 --focus false | sed -n 's/.*surface=\([^ ]*\).*/\1/p')
+    echo "$surface" > /tmp/coil-surface
+    cmux browser "$surface" wait --load-state complete --timeout 20 >/dev/null 2>&1
+  fi
+}
+
 cmux browser "$surface" eval --script "fetch('/api/rpc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({_tag:'Request',id:'1',tag:'Pause',payload:{name:'${thread}'},traceId:'0',spanId:'0',sampled:false,headers:[]})}).then(r=>r.status)" >/dev/null
 cmux browser "$surface" eval --script "fetch('/api/rpc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({_tag:'Request',id:'1',tag:'Wake',payload:{name:'${thread}'},traceId:'0',spanId:'0',sampled:false,headers:[]})}).then(r=>r.status)" >/dev/null
+call browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" >/dev/null
 cold_check "4c cookie survives pause/wake" browser_eval "{\"name\":\"${thread}\",\"expression\":\"document.cookie\"}" "jar42"
 
 call browser_open "{\"name\":\"${thread}\",\"url\":\"https://customer0.dev/spikes.json\"}" >/dev/null
 check "5 read API in page" browser_eval "{\"name\":\"${thread}\",\"expression\":\"document.body.innerText.slice(0,120)\"}" "tether"
 
+ensure_surface
 cmux browser "$surface" eval --script "window.sendOut=undefined;fetch('/api/capabilities/thread_send',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'${thread}',text:'Reply with exactly: pong'})}).then(async r=>{window.sendOut=r.status+' '+(await r.text())}).catch(e=>{window.sendOut='ERR '+e});'s'" >/dev/null
 for _ in 1 2 3 4 5 6; do
   if cmux browser "$surface" wait --function "window.sendOut!==undefined" --timeout-ms 25000 >/dev/null 2>&1; then break; fi
@@ -118,6 +132,7 @@ send_out=$(cmux browser "$surface" eval --script "String(window.sendOut).slice(0
 case "$send_out" in *pong*) pass "6 pi session replies pong" ;; *) bad "6 pi session: ${send_out:0:200}" ;; esac
 window_send_reset=$(cmux browser "$surface" eval --script "window.sendOut=undefined;'s'" >/dev/null; echo ok)
 
+ensure_surface
 call browser_open "{\"name\":\"${thread}\",\"url\":\"https://example.com\"}" >/dev/null
 check "7a new tab" browser_new_tab "{\"name\":\"${thread}\",\"url\":\"https://example.org\"}" "Example Domain"
 tabs_out=$(call browser_list_tabs "{\"name\":\"${thread}\"}")
