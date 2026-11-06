@@ -791,6 +791,8 @@ export class Thread extends DurableObject<Env> {
 
     await this.open();
 
+    if (fresh) this.ctx.waitUntil(this.awake().catch(() => undefined));
+
     return this.view();
   }
 
