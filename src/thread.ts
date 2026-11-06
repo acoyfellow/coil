@@ -1599,6 +1599,42 @@ export class Thread extends DurableObject<Env> {
     return this.using(() => this.browserTools().evaluate(expression));
   }
 
+  browserScreenshot(): Promise<string> {
+    return this.using(async () => (await this.openBrowser()).screenshot());
+  }
+
+  browserNewTab(url: string): Promise<string> {
+    return this.using(async () => {
+      const page = await (await this.openBrowser()).newTab(url);
+
+      return `${page.title === '' ? '(no title)' : page.title}\n${page.url}`;
+    });
+  }
+
+  browserSwitchTab(index: number): Promise<string> {
+    return this.using(async () => {
+      const page = await (await this.openBrowser()).switchTab(index);
+
+      return `${page.title === '' ? '(no title)' : page.title}\n${page.url}`;
+    });
+  }
+
+  browserListTabs(): Promise<string> {
+    return this.using(async () => JSON.stringify(await (await this.openBrowser()).tabs()));
+  }
+
+  browserGetCookies(): Promise<string> {
+    return this.using(async () => JSON.stringify(await (await this.openBrowser()).cookies()));
+  }
+
+  browserSetCookies(cookies: readonly import('./browser').BrowserCookie[]): Promise<string> {
+    return this.using(async () => {
+      await (await this.openBrowser()).setCookies(cookies);
+
+      return `set ${cookies.length} cookies`;
+    });
+  }
+
   async addTerminal(): Promise<Surface[]> {
     const current = this.ledger.surfaces;
     let n = 1;
