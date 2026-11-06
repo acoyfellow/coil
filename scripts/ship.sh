@@ -91,16 +91,14 @@ if [ -n "${COIL_MODEL_GATEWAY_TOKEN_COMMAND:-}" ]; then
   echo "model gateway token stored as a Worker secret"
 fi
 
-if [ -n "${COIL_CONNECTORS_FILE:-}" ]; then
-  listed=$(CLOUDFLARE_ACCOUNT_ID="$COIL_ACCOUNT_ID" npx wrangler secret list -c "$COIL_WRANGLER_CONFIG" 2>/dev/null || true)
-  case "$listed" in
-    *'"name": "CONNECTOR_SEAL_KEY"'* | *'"name":"CONNECTOR_SEAL_KEY"'*) echo "connector seal key is already a Worker secret" ;;
-    *)
-      openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put CONNECTOR_SEAL_KEY -c "$COIL_WRANGLER_CONFIG" >/dev/null
-      echo "connector seal key generated and stored as a Worker secret"
-      ;;
-  esac
-fi
+listed=$(CLOUDFLARE_ACCOUNT_ID="$COIL_ACCOUNT_ID" npx wrangler secret list -c "$COIL_WRANGLER_CONFIG" 2>/dev/null || true)
+case "$listed" in
+  *'"name": "CONNECTOR_SEAL_KEY"'* | *'"name":"CONNECTOR_SEAL_KEY"'*) echo "connector seal key is already a Worker secret" ;;
+  *)
+    openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put CONNECTOR_SEAL_KEY -c "$COIL_WRANGLER_CONFIG" >/dev/null
+    echo "connector seal key generated and stored as a Worker secret"
+    ;;
+esac
 
 if [ "$auth" = cloudflare ]; then
   secrets=$(CLOUDFLARE_ACCOUNT_ID="$COIL_ACCOUNT_ID" npx wrangler secret list -c "$COIL_WRANGLER_CONFIG" 2>/dev/null || true)
