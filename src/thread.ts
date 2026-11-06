@@ -1790,10 +1790,10 @@ export class Thread extends DurableObject<Env> {
 
     this.ctx.waitUntil(
       this.startDisplay(container)
-        .then(
-          () => this.openBrowser().then(() => undefined),
-          () => undefined,
-        )
+        .then(async () => {
+          const browser = await this.openBrowser();
+          await browser.open('https://example.com').catch(() => undefined);
+        })
         .catch(() => undefined),
     );
   }
