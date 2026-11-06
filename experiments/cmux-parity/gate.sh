@@ -13,17 +13,6 @@ fail=0
 pass() { printf 'PASS  %s\n' "$1"; }
 bad() { printf 'FAIL  %s\n' "$1"; fail=1; }
 
-thread="${COIL_GATE_THREAD:-$(cat /tmp/coil-parity-thread 2>/dev/null || echo none)}"
-if [ "$thread" = none ]; then
-  list_out=$(call thread_list "{}")
-  list_text=$(printf '%s' "$list_out" | field text)
-  thread=$(printf '%s' "$list_text" | python3 -c 'import sys,json
-try: print(json.loads(sys.stdin.read())[0]["name"])
-except Exception: print("none")')
-  if [ "$thread" = none ]; then bad "no thread to use: ${list_text:0:200}"; exit 1; fi
-  echo "$thread" > /tmp/coil-parity-thread
-  pass "using newest thread $thread"
-fi
 expected="${EXPECT_COMMIT:-$(git -C ../.. rev-parse HEAD)}"
 max_ms="${COIL_GATE_MAX_MS:-2000}"
 fail=0
@@ -62,6 +51,18 @@ cold_check() {
   case "$text" in *"$want"*) ;; *) bad "$label: no \"$want\" in ${text:0:160}"; return ;; esac
   pass "$label (cold, timing exempt)"
 }
+
+thread="${COIL_GATE_THREAD:-$(cat /tmp/coil-parity-thread 2>/dev/null || echo none)}"
+if [ "$thread" = none ]; then
+  list_out=$(call thread_list "{}")
+  list_text=$(printf '%s' "$list_out" | field text)
+  thread=$(printf '%s' "$list_text" | python3 -c 'import sys,json
+try: print(json.loads(sys.stdin.read())[0]["name"])
+except Exception: print("none")')
+  if [ "$thread" = none ]; then bad "no thread to use: ${list_text:0:200}"; exit 1; fi
+  echo "$thread" > /tmp/coil-parity-thread
+  pass "using newest thread $thread"
+fi
 
 version=""
 for _ in 1 2 3; do
