@@ -15,14 +15,14 @@ bad() { printf 'FAIL  %s\n' "$1"; fail=1; }
 
 thread="${COIL_GATE_THREAD:-$(cat /tmp/coil-parity-thread 2>/dev/null || echo none)}"
 if [ "$thread" = none ]; then
-  thread="parity-$(date +%s)"
-  cmux browser "$surface" eval --script "window.createOut=undefined;fetch('/api/rpc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({_tag:'Request',id:'1',tag:'CreateThread',payload:{name:'${thread}',repo:null,title:'parity',createdBy:'web',warm:true,size:'standard-1'},traceId:'0',spanId:'0',sampled:false,headers:[]})}).then(async r=>{window.createOut=r.status+' '+(await r.text())}).catch(e=>{window.createOut='ERR '+e});'s'" >/dev/null
-  for _ in 1 2 3 4 5 6; do
-    if cmux browser "$surface" wait --function "window.createOut!==undefined" --timeout-ms 25000 >/dev/null 2>&1; then break; fi
-  done
-  create_out=$(cmux browser "$surface" eval --script "String(window.createOut).slice(0,300)")
-  case "$create_out" in 200*|201*) echo "$thread" > /tmp/coil-parity-thread ;; *) bad "create thread: ${create_out:0:200}"; exit 1 ;; esac
-  cmux browser "$surface" eval --script "window.createOut=undefined;'s'" >/dev/null
+  list_out=$(call thread_list "{}")
+  list_text=$(printf '%s' "$list_out" | field text)
+  thread=$(printf '%s' "$list_text" | python3 -c 'import sys,json
+try: print(json.loads(sys.stdin.read())[0]["name"])
+except Exception: print("none")')
+  if [ "$thread" = none ]; then bad "no thread to use: ${list_text:0:200}"; exit 1; fi
+  echo "$thread" > /tmp/coil-parity-thread
+  pass "using newest thread $thread"
 fi
 expected="${EXPECT_COMMIT:-$(git -C ../.. rev-parse HEAD)}"
 max_ms="${COIL_GATE_MAX_MS:-2000}"
