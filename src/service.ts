@@ -121,6 +121,14 @@ export const coil = (env: Env, owner: string) => {
       (await known(name)).browserType(text, ref),
     browserEval: async (name: string, expression: string) =>
       (await known(name)).browserEval(expression),
+    browserScreenshot: async (name: string) => (await known(name)).browserScreenshot(),
+    browserNewTab: async (name: string, url: string) => (await known(name)).browserNewTab(url),
+    browserSwitchTab: async (name: string, index: number) =>
+      (await known(name)).browserSwitchTab(index),
+    browserListTabs: async (name: string) => (await known(name)).browserListTabs(),
+    browserGetCookies: async (name: string) => (await known(name)).browserGetCookies(),
+    browserSetCookies: async (name: string, cookies: string) =>
+      (await known(name)).browserSetCookies(JSON.parse(cookies) as never),
     addTerminal: async (name: string) => (await known(name)).addTerminal(),
     addBrowser: async (name: string) => (await known(name)).addBrowser(),
     closeSurface: async (name: string, id: string) => (await known(name)).closeSurface(id),

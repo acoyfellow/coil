@@ -78,49 +78,78 @@ class Host:
                 None,
             )
         )
+        self.content = content
         content.register_script_message_handler(CONSOLE_HANDLER, None)
         content.connect(f"script-message-received::{CONSOLE_HANDLER}", self.on_console)
-        self.view = WebKit.WebView(network_session=self.session, user_content_manager=content)
-        self.view.get_settings().set_enable_developer_extras(True)
-        self.view.connect("load-changed", self.on_load_changed)
-        self.view.connect("notify::title", lambda *_: self.emit_page())
+        self.stack = Gtk.Stack()
+        self.views = []
+        self.current = 0
+        self.view = None
         self.window = Gtk.ApplicationWindow(application=app, title="coil")
         self.window.set_default_size(WIDTH, HEIGHT)
         self.window.set_decorated(False)
-        self.window.set_child(self.view)
+        self.window.set_child(self.stack)
         self.window.present()
         self.window.fullscreen()
         self.started = False
         self.pending_open = None
-        self.view.connect("load-failed", self.on_load_failed)
-        self.view.load_uri("about:blank")
+        self.add_view("about:blank")
+
+    def add_view(self, url):
+        view = WebKit.WebView(network_session=self.session, user_content_manager=self.content)
+        view.get_settings().set_enable_developer_extras(True)
+        view.connect("load-changed", self.on_load_changed)
+        view.connect("notify::title", lambda *_: self.emit_page())
+        view.connect("load-failed", self.on_load_failed)
+        self.views.append(view)
+        self.stack.add_named(view, str(len(self.views) - 1))
+        self.current = len(self.views) - 1
+        self.view = view
+        self.stack.set_visible_child(view)
+        view.load_uri(url)
+        return view
+
+    def tabs(self):
+        return [
+            {
+                "index": index,
+                "url": view.get_uri() or "about:blank",
+                "title": view.get_title() or "",
+                "active": index == self.current,
+            }
+            for index, view in enumerate(self.views)
+        ]
 
     def page(self):
-        return {"url": self.view.get_uri() or "about:blank", "title": self.view.get_title() or ""}
+        return {
+            "url": self.view.get_uri() or "about:blank",
+            "title": self.view.get_title() or "",
+            "tab": self.current,
+            "tabs": self.tabs(),
+        }
 
     def emit_page(self):
         emit({"method": "page", "params": self.page()})
 
-    def on_load_changed(self, _view, event):
+    def on_load_changed(self, view, event):
         if event == WebKit.LoadEvent.COMMITTED:
             self.emit_page()
         if event == WebKit.LoadEvent.FINISHED:
             if not self.started:
                 self.started = True
                 emit({"method": "ready", "params": self.page()})
-                return
             self.emit_page()
             emit({"method": "load", "params": self.page()})
-            if self.pending_open is not None:
-                ident, self.pending_open = self.pending_open, None
+            if self.pending_open is not None and self.pending_open[1] is view:
+                ident, self.pending_open = self.pending_open[0], None
                 self.reply(ident, self.page())
 
-    def on_load_failed(self, _view, _event, uri, error):
-        if self.pending_open is None:
+    def on_load_failed(self, view, _event, uri, error):
+        if self.pending_open is None or self.pending_open[1] is not view:
             return False
         if error.matches(WebKit.NetworkError.quark(), WebKit.NetworkError.CANCELLED):
             return False
-        ident, self.pending_open = self.pending_open, None
+        ident, self.pending_open = self.pending_open[0], None
         self.reply(ident, error=f"{uri}: {error.message}")
         return False
 
@@ -241,8 +270,22 @@ class Host:
         method = message.get("method")
         params = message.get("params") or {}
         if method == "open":
-            self.pending_open = ident
+            self.pending_open = (ident, self.view)
             self.view.load_uri(params["url"])
+        elif method == "newTab":
+            view = self.add_view(params.get("url") or "about:blank")
+            self.pending_open = (ident, view)
+        elif method == "switchTab":
+            index = int(params.get("index", 0))
+            if 0 <= index < len(self.views):
+                self.current = index
+                self.view = self.views[index]
+                self.stack.set_visible_child(self.view)
+                self.reply(ident, self.page())
+            else:
+                self.reply(ident, error=f"no tab {index}")
+        elif method == "listTabs":
+            self.reply(ident, {"tabs": self.tabs(), "active": self.current})
         elif method == "evaluate":
             self.evaluate(ident, params["expression"])
         elif method == "screenshot":

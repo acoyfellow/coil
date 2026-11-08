@@ -21,6 +21,13 @@ export const displayArgs = () => ['bash', '-c', startDisplay];
 
 export type PageState = { readonly url: string; readonly title: string };
 
+export type TabState = {
+  readonly index: number;
+  readonly url: string;
+  readonly title: string;
+  readonly active: boolean;
+};
+
 export const nulFrames = () => {
   const decoder = new TextDecoder();
   let pending = '';
@@ -316,8 +323,28 @@ export class Browser {
     });
   }
 
-  async newTab(url = 'about:blank') {
-    await this.open(url);
+  async newTab(url = 'about:blank'): Promise<PageState> {
+    const loaded = await this.call('newTab', { url: normalizeUrl(url) });
+
+    if (typeof loaded.url === 'string' && typeof loaded.title === 'string')
+      this.page = { url: loaded.url, title: loaded.title };
+
+    return this.page;
+  }
+
+  async switchTab(index: number): Promise<PageState> {
+    const loaded = await this.call('switchTab', { index });
+
+    if (typeof loaded.url === 'string' && typeof loaded.title === 'string')
+      this.page = { url: loaded.url, title: loaded.title };
+
+    return this.page;
+  }
+
+  async tabs(): Promise<TabState[]> {
+    const result = await this.call('listTabs');
+
+    return (result.tabs ?? []) as TabState[];
   }
 
   async back() {

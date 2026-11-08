@@ -105,11 +105,17 @@ const accountProvider = (
     auth: {
       apiKey: {
         name: 'signed-in Cloudflare account',
-        resolve: async () => ({
-          auth: {
-            headers: { [header]: 'set-per-request', Authorization: null, 'x-api-key': null },
-          },
-        }),
+        resolve: async () => {
+          const route = await credentials.route();
+
+          return {
+            auth: {
+              apiKey: route.token,
+              headers: { [header]: 'set-per-request', Authorization: null, 'x-api-key': null },
+            },
+            source: 'signed-in Cloudflare account',
+          };
+        },
       },
     },
     getModels: () => models,

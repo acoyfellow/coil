@@ -64,7 +64,7 @@ const buildPatch = (dir: string) => {
 
   mkdirSync(join(source, 'opt/coil'), { recursive: true });
   mkdirSync(join(source, 'usr/libexec/webkitgtk-6.0'), { recursive: true });
-  writeFileSync(join(source, 'opt/coil/webkit-host.py'), 'print("host")\n');
+  writeFileSync(join(source, 'opt/coil/webkit-host.py'), 'print("host newTab")\n');
   writeFileSync(join(source, 'usr/libexec/webkitgtk-6.0/WebKitWebProcess'), '#!/bin/sh\n', {
     mode: 0o755,
   });
@@ -89,6 +89,23 @@ describe('ensureWebkit', () => {
     expect(await ensureWebkit(realShell(disk) as never, assetsFrom(assets))).toBe(true);
     expect(readFileSync(join(disk, 'opt/coil/webkit-host.py'), 'utf8')).toContain('host');
     expect(existsSync(join(disk, 'staging'))).toBe(false);
+    expect(await ensureWebkit(realShell(disk) as never, assetsFrom(assets))).toBe(false);
+  });
+
+  it('reinstalls when the host on disk is older than the patch', async () => {
+    const assets = mkdtempSync(join(tmpdir(), 'patch-assets-'));
+    const disk = mkdtempSync(join(tmpdir(), 'old-disk-'));
+
+    buildPatch(assets);
+    mkdirSync(join(disk, 'opt/coil'), { recursive: true });
+    mkdirSync(join(disk, 'usr/libexec/webkitgtk-6.0'), { recursive: true });
+    writeFileSync(join(disk, 'opt/coil/webkit-host.py'), 'print("old host")\n');
+    writeFileSync(join(disk, 'usr/libexec/webkitgtk-6.0/WebKitWebProcess'), '#!/bin/sh\n', {
+      mode: 0o755,
+    });
+
+    expect(await ensureWebkit(realShell(disk) as never, assetsFrom(assets))).toBe(true);
+    expect(readFileSync(join(disk, 'opt/coil/webkit-host.py'), 'utf8')).toContain('newTab');
     expect(await ensureWebkit(realShell(disk) as never, assetsFrom(assets))).toBe(false);
   });
 

@@ -39,7 +39,7 @@ export const hasWebkit = async (container: PatchContainer) =>
   (
     await run(
       container,
-      'test -f "$1" && test -x /usr/libexec/webkitgtk-6.0/WebKitWebProcess',
+      'test -f "$1" && grep -q newTab "$1" && test -x /usr/libexec/webkitgtk-6.0/WebKitWebProcess',
       WEBKIT_PATCH_MARKER,
     )
   ).exitCode === 0;
