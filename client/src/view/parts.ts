@@ -38,12 +38,37 @@ export const ago = (now: number, at: number): string => {
 export const bytes = (count: number): string =>
   count >= 1e6 ? `${(count / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(count / 1e3))} KB`;
 
-type Phased = { readonly busy: boolean; readonly phase: string; readonly failed?: boolean };
+type Phased = {
+  readonly busy: boolean;
+  readonly phase: string;
+  readonly failed?: boolean;
+  readonly state?: string;
+};
+
+const dotOf = (state: string): string =>
+  (({ working: 'busy', compacting: 'busy' }) as Record<string, string>)[state] ?? state;
+
+const labelOf = (state: string): string =>
+  (
+    ({
+      working: 'working',
+      compacting: 'compacting',
+      failed: 'wake failed',
+      awake: 'running',
+    }) as Record<string, string>
+  )[state] ?? state;
 
 export const phaseKey = (thread: Phased): string =>
-  thread.busy ? 'busy' : thread.failed === true ? 'failed' : thread.phase;
+  thread.state === undefined
+    ? thread.busy
+      ? 'busy'
+      : thread.failed === true
+        ? 'failed'
+        : thread.phase
+    : dotOf(thread.state);
 
 export const phaseLabel = (thread: Phased): string => {
+  if (thread.state !== undefined) return labelOf(thread.state);
   if (thread.busy) return 'working';
   if (thread.failed === true) return 'last turn failed';
 
