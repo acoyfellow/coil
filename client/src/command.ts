@@ -532,8 +532,7 @@ const fetchCompanionCookies = (name: string) =>
     if (!companion.ok) throw new Error(`companion unavailable (${companion.status})`);
 
     const payload = (await companion.json()) as { cookies?: unknown };
-    if (!Array.isArray(payload.cookies))
-      throw new Error('companion did not return cookies');
+    if (!Array.isArray(payload.cookies)) throw new Error('companion did not return cookies');
 
     const cookies = payload.cookies.filter(isCompanionCookie);
     const response = await fetch('/api/capabilities/browser_set_cookies', {
