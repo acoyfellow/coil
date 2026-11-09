@@ -34,6 +34,7 @@ import {
   SaveTheme,
   SendMessage,
   ShowNotifications,
+  SyncBrowserCookies,
   SubmitConnectorAction,
   storedDraft,
   systemIsDark,
@@ -866,5 +867,6 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       model: modifyFields(model, { installable: () => installable }),
     }),
     ClickedInstall: () => ({ model, commands: [Install()] }),
+    ClickedSyncCookies: () => ({ model, commands: [SyncBrowserCookies({ name: model.name ?? '' })] }),
     CompletedEffect: () => ({ model }),
   });

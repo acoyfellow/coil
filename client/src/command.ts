@@ -490,6 +490,83 @@ export const Install = Command.define('Install', {
   }),
 });
 
+type CompanionCookie = {
+  readonly name: string;
+  readonly value: string;
+  readonly domain: string;
+  readonly path: string;
+  readonly expires: number | null;
+  readonly httpOnly: boolean;
+  readonly secure: boolean;
+};
+
+const companionTokenKey = 'coil-companion-token';
+
+const isCompanionCookie = (value: unknown): value is CompanionCookie =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { name?: unknown }).name === 'string' &&
+  typeof (value as { value?: unknown }).value === 'string' &&
+  typeof (value as { domain?: unknown }).domain === 'string' &&
+  typeof (value as { path?: unknown }).path === 'string' &&
+  typeof (value as { httpOnly?: unknown }).httpOnly === 'boolean' &&
+  typeof (value as { secure?: unknown }).secure === 'boolean';
+
+const fetchCompanionCookies = (name: string) =>
+  Effect.tryPromise(async () => {
+    if (name === '')
+      return Message.FailedOp({ name, reason: 'Open a thread before syncing cookies.' });
+
+    const token = globalThis.prompt(
+      'Paste the companion token from ~/.coil-companion/token.',
+      globalThis.sessionStorage.getItem(companionTokenKey) ?? '',
+    );
+    if (token === null || token.trim() === '') return Message.CompletedEffect();
+
+    const trimmed = token.trim();
+    globalThis.sessionStorage.setItem(companionTokenKey, trimmed);
+    const companion = await fetch('http://127.0.0.1:18799/sync', {
+      credentials: 'omit',
+      headers: { 'x-coil-token': trimmed },
+    });
+    if (!companion.ok) throw new Error(`companion unavailable (${companion.status})`);
+
+    const payload = (await companion.json()) as { cookies?: unknown };
+    if (!Array.isArray(payload.cookies))
+      throw new Error('companion did not return cookies');
+
+    const cookies = payload.cookies.filter(isCompanionCookie);
+    const response = await fetch('/api/capabilities/browser_set_cookies', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, cookies: JSON.stringify(cookies) }),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || `Coil rejected cookies (${response.status}).`);
+
+    return Message.CompletedOp({
+      name,
+      note: `Imported ${cookies.length} browser cookies.`,
+      gone: false,
+    });
+  });
+
+export const SyncBrowserCookies = Command.define('SyncBrowserCookies', {
+  args: { name: Schema.String },
+  messages: [Message.CompletedOp, Message.FailedOp, Message.CompletedEffect],
+  execute: ({ name }) =>
+    fetchCompanionCookies(name).pipe(
+      Effect.catch((error) =>
+        Effect.succeed(
+          Message.FailedOp({
+            name,
+            reason: error instanceof Error ? error.message : 'browser cookie sync failed',
+          }),
+        ),
+      ),
+    ),
+});
+
 export const ConfirmResize = Command.define('ConfirmResize', {
   args: { name: Schema.String, size: Size, running: Schema.Boolean },
   messages: [Message.ClickedSize, Message.CompletedEffect],

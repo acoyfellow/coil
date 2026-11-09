@@ -152,6 +152,25 @@ const appPane = (h: H, model: Model): Html[] => [
     ],
   ),
   fact(h, 'Notifications', NOTIFY_LABEL[model.notify]),
+  fact(h, 'Browser target', model.name ?? 'none'),
+  h.div(
+    [h.Class('settings-actions')],
+    [
+      h.button(
+        [
+          h.Id('sync-browser-cookies'),
+          h.Class('settings-button'),
+          h.Type('button'),
+          h.OnClick(Message.ClickedSyncCookies()),
+        ],
+        ['Sync browser cookies from this Mac'],
+      ),
+    ],
+  ),
+  h.p(
+    [h.Class('settings-note')],
+    ['Import your local browser session into the browser of the open thread.'],
+  ),
   h.div(
     [h.Class('settings-actions')],
     [

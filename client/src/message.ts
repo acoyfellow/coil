@@ -128,6 +128,7 @@ export const Message = defineMessageUnion({
   AppliedTheme: { theme: Theme },
   BecameInstallable: { installable: Schema.Boolean },
   ClickedInstall: {},
+  ClickedSyncCookies: {},
   CompletedEffect: {},
 });
 
