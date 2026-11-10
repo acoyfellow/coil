@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { parseStoredEntries, type StoredCatalog } from './catalog';
-import { lifecycleOf, type LifecycleState } from './lifecycle';
+import { type LifecycleState, lifecycleOf } from './lifecycle';
 
 export type ThreadSummary = {
   readonly name: string;

@@ -24,7 +24,6 @@ import {
   worthRemembering,
 } from './browser';
 import { compactionPolicy } from './compaction';
-import { seal, unseal } from './connectors/seal';
 import {
   type Computer,
   type Entry,
@@ -34,11 +33,11 @@ import {
   WORKSPACE,
 } from './computer';
 import { connectorsOf } from './connectors/config';
+import { seal, unseal } from './connectors/seal';
 import type { ConnectorStore } from './connectors/store';
 import { connectorTools } from './connectors/tools';
 import type { Directory, Grant, ThreadUpdate } from './directory';
 import { DIRECTORY_NAME } from './directory-name';
-import { lifecycleOf, type LifecycleState } from './lifecycle';
 import {
   describeExtensions,
   extensionTools,
@@ -56,6 +55,7 @@ import {
   type Surface,
   type Turn,
 } from './ledger';
+import { type LifecycleState, lifecycleOf } from './lifecycle';
 import { liveEvents } from './live';
 import { decide, digest, type LoopSpec, type LoopState, validSpec } from './loop';
 import { workersAI } from './model';
