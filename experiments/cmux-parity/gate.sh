@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 
 surface="${COIL_SURFACE:-$(cat /tmp/coil-surface 2>/dev/null || echo none)}"
 if ! cmux browser "$surface" get url >/dev/null 2>&1; then
-  surface=$(cmux browser open https://coil.coey.dev/api/version --workspace workspace:1000010003 --focus false | sed -n 's/.*surface=\([^ ]*\).*/\1/p')
+  surface=$(cmux browser open https://coil.coey.dev/api/version --workspace workspace:1000020009 --focus false | sed -n 's/.*surface=\([^ ]*\).*/\1/p')
   echo "$surface" > /tmp/coil-surface
   cmux browser "$surface" wait --load-state complete --timeout 20 >/dev/null 2>&1
 fi
@@ -111,7 +111,7 @@ check "4b cookie readable" browser_eval "{\"name\":\"${thread}\",\"expression\":
 sleep 2
 ensure_surface() {
   if ! cmux browser "$surface" get url >/dev/null 2>&1; then
-    surface=$(cmux browser open https://coil.coey.dev/api/version --workspace workspace:1000010003 --focus false | sed -n 's/.*surface=\([^ ]*\).*/\1/p')
+    surface=$(cmux browser open https://coil.coey.dev/api/version --workspace workspace:1000020009 --focus false | sed -n 's/.*surface=\([^ ]*\).*/\1/p')
     echo "$surface" > /tmp/coil-surface
     cmux browser "$surface" wait --load-state complete --timeout 20 >/dev/null 2>&1
   fi
