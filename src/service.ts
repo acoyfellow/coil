@@ -129,6 +129,13 @@ export const coil = (env: Env, owner: string) => {
     browserGetCookies: async (name: string) => (await known(name)).browserGetCookies(),
     browserSetCookies: async (name: string, cookies: string) =>
       (await known(name)).browserSetCookies(JSON.parse(cookies) as never),
+    recordStep: async (name: string, step: string) =>
+      (await known(name)).recordStep(JSON.parse(step) as never),
+    goalSave: async (name: string, goal: string, steps: string) =>
+      (await known(name)).goalSave(goal, JSON.parse(steps) as never),
+    goalRun: async (name: string, goal: string) => (await known(name)).goalRun(goal),
+    goalList: async (name: string) => (await known(name)).goalList(),
+    goalClear: async (name: string, goal: string) => (await known(name)).goalClear(goal),
     addTerminal: async (name: string) => (await known(name)).addTerminal(),
     addBrowser: async (name: string) => (await known(name)).addBrowser(),
     closeSurface: async (name: string, id: string) => (await known(name)).closeSurface(id),

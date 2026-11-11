@@ -24,7 +24,6 @@ import {
   worthRemembering,
 } from './browser';
 import { compactionPolicy } from './compaction';
-import { seal, unseal } from './connectors/seal';
 import {
   type Computer,
   type Entry,
@@ -34,6 +33,7 @@ import {
   WORKSPACE,
 } from './computer';
 import { connectorsOf } from './connectors/config';
+import { seal, unseal } from './connectors/seal';
 import type { ConnectorStore } from './connectors/store';
 import { connectorTools } from './connectors/tools';
 import type { Directory, Grant, ThreadUpdate } from './directory';
@@ -55,6 +55,7 @@ import {
   type Surface,
   type Turn,
 } from './ledger';
+import { type LifecycleState, lifecycleOf } from './lifecycle';
 import { liveEvents } from './live';
 import { decide, digest, type LoopSpec, type LoopState, validSpec } from './loop';
 import { workersAI } from './model';
@@ -74,6 +75,7 @@ export type ThreadView = {
   readonly name: string;
   readonly title: string;
   readonly phase: Phase;
+  readonly state: LifecycleState;
   readonly busy: boolean;
   readonly repo: string | null;
   readonly running: boolean;
@@ -151,6 +153,7 @@ export type LiveEvent =
   | {
       readonly type: 'state';
       readonly phase: Phase;
+      readonly state: LifecycleState;
       readonly busy: boolean;
       readonly running: boolean;
     }
@@ -163,6 +166,17 @@ const IMAGE = 'computer';
 const IDLE_CHECK_MS = 1000;
 
 const COOKIE_JAR_KEY = 'browser-cookie-jar';
+
+export type GoalStep = {
+  readonly op: string;
+  readonly [field: string]: unknown;
+};
+
+const GOAL_RECORD_KEY = 'goal-record';
+
+const GOALS_KEY = 'goals';
+
+const GOAL_RECORD_MAX = 128;
 
 const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 
@@ -334,10 +348,20 @@ export class Thread extends DurableObject<Env> {
     for (const listener of this.listeners) listener(event);
   }
 
+  private threadState(): LifecycleState {
+    return lifecycleOf({
+      phase: this.ledger.phase,
+      busy: this.ledger.busy,
+      compacting: this.ledger.compacting,
+      wakeError: this.ledger.wakeError,
+    });
+  }
+
   private state() {
     this.emit({
       type: 'state',
       phase: this.ledger.phase,
+      state: this.threadState(),
       busy: this.ledger.busy,
       running: this.ctx.container?.running ?? false,
     });
@@ -464,7 +488,7 @@ export class Thread extends DurableObject<Env> {
           .map((m) => `${m.role}: ${m.text}`)
           .join('\n\n');
 
-        return `<thread-data name="${name}" state="${view.busy ? 'working' : view.phase}">\n${said}\n</thread-data>`;
+        return `<thread-data name="${name}" state="${view.state}">\n${said}\n</thread-data>`;
       },
       send: async (name, message) => {
         if (this.ledger.loop?.enabled === true)
@@ -1500,6 +1524,7 @@ export class Thread extends DurableObject<Env> {
       name: this.ledger.name ?? '',
       title: (await this.directory.get(this.ledger.name ?? ''))?.title ?? this.ledger.name ?? '',
       phase: this.ledger.phase,
+      state: this.threadState(),
       busy: this.ledger.busy,
       repo: this.ledger.repo,
       running: this.ctx.container?.running ?? false,
@@ -1678,6 +1703,75 @@ export class Thread extends DurableObject<Env> {
 
       return `set ${cookies.length} cookies`;
     });
+  }
+
+  private async goalRecord(): Promise<GoalStep[]> {
+    const record = await this.ctx.storage.get(GOAL_RECORD_KEY);
+
+    return Array.isArray(record) ? (record as GoalStep[]) : [];
+  }
+
+  private async goalMap(): Promise<Record<string, GoalStep[]>> {
+    const goals = await this.ctx.storage.get(GOALS_KEY);
+
+    return goals !== null && typeof goals === 'object' ? (goals as Record<string, GoalStep[]>) : {};
+  }
+
+  async recordStep(step: GoalStep): Promise<void> {
+    const record = await this.goalRecord();
+
+    record.push(step);
+
+    while (record.length > GOAL_RECORD_MAX) record.shift();
+
+    await this.ctx.storage.put(GOAL_RECORD_KEY, record);
+  }
+
+  async goalSave(
+    name: string,
+    steps: GoalStep[],
+  ): Promise<{ goal: string; steps: number; source: 'recorded' | 'script' }> {
+    const source: 'recorded' | 'script' = steps.length === 0 ? 'recorded' : 'script';
+    const chosen = steps.length === 0 ? await this.goalRecord() : steps;
+    const goals = await this.goalMap();
+
+    goals[name] = chosen;
+    await this.ctx.storage.put(GOALS_KEY, goals);
+
+    if (source === 'recorded') await this.ctx.storage.delete(GOAL_RECORD_KEY);
+
+    return { goal: name, steps: chosen.length, source };
+  }
+
+  async goalRun(name: string): Promise<GoalStep[]> {
+    const goals = await this.goalMap();
+    const steps = goals[name];
+
+    if (steps === undefined) throw new Error(`unknown goal ${name}`);
+
+    return steps;
+  }
+
+  async goalList(): Promise<Array<{ goal: string; steps: number }>> {
+    const goals = await this.goalMap();
+
+    return Object.entries(goals).map(([goal, steps]) => ({ goal, steps: steps.length }));
+  }
+
+  async goalClear(name: string): Promise<{ cleared: boolean }> {
+    if (name === '') {
+      await this.ctx.storage.delete(GOAL_RECORD_KEY);
+      return { cleared: true };
+    }
+
+    const goals = await this.goalMap();
+
+    if (goals[name] === undefined) return { cleared: false };
+
+    delete goals[name];
+    await this.ctx.storage.put(GOALS_KEY, goals);
+
+    return { cleared: true };
   }
 
   async addTerminal(): Promise<Surface[]> {

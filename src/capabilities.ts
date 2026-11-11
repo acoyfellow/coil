@@ -59,6 +59,215 @@ const count = (
 
 const NAME: Field = { type: 'string', description: 'Thread name, for example "fix-login-3a9c2e"' };
 
+type BrowserRunStep = {
+  readonly op:
+    | 'open'
+    | 'new_tab'
+    | 'switch_tab'
+    | 'click'
+    | 'type'
+    | 'eval'
+    | 'wait'
+    | 'wait_ms'
+    | 'screenshot';
+  readonly url?: string;
+  readonly ref?: string;
+  readonly index?: number;
+  readonly text?: string;
+  readonly expression?: string;
+  readonly ms?: number;
+};
+
+const BROWSER_RUN_OPS: readonly BrowserRunStep['op'][] = [
+  'open',
+  'new_tab',
+  'switch_tab',
+  'click',
+  'type',
+  'eval',
+  'wait',
+  'wait_ms',
+  'screenshot',
+];
+
+const stepText = (step: Readonly<Record<string, unknown>>, field: string): string => {
+  const value = step[field];
+
+  if (typeof value !== 'string' || value === '')
+    throw new CapabilityInputError(`${field} is required`);
+
+  return value;
+};
+
+const stepCount = (
+  step: Readonly<Record<string, unknown>>,
+  field: string,
+  fallback: number,
+): number => {
+  const value = step[field] ?? fallback;
+
+  if (typeof value !== 'number' || !Number.isFinite(value))
+    throw new CapabilityInputError(`${field} must be a number`);
+
+  return value;
+};
+
+const parseStep = (step: unknown): BrowserRunStep => {
+  if (typeof step !== 'object' || step === null)
+    throw new CapabilityInputError('steps must be a list of objects');
+
+  const record = step as Readonly<Record<string, unknown>>;
+  const op = record.op as string as BrowserRunStep['op'] | undefined;
+
+  if (op === undefined || !BROWSER_RUN_OPS.includes(op))
+    throw new CapabilityInputError(
+      `unknown op: ${typeof record.op === 'string' ? record.op : 'unknown'}`,
+    );
+
+  switch (op) {
+    case 'open':
+    case 'new_tab':
+      return { op, url: stepText(record, 'url') };
+    case 'switch_tab':
+      return { op, index: stepCount(record, 'index', 0) };
+    case 'click':
+      return { op, ref: stepText(record, 'ref') };
+    case 'type': {
+      const text = stepText(record, 'text');
+      const ref = record.ref === undefined ? undefined : stepText(record, 'ref');
+      return ref ? { op, text, ref } : { op, text };
+    }
+    case 'eval':
+      return { op, expression: stepText(record, 'expression') };
+    case 'wait':
+      return { op, text: stepText(record, 'text') };
+    case 'wait_ms':
+      return { op, ms: stepCount(record, 'ms', 0) };
+    case 'screenshot':
+      return { op };
+  }
+};
+
+const parseSteps = (raw: string): BrowserRunStep[] => {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new CapabilityInputError('steps must be a JSON list of step objects');
+  }
+
+  if (!Array.isArray(parsed))
+    throw new CapabilityInputError('steps must be a JSON list of step objects');
+
+  return parsed.map(parseStep);
+};
+
+const runStep = async (
+  api: import('./service').Coil,
+  name: string,
+  step: BrowserRunStep,
+): Promise<unknown> => {
+  switch (step.op) {
+    case 'open':
+      return api.browserOpen(name, step.url as string);
+    case 'new_tab':
+      return api.browserNewTab(name, step.url as string);
+    case 'switch_tab':
+      return api.browserSwitchTab(name, step.index as number);
+    case 'click':
+      return api.browserClick(name, step.ref as string);
+    case 'type':
+      return api.browserType(name, step.text as string, step.ref);
+    case 'eval':
+      return api.browserEval(name, step.expression as string);
+    case 'wait':
+      return api.browserEval(name, `document.body.innerText`);
+    case 'wait_ms':
+      return new Promise((resolve) =>
+        setTimeout(() => resolve(step.ms as number), step.ms as number),
+      );
+    case 'screenshot': {
+      const png = (await api.browserScreenshot(name)) as unknown;
+      const length = typeof png === 'string' ? png.length : JSON.stringify(png).length;
+      return { bytes: length };
+    }
+  }
+};
+
+const runWait = async (
+  api: import('./service').Coil,
+  name: string,
+  textValue: string,
+): Promise<string> => {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const body = await api.browserEval(name, `document.body.innerText`);
+    const content = typeof body === 'string' ? body : JSON.stringify(body);
+    if (content.includes(textValue)) return content;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new CapabilityInputError(`timed out waiting for: ${textValue}`);
+};
+
+const runBrowserSteps = async (
+  api: import('./service').Coil,
+  name: string,
+  stepsRaw: string,
+  expectText: string | undefined,
+) => {
+  const steps = parseSteps(stepsRaw);
+  const executed: Array<{
+    index: number;
+    op: string;
+    ok: boolean;
+    durationMs: number;
+    result?: unknown;
+    error?: string;
+  }> = [];
+
+  for (let index = 0; index < steps.length; index++) {
+    const step = steps[index] as BrowserRunStep;
+    const started = performance.now();
+
+    try {
+      const result =
+        step.op === 'wait'
+          ? await runWait(api, name, step.text as string)
+          : await runStep(api, name, step);
+      executed.push({
+        index,
+        op: step.op,
+        ok: true,
+        durationMs: Math.round(performance.now() - started),
+        result,
+      });
+    } catch (error) {
+      executed.push({
+        index,
+        op: step.op,
+        ok: false,
+        durationMs: Math.round(performance.now() - started),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        steps: executed,
+        failedIndex: index,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  const output: Record<string, unknown> = { steps: executed };
+
+  if (expectText !== undefined) {
+    const last = executed[executed.length - 1];
+    const lastText = last && last.result !== undefined ? JSON.stringify(last.result) : '';
+    output.expect = { text: expectText, found: lastText.includes(expectText) };
+  }
+
+  return output;
+};
+
 const SIZE: Field = { type: 'string', enum: SIZES, description: 'Container size' };
 
 const sizeOf = (args: Readonly<Record<string, unknown>>) => {
@@ -175,7 +384,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, url: { type: 'string', description: 'For example localhost:3000' } },
     required: ['name', 'url'],
     returns: 'Page title and URL',
-    run: (api, args) => api.browserOpen(text(args, 'name'), text(args, 'url')),
+    run: async (api, args) => {
+      const result = await api.browserOpen(text(args, 'name'), text(args, 'url'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'open', url: text(args, 'url') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_snapshot',
@@ -193,7 +411,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, ref: { type: 'string', description: 'For example e3' } },
     required: ['name', 'ref'],
     returns: 'What was clicked and the page now open',
-    run: (api, args) => api.browserClick(text(args, 'name'), text(args, 'ref')),
+    run: async (api, args) => {
+      const result = await api.browserClick(text(args, 'name'), text(args, 'ref'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'click', ref: text(args, 'ref') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_type',
@@ -206,8 +433,24 @@ export const CAPABILITIES: readonly Capability[] = [
     },
     required: ['name', 'text'],
     returns: 'How many characters were typed',
-    run: (api, args) =>
-      api.browserType(text(args, 'name'), text(args, 'text'), optional(args, 'ref')),
+    run: async (api, args) => {
+      const result = await api.browserType(
+        text(args, 'name'),
+        text(args, 'text'),
+        optional(args, 'ref'),
+      );
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify(
+          optional(args, 'ref') === undefined
+            ? { op: 'type', text: text(args, 'text') }
+            : { op: 'type', text: text(args, 'text'), ref: optional(args, 'ref') as string },
+        ),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_eval',
@@ -219,7 +462,16 @@ export const CAPABILITIES: readonly Capability[] = [
     },
     required: ['name', 'expression'],
     returns: 'The result as text',
-    run: (api, args) => api.browserEval(text(args, 'name'), text(args, 'expression')),
+    run: async (api, args) => {
+      const result = await api.browserEval(text(args, 'name'), text(args, 'expression'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'eval', expression: text(args, 'expression') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_screenshot',
@@ -228,7 +480,13 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME },
     required: ['name'],
     returns: 'Base64 PNG of the visible page, 1280x800',
-    run: (api, args) => api.browserScreenshot(text(args, 'name')),
+    run: async (api, args) => {
+      const result = await api.browserScreenshot(text(args, 'name'));
+
+      await api.recordStep(text(args, 'name'), JSON.stringify({ op: 'screenshot' }));
+
+      return result;
+    },
   },
   {
     name: 'browser_new_tab',
@@ -237,7 +495,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, url: { type: 'string', description: 'For example https://example.com' } },
     required: ['name', 'url'],
     returns: 'Page title and URL of the new tab',
-    run: (api, args) => api.browserNewTab(text(args, 'name'), text(args, 'url')),
+    run: async (api, args) => {
+      const result = await api.browserNewTab(text(args, 'name'), text(args, 'url'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'new_tab', url: text(args, 'url') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_switch_tab',
@@ -246,7 +513,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, index: { type: 'number', description: 'Zero-based tab index' } },
     required: ['name', 'index'],
     returns: 'Page title and URL of the tab now shown',
-    run: (api, args) => api.browserSwitchTab(text(args, 'name'), count(args, 'index', 0)),
+    run: async (api, args) => {
+      const result = await api.browserSwitchTab(text(args, 'name'), count(args, 'index', 0));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'switch_tab', index: count(args, 'index', 0) }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_list_tabs',
@@ -277,6 +553,114 @@ export const CAPABILITIES: readonly Capability[] = [
     required: ['name', 'cookies'],
     returns: 'How many cookies were set',
     run: (api, args) => api.browserSetCookies(text(args, 'name'), text(args, 'cookies')),
+  },
+  {
+    name: 'browser_run',
+    group: 'browser',
+    summary:
+      'Run a deterministic script of browser steps in order: open, new_tab, switch_tab, click, type, eval, wait, screenshot. Stops on the first failing step.',
+    input: {
+      name: NAME,
+      steps: {
+        type: 'string',
+        description:
+          'JSON list of steps. Each step is an object with one op, for example {"op":"open","url":"https://example.com"}, {"op":"click","ref":"e3"}, {"op":"type","text":"hello","ref":"e1"}, {"op":"eval","expression":"document.title"}, {"op":"wait","text":"Dashboard"}, {"op":"wait_ms","ms":1000}, {"op":"screenshot"}. Ops never need approval.',
+      },
+      expect: {
+        type: 'string',
+        description: 'Optional text that the last step result must contain.',
+      },
+      saveAs: {
+        type: 'string',
+        description:
+          'Optional name; when the run succeeds, save the steps as a named goal for deterministic replay.',
+      },
+    },
+    required: ['name', 'steps'],
+    returns:
+      'JSON of { steps: [{ index, op, ok, durationMs, result }...], failedIndex?, error?, expectPass?, savedGoal? }',
+    run: async (api, args) => {
+      const output = (await runBrowserSteps(
+        api,
+        text(args, 'name'),
+        text(args, 'steps'),
+        optional(args, 'expect'),
+      )) as Record<string, unknown>;
+      const saveAs = optional(args, 'saveAs');
+
+      if (saveAs !== undefined && output.failedIndex === undefined) {
+        await api.goalSave(text(args, 'name'), saveAs, text(args, 'steps'));
+        output.savedGoal = saveAs;
+      }
+
+      return output;
+    },
+  },
+  {
+    name: 'goal_save',
+    group: 'browser',
+    summary:
+      'Save a named goal from the recorded browser interactions, or from an explicit steps list. The recording clears after a recorded save.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Goal name, for example "login-dash"' },
+      steps: {
+        type: 'string',
+        description:
+          'Optional JSON list of steps to save instead of the recorded interactions. Omitted saves the recorded list.',
+      },
+    },
+    required: ['name', 'goal'],
+    returns: '{ goal, steps, source }',
+    run: (api, args) =>
+      api.goalSave(text(args, 'name'), text(args, 'goal'), optional(args, 'steps') ?? '[]'),
+  },
+  {
+    name: 'goal_run',
+    group: 'browser',
+    summary: 'Run a saved goal deterministically with one call. Zero model tokens per replay.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Goal name' },
+      expect: {
+        type: 'string',
+        description: 'Optional text that the last step result must contain.',
+      },
+    },
+    required: ['name', 'goal'],
+    returns: 'JSON of { goal, steps, expect } with per-step receipts',
+    run: async (api, args) => {
+      const steps = await api.goalRun(text(args, 'name'), text(args, 'goal'));
+      const output = await runBrowserSteps(
+        api,
+        text(args, 'name'),
+        JSON.stringify(steps),
+        optional(args, 'expect'),
+      );
+
+      return { goal: text(args, 'goal'), ...output };
+    },
+  },
+  {
+    name: 'goal_list',
+    group: 'browser',
+    summary: 'List the saved goals on a thread, with their step counts.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: 'Array of { goal, steps }',
+    run: (api, args) => api.goalList(text(args, 'name')),
+  },
+  {
+    name: 'goal_clear',
+    group: 'browser',
+    summary: 'Clear the recorded interactions, or one named goal when goal is given.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Optional goal name to remove' },
+    },
+    required: ['name'],
+    returns: '{ cleared }',
+    run: (api, args) => api.goalClear(text(args, 'name'), optional(args, 'goal') ?? ''),
   },
   {
     name: 'thread_compact',

@@ -1,10 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import { parseStoredEntries, type StoredCatalog } from './catalog';
+import { type LifecycleState, lifecycleOf } from './lifecycle';
 
 export type ThreadSummary = {
   readonly name: string;
   readonly title: string;
   readonly phase: string;
+  readonly state: LifecycleState;
   readonly busy: boolean;
   readonly repo: string | null;
   readonly parent: string | null;
@@ -49,6 +51,12 @@ const fromRow = (row: Row): ThreadSummary => ({
   name: row.name,
   title: row.title,
   phase: row.phase,
+  state: lifecycleOf({
+    phase: row.phase === 'awake' || row.phase === 'paused' ? row.phase : 'new',
+    busy: row.busy === 1,
+    compacting: false,
+    wakeError: '',
+  }),
   busy: row.busy === 1,
   repo: row.repo,
   parent: row.parent,
