@@ -384,7 +384,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, url: { type: 'string', description: 'For example localhost:3000' } },
     required: ['name', 'url'],
     returns: 'Page title and URL',
-    run: (api, args) => api.browserOpen(text(args, 'name'), text(args, 'url')),
+    run: async (api, args) => {
+      const result = await api.browserOpen(text(args, 'name'), text(args, 'url'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'open', url: text(args, 'url') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_snapshot',
@@ -402,7 +411,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, ref: { type: 'string', description: 'For example e3' } },
     required: ['name', 'ref'],
     returns: 'What was clicked and the page now open',
-    run: (api, args) => api.browserClick(text(args, 'name'), text(args, 'ref')),
+    run: async (api, args) => {
+      const result = await api.browserClick(text(args, 'name'), text(args, 'ref'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'click', ref: text(args, 'ref') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_type',
@@ -415,8 +433,24 @@ export const CAPABILITIES: readonly Capability[] = [
     },
     required: ['name', 'text'],
     returns: 'How many characters were typed',
-    run: (api, args) =>
-      api.browserType(text(args, 'name'), text(args, 'text'), optional(args, 'ref')),
+    run: async (api, args) => {
+      const result = await api.browserType(
+        text(args, 'name'),
+        text(args, 'text'),
+        optional(args, 'ref'),
+      );
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify(
+          optional(args, 'ref') === undefined
+            ? { op: 'type', text: text(args, 'text') }
+            : { op: 'type', text: text(args, 'text'), ref: optional(args, 'ref') as string },
+        ),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_eval',
@@ -428,7 +462,16 @@ export const CAPABILITIES: readonly Capability[] = [
     },
     required: ['name', 'expression'],
     returns: 'The result as text',
-    run: (api, args) => api.browserEval(text(args, 'name'), text(args, 'expression')),
+    run: async (api, args) => {
+      const result = await api.browserEval(text(args, 'name'), text(args, 'expression'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'eval', expression: text(args, 'expression') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_screenshot',
@@ -437,7 +480,13 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME },
     required: ['name'],
     returns: 'Base64 PNG of the visible page, 1280x800',
-    run: (api, args) => api.browserScreenshot(text(args, 'name')),
+    run: async (api, args) => {
+      const result = await api.browserScreenshot(text(args, 'name'));
+
+      await api.recordStep(text(args, 'name'), JSON.stringify({ op: 'screenshot' }));
+
+      return result;
+    },
   },
   {
     name: 'browser_new_tab',
@@ -446,7 +495,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, url: { type: 'string', description: 'For example https://example.com' } },
     required: ['name', 'url'],
     returns: 'Page title and URL of the new tab',
-    run: (api, args) => api.browserNewTab(text(args, 'name'), text(args, 'url')),
+    run: async (api, args) => {
+      const result = await api.browserNewTab(text(args, 'name'), text(args, 'url'));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'new_tab', url: text(args, 'url') }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_switch_tab',
@@ -455,7 +513,16 @@ export const CAPABILITIES: readonly Capability[] = [
     input: { name: NAME, index: { type: 'number', description: 'Zero-based tab index' } },
     required: ['name', 'index'],
     returns: 'Page title and URL of the tab now shown',
-    run: (api, args) => api.browserSwitchTab(text(args, 'name'), count(args, 'index', 0)),
+    run: async (api, args) => {
+      const result = await api.browserSwitchTab(text(args, 'name'), count(args, 'index', 0));
+
+      await api.recordStep(
+        text(args, 'name'),
+        JSON.stringify({ op: 'switch_tab', index: count(args, 'index', 0) }),
+      );
+
+      return result;
+    },
   },
   {
     name: 'browser_list_tabs',
@@ -503,12 +570,97 @@ export const CAPABILITIES: readonly Capability[] = [
         type: 'string',
         description: 'Optional text that the last step result must contain.',
       },
+      saveAs: {
+        type: 'string',
+        description:
+          'Optional name; when the run succeeds, save the steps as a named goal for deterministic replay.',
+      },
     },
     required: ['name', 'steps'],
     returns:
-      'JSON of { steps: [{ index, op, ok, durationMs, result }...], failedIndex?, error?, expectPass? }',
+      'JSON of { steps: [{ index, op, ok, durationMs, result }...], failedIndex?, error?, expectPass?, savedGoal? }',
+    run: async (api, args) => {
+      const output = (await runBrowserSteps(
+        api,
+        text(args, 'name'),
+        text(args, 'steps'),
+        optional(args, 'expect'),
+      )) as Record<string, unknown>;
+      const saveAs = optional(args, 'saveAs');
+
+      if (saveAs !== undefined && output.failedIndex === undefined) {
+        await api.goalSave(text(args, 'name'), saveAs, text(args, 'steps'));
+        output.savedGoal = saveAs;
+      }
+
+      return output;
+    },
+  },
+  {
+    name: 'goal_save',
+    group: 'browser',
+    summary:
+      'Save a named goal from the recorded browser interactions, or from an explicit steps list. The recording clears after a recorded save.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Goal name, for example "login-dash"' },
+      steps: {
+        type: 'string',
+        description:
+          'Optional JSON list of steps to save instead of the recorded interactions. Omitted saves the recorded list.',
+      },
+    },
+    required: ['name', 'goal'],
+    returns: '{ goal, steps, source }',
     run: (api, args) =>
-      runBrowserSteps(api, text(args, 'name'), text(args, 'steps'), optional(args, 'expect')),
+      api.goalSave(text(args, 'name'), text(args, 'goal'), optional(args, 'steps') ?? '[]'),
+  },
+  {
+    name: 'goal_run',
+    group: 'browser',
+    summary: 'Run a saved goal deterministically with one call. Zero model tokens per replay.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Goal name' },
+      expect: {
+        type: 'string',
+        description: 'Optional text that the last step result must contain.',
+      },
+    },
+    required: ['name', 'goal'],
+    returns: 'JSON of { goal, steps, expect } with per-step receipts',
+    run: async (api, args) => {
+      const steps = await api.goalRun(text(args, 'name'), text(args, 'goal'));
+      const output = await runBrowserSteps(
+        api,
+        text(args, 'name'),
+        JSON.stringify(steps),
+        optional(args, 'expect'),
+      );
+
+      return { goal: text(args, 'goal'), ...output };
+    },
+  },
+  {
+    name: 'goal_list',
+    group: 'browser',
+    summary: 'List the saved goals on a thread, with their step counts.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: 'Array of { goal, steps }',
+    run: (api, args) => api.goalList(text(args, 'name')),
+  },
+  {
+    name: 'goal_clear',
+    group: 'browser',
+    summary: 'Clear the recorded interactions, or one named goal when goal is given.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'Optional goal name to remove' },
+    },
+    required: ['name'],
+    returns: '{ cleared }',
+    run: (api, args) => api.goalClear(text(args, 'name'), optional(args, 'goal') ?? ''),
   },
   {
     name: 'thread_compact',

@@ -10,7 +10,9 @@ const shellApi = (overrides: Partial<Coil> = {}): Coil =>
     browserClick: vi.fn(async () => ({ clicked: 'e3', title: 'After click' })),
     browserType: vi.fn(async () => 5),
     browserEval: vi.fn(async (_name: string, expression: string) =>
-      expression === 'document.body.innerText' ? 'Dashboard welcome back' : `result-of:${expression}`,
+      expression === 'document.body.innerText'
+        ? 'Dashboard welcome back'
+        : `result-of:${expression}`,
     ),
     browserScreenshot: vi.fn(async () => 'iVBORw0KGgo='),
     ...overrides,
