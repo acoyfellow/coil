@@ -54,6 +54,14 @@ export type BrowserTools = {
   readonly evaluate: (expression: string) => Promise<string>;
   readonly look: (question: string) => Promise<string>;
   readonly logs: (clear: boolean) => Promise<string>;
+  readonly record: (step: string) => Promise<void>;
+  readonly run: (steps: string, expect?: string, saveAs?: string) => Promise<string>;
+  readonly goalSave: (goal: string, steps?: string) => Promise<string>;
+  readonly goalRun: (goal: string, expect?: string) => Promise<string>;
+  readonly goalList: () => Promise<string>;
+  readonly sheetSave: (sheet: string, goal: string, expect: string) => Promise<string>;
+  readonly sheetRun: (sheet: string) => Promise<string>;
+  readonly sheetList: () => Promise<string>;
 };
 
 export type Extras = {
@@ -117,6 +125,14 @@ export const NO_BROWSER: BrowserTools = {
   evaluate: noBrowser,
   look: noBrowser,
   logs: noBrowser,
+  record: noBrowser,
+  run: noBrowser,
+  goalSave: noBrowser,
+  goalRun: noBrowser,
+  goalList: noBrowser,
+  sheetSave: noBrowser,
+  sheetRun: noBrowser,
+  sheetList: noBrowser,
 };
 
 const FETCH_LIMIT = 400_000;
@@ -322,7 +338,13 @@ const tools = (
     parameters: params({ url: str() }),
     replay: 'unsafe',
     executionMode: 'sequential',
-    execute: async (args) => text(await browser.open(args.url)),
+    execute: async (args) => {
+      const result = await browser.open(args.url);
+
+      await browser.record(JSON.stringify({ op: 'open', url: args.url }));
+
+      return text(result);
+    },
   }),
   defineTool({
     name: 'browser_snapshot',
@@ -338,7 +360,13 @@ const tools = (
     parameters: params({ ref: str() }),
     replay: 'unsafe',
     executionMode: 'sequential',
-    execute: async (args) => text(await browser.click(args.ref)),
+    execute: async (args) => {
+      const result = await browser.click(args.ref);
+
+      await browser.record(JSON.stringify({ op: 'click', ref: args.ref }));
+
+      return text(result);
+    },
   }),
   defineTool({
     name: 'browser_type',
@@ -372,6 +400,66 @@ const tools = (
     replay: 'safe',
     executionMode: 'sequential',
     execute: async (args) => text(await browser.look(args.question)),
+  }),
+  defineTool({
+    name: 'browser_run',
+    description:
+      'Run a whole browser script in one call: a JSON list of steps such as {"op":"open","url":"https://example.com/"}, {"op":"click","ref":"e3"}, {"op":"type","text":"hi","ref":"e1"}, {"op":"eval","expression":"document.title"}, {"op":"wait","text":"Dashboard"}, {"op":"screenshot"}. Stops at the first failing step. expect is text the last step result must contain. save_as saves the script as a named goal.',
+    parameters: params({ steps: str(), expect: opt(str()), save_as: opt(str()) }),
+    replay: 'unsafe',
+    executionMode: 'sequential',
+    execute: async (args) => text(await browser.run(args.steps, args.expect, args.save_as)),
+  }),
+  defineTool({
+    name: 'goal_save',
+    description:
+      'Save the recorded browser steps, or an explicit steps list, as a named goal that replays later without thinking. Omit steps to freeze what you just did.',
+    parameters: params({ goal: str(), steps: opt(str()) }),
+    replay: 'safe',
+    executionMode: 'sequential',
+    execute: async (args) => text(await browser.goalSave(args.goal, args.steps)),
+  }),
+  defineTool({
+    name: 'goal_run',
+    description:
+      'Replay a saved goal deterministically in one call and return the per-step receipt.',
+    parameters: params({ goal: str(), expect: opt(str()) }),
+    replay: 'unsafe',
+    executionMode: 'sequential',
+    execute: async (args) => text(await browser.goalRun(args.goal, args.expect)),
+  }),
+  defineTool({
+    name: 'goal_list',
+    description: 'List the saved goals on this thread with their step counts.',
+    parameters: params({}),
+    replay: 'safe',
+    executionMode: 'parallel',
+    execute: async () => text(clip(await browser.goalList())),
+  }),
+  defineTool({
+    name: 'sheet_save',
+    description:
+      'Save an expectation sheet: a goal plus the text its last step must reproduce. Use it to re-prove a flow before a change.',
+    parameters: params({ sheet: str(), goal: str(), expect: str() }),
+    replay: 'safe',
+    executionMode: 'sequential',
+    execute: async (args) => text(await browser.sheetSave(args.sheet, args.goal, args.expect)),
+  }),
+  defineTool({
+    name: 'sheet_run',
+    description: 'Run an expectation sheet: replay its goal and report pass plus the receipt.',
+    parameters: params({ sheet: str() }),
+    replay: 'unsafe',
+    executionMode: 'sequential',
+    execute: async (args) => text(await browser.sheetRun(args.sheet)),
+  }),
+  defineTool({
+    name: 'sheet_list',
+    description: 'List the saved expectation sheets on this thread.',
+    parameters: params({}),
+    replay: 'safe',
+    executionMode: 'parallel',
+    execute: async () => text(clip(await browser.sheetList())),
   }),
   defineTool({
     name: 'browser_logs',

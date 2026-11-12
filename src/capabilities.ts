@@ -651,6 +651,68 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.goalList(text(args, 'name')),
   },
   {
+    name: 'sheet_save',
+    group: 'browser',
+    summary:
+      'Save a named expectation sheet: a goal plus the text its last step result must contain.',
+    input: {
+      name: NAME,
+      sheet: { type: 'string', description: 'Sheet name, for example "site-still-works"' },
+      goal: { type: 'string', description: 'Goal name the sheet runs' },
+      expect: { type: 'string', description: 'Text the last step result must contain' },
+    },
+    required: ['name', 'sheet', 'goal', 'expect'],
+    returns: '{ sheet, goal, expect }',
+    run: (api, args) =>
+      api.sheetSave(
+        text(args, 'name'),
+        text(args, 'sheet'),
+        text(args, 'goal'),
+        text(args, 'expect'),
+      ),
+  },
+  {
+    name: 'sheet_run',
+    group: 'browser',
+    summary: 'Run an expectation sheet: replay its goal and check the expected text holds.',
+    input: {
+      name: NAME,
+      sheet: { type: 'string', description: 'Sheet name' },
+    },
+    required: ['name', 'sheet'],
+    returns: 'JSON of { sheet, goal, pass, receipt }',
+    run: async (api, args) => {
+      const saved = await api.sheetRun(text(args, 'name'), text(args, 'sheet'));
+      const output = (await runBrowserSteps(
+        api,
+        text(args, 'name'),
+        JSON.stringify(saved.steps),
+        saved.expect,
+      )) as Record<string, unknown>;
+      const expectResult = output.expect as { text: string; found: boolean } | undefined;
+
+      if (expectResult?.found !== true)
+        throw new CapabilityInputError(
+          `sheet ${text(args, 'sheet')} did not reproduce: expected "${saved.expect}"`,
+        );
+
+      return {
+        sheet: text(args, 'sheet'),
+        pass: true,
+        receipt: output,
+      };
+    },
+  },
+  {
+    name: 'sheet_list',
+    group: 'browser',
+    summary: 'List the saved expectation sheets on a thread.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: 'Array of { sheet, goal, expect }',
+    run: (api, args) => api.sheetList(text(args, 'name')),
+  },
+  {
     name: 'goal_clear',
     group: 'browser',
     summary: 'Clear the recorded interactions, or one named goal when goal is given.',
