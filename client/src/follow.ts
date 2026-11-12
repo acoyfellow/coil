@@ -21,38 +21,18 @@ const jumpToBottom = (feed: Element) => {
 
 export const pinToBottom = (feed: Element) => {
   setFollowing(feed, true);
-  jumpToBottomDoubleBuffered(feed);
+  jumpToBottom(feed);
 };
 
 export const followNewContent = (feed: Element) => {
-  if (isFollowing(feed)) jumpToBottomDoubleBuffered(feed);
+  if (isFollowing(feed)) jumpToBottom(feed);
 };
-
-const programmatic = new WeakMap<Element, boolean>();
-
-const jumpToBottomDoubleBuffered = (feed: Element) => {
-  programmatic.set(feed, true);
-  jumpToBottom(feed);
-  requestAnimationFrame(() => {
-    if (isFollowing(feed)) jumpToBottom(feed);
-    requestAnimationFrame(() => {
-      programmatic.delete(feed);
-    });
-  });
-};
-
-const isProgrammatic = (feed: Element): boolean => programmatic.get(feed) === true;
 
 export const attachFollow = (feed: HTMLElement): (() => void) => {
   const release = (event: WheelEvent) => {
     if (event.deltaY < 0) setFollowing(feed, false);
   };
   const track = () => {
-    if (isProgrammatic(feed)) {
-      programmatic.delete(feed);
-      settledTop.set(feed, feed.scrollTop);
-      return;
-    }
     const movedDown = feed.scrollTop > (settledTop.get(feed) ?? feed.scrollTop);
     const near = distanceFromBottom(feed) <= FOLLOW_THRESHOLD_PX;
 
