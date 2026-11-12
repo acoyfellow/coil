@@ -61,6 +61,7 @@ export const WEBKIT_HOST = '/opt/coil/webkit-host.py';
 export const TITLE_WAIT_MS = 150;
 
 export const BROWSER_START_TIMEOUT_MS = 30_000;
+const REPLY_TIMEOUT_MS = 90_000;
 
 export const WEBKIT_PIDFILE = '/tmp/coil-webkit.pid';
 
@@ -267,10 +268,26 @@ export class Browser {
     const id = ++this.next;
 
     return new Promise((resolve) => {
-      this.waiting.set(id, resolve);
+      const timer = setTimeout(() => {
+        this.waiting.delete(id);
+        this.fail();
+        resolve({ error: { message: `${method} did not answer within ${REPLY_TIMEOUT_MS}ms` } });
+      }, REPLY_TIMEOUT_MS);
+
+      const settle = (reply: HostMessage) => {
+        clearTimeout(timer);
+        resolve(reply);
+      };
+
+      this.waiting.set(id, settle);
       this.input
         .write(this.encoder.encode(`${JSON.stringify({ id, method, params })}\0`))
-        .catch(() => resolve({ error: { message: 'browser pipe closed' } }));
+        .catch(() => {
+          this.waiting.delete(id);
+          clearTimeout(timer);
+          this.fail();
+          resolve({ error: { message: 'browser pipe closed' } });
+        });
     });
   }
 

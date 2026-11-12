@@ -16,6 +16,7 @@ export const isCloudflareOwner = (owner: string) => owner.startsWith(CLOUDFLARE_
 
 export const authMode = (raw: string | undefined): AuthMode | null => {
   if (raw === undefined || raw === '' || raw === 'access') return 'access';
+  if (raw === 'dev') return 'access';
 
   return raw === 'cloudflare' ? 'cloudflare' : null;
 };

@@ -129,6 +129,8 @@ export const coil = (env: Env, owner: string) => {
     browserGetCookies: async (name: string) => (await known(name)).browserGetCookies(),
     browserSetCookies: async (name: string, cookies: string) =>
       (await known(name)).browserSetCookies(JSON.parse(cookies) as never),
+    attachRepo: async (name: string, repo: string) => (await known(name)).attachRepo(repo),
+    resetBrowser: async (name: string) => (await known(name)).resetBrowser(),
     recordStep: async (name: string, step: string) =>
       (await known(name)).recordStep(JSON.parse(step) as never),
     goalSave: async (name: string, goal: string, steps: string) =>

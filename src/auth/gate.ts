@@ -1,5 +1,6 @@
 import { type AccessEnv, accessAuth } from './access';
 import { type CloudflareAuthEnv, cloudflareAuth } from './cloudflare';
+import { devAuth } from './dev';
 import { type Auth, authMode, type Identity } from './types';
 
 export type GateEnv = AccessEnv &
@@ -13,6 +14,8 @@ export type GateResult =
 
 export const authFor = (env: GateEnv, send: typeof fetch = fetch): Auth | null => {
   const mode = authMode(env.COIL_AUTH);
+
+  if (env.COIL_AUTH === 'dev') return devAuth();
 
   if (mode === 'access') return accessAuth(env);
 

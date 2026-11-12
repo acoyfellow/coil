@@ -534,6 +534,16 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.browserListTabs(text(args, 'name')),
   },
   {
+    name: 'browser_reset',
+    group: 'browser',
+    summary:
+      'Restart the browser in a thread and keep its cookies. Use it when a page is wedged and every other browser call fails.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: '{ url, title } of the restarted browser',
+    run: (api, args) => api.resetBrowser(text(args, 'name')),
+  },
+  {
     name: 'browser_get_cookies',
     group: 'browser',
     summary: 'Read the cookie jar of the browser.',
@@ -553,6 +563,19 @@ export const CAPABILITIES: readonly Capability[] = [
     required: ['name', 'cookies'],
     returns: 'How many cookies were set',
     run: (api, args) => api.browserSetCookies(text(args, 'name'), text(args, 'cookies')),
+  },
+  {
+    name: 'thread_repo',
+    group: 'threads',
+    summary:
+      'Clone a git repo into a thread that already exists. An empty /workspace gets the repo at its root; a workspace with files gets the repo in a subdirectory named after it.',
+    input: {
+      name: NAME,
+      repo: { type: 'string', description: 'Git URL, for example https://github.com/owner/repo' },
+    },
+    required: ['name', 'repo'],
+    returns: '{ repo, path, cloned }',
+    run: (api, args) => api.attachRepo(text(args, 'name'), text(args, 'repo')),
   },
   {
     name: 'browser_run',

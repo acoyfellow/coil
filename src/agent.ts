@@ -62,6 +62,7 @@ export type BrowserTools = {
   readonly sheetSave: (sheet: string, goal: string, expect: string) => Promise<string>;
   readonly sheetRun: (sheet: string) => Promise<string>;
   readonly sheetList: () => Promise<string>;
+  readonly reset: () => Promise<{ url: string; title: string }>;
 };
 
 export type Extras = {
@@ -133,6 +134,7 @@ export const NO_BROWSER: BrowserTools = {
   sheetSave: noBrowser,
   sheetRun: noBrowser,
   sheetList: noBrowser,
+  reset: noBrowser,
 };
 
 const FETCH_LIMIT = 400_000;
@@ -460,6 +462,19 @@ const tools = (
     replay: 'safe',
     executionMode: 'parallel',
     execute: async () => text(clip(await browser.sheetList())),
+  }),
+  defineTool({
+    name: 'browser_reset',
+    description:
+      'Restart the browser and keep its cookies. Use it when the page is wedged and browser calls keep failing.',
+    parameters: params({}),
+    replay: 'unsafe',
+    executionMode: 'sequential',
+    execute: async () => {
+      const page = await browser.reset();
+
+      return text(`browser restarted at ${page.url}`);
+    },
   }),
   defineTool({
     name: 'browser_logs',

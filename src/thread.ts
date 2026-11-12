@@ -691,6 +691,7 @@ export class Thread extends DurableObject<Env> {
 
         return lines.length === 0 ? '(no console messages)' : lines.join('\n');
       },
+      reset: async () => this.resetBrowser(),
       record: async (step) => {
         await this.recordStep(JSON.parse(step) as GoalStep);
       },
@@ -1722,6 +1723,46 @@ export class Thread extends DurableObject<Env> {
     this.unwatch?.();
     this.unwatch = undefined;
     await current?.then((agent) => agent.close()).catch(() => undefined);
+  }
+
+  async resetBrowser(): Promise<{ url: string; title: string }> {
+    const current = this.browser;
+
+    this.browser = undefined;
+
+    if (current !== undefined) await current.then((b) => b.close()).catch(() => undefined);
+
+    const browser = await this.openBrowser();
+
+    return browser.page;
+  }
+
+  async attachRepo(repo: string): Promise<{ repo: string; path: string; cloned: boolean }> {
+    const box = await this.awake();
+    const listing = await box.exec(['bash', '-c', `ls -A ${WORKSPACE} 2>/dev/null | head -1`], '/');
+    const empty = listing.stdout.trim() === '';
+    const slug =
+      repo
+        .replace(/\.git$/, '')
+        .split('/')
+        .filter((part) => part !== '')
+        .pop() ?? 'repo';
+    const target = empty ? '.' : slug;
+    const cloned = await box.exec(
+      ['bash', '-c', `cd ${WORKSPACE} && git clone --depth 50 "$1" "$2"`, 'clone', repo, target],
+      '/',
+    );
+
+    if (cloned.exitCode !== 0)
+      throw new Error(`Could not clone ${repo}: ${cloned.stderr.trim().slice(-300)}`);
+
+    this.ledger.repo = repo;
+    await this.directory.upsert({
+      name: this.ledger.name ?? '',
+      repo,
+    });
+
+    return { repo, path: empty ? WORKSPACE : `${WORKSPACE}/${slug}`, cloned: true };
   }
 
   browserOpen(url: string): Promise<string> {
