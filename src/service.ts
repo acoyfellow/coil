@@ -135,6 +135,10 @@ export const coil = (env: Env, owner: string) => {
       (await known(name)).goalSave(goal, JSON.parse(steps) as never),
     goalRun: async (name: string, goal: string) => (await known(name)).goalRun(goal),
     goalList: async (name: string) => (await known(name)).goalList(),
+    sheetSave: async (name: string, sheet: string, goal: string, expectText: string) =>
+      (await known(name)).sheetSave(sheet, goal, expectText),
+    sheetList: async (name: string) => (await known(name)).sheetList(),
+    sheetRun: async (name: string, sheet: string) => (await known(name)).sheetRun(sheet),
     goalClear: async (name: string, goal: string) => (await known(name)).goalClear(goal),
     addTerminal: async (name: string) => (await known(name)).addTerminal(),
     addBrowser: async (name: string) => (await known(name)).addBrowser(),

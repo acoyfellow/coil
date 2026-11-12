@@ -61,6 +61,7 @@ import { decide, digest, type LoopSpec, type LoopState, validSpec } from './loop
 import { workersAI } from './model';
 import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
 import { DEFAULT_SIZE, type Size } from './size';
+import { parseSteps, runSteps, type StepExecutor } from './steps';
 import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
 import { pipeSocket } from './vnc';
 import { ensureWebkit } from './webkit-patch';
@@ -169,7 +170,12 @@ const COOKIE_JAR_KEY = 'browser-cookie-jar';
 
 export type GoalStep = {
   readonly op: string;
-  readonly [field: string]: unknown;
+  readonly url?: string;
+  readonly ref?: string;
+  readonly index?: number;
+  readonly text?: string;
+  readonly expression?: string;
+  readonly ms?: number;
 };
 
 const GOAL_RECORD_KEY = 'goal-record';
@@ -177,6 +183,10 @@ const GOAL_RECORD_KEY = 'goal-record';
 const GOALS_KEY = 'goals';
 
 const GOAL_RECORD_MAX = 128;
+
+const SHEETS_KEY = 'sheets';
+
+type SheetSpec = { readonly goal: string; readonly expect: string };
 
 const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 
@@ -681,6 +691,71 @@ export class Thread extends DurableObject<Env> {
 
         return lines.length === 0 ? '(no console messages)' : lines.join('\n');
       },
+      record: async (step) => {
+        await this.recordStep(JSON.parse(step) as GoalStep);
+      },
+      run: async (stepsRaw, expectText, saveAs) => {
+        const parsed = parseSteps(stepsRaw);
+        const receipt = await runSteps(await this.stepExecutor(), parsed, expectText);
+        const ok = receipt.failedIndex === undefined;
+
+        if (ok) for (const step of parsed) await this.recordStep(step as GoalStep);
+        if (ok && saveAs !== undefined) await this.goalSave(saveAs, parsed as GoalStep[]);
+
+        return JSON.stringify(
+          ok && saveAs !== undefined ? { ...receipt, savedGoal: saveAs } : receipt,
+        );
+      },
+      goalSave: async (goal, steps) =>
+        JSON.stringify(
+          await this.goalSave(goal, steps === undefined ? [] : (JSON.parse(steps) as GoalStep[])),
+        ),
+      goalRun: async (goal, expectText) => {
+        const saved = await this.goalRun(goal);
+        const receipt = await runSteps(await this.stepExecutor(), saved as never, expectText);
+
+        return JSON.stringify({ goal, ...receipt });
+      },
+      goalList: async () => JSON.stringify(await this.goalList()),
+      sheetSave: async (sheet, goal, expectText) =>
+        JSON.stringify(await this.sheetSave(sheet, goal, expectText)),
+      sheetRun: async (sheet) => {
+        const saved = await this.sheetRun(sheet);
+        const receipt = await runSteps(
+          await this.stepExecutor(),
+          saved.steps as never,
+          saved.expect,
+        );
+
+        return JSON.stringify({ sheet, pass: receipt.expect?.found === true, receipt });
+      },
+      sheetList: async () => JSON.stringify(await this.sheetList()),
+    };
+  }
+
+  private async stepExecutor(): Promise<StepExecutor> {
+    const browser = await this.openBrowser();
+    const page = (p: PageState) => `${p.title === '' ? '(no title)' : p.title}\n${p.url}`;
+
+    return {
+      open: async (url) => page(await browser.open(url)),
+      newTab: async (url) => page(await browser.newTab(url)),
+      switchTab: async (index) => page(await browser.switchTab(index)),
+      click: async (ref) => {
+        await browser.clickRef(ref);
+        await new Promise((r) => setTimeout(r, 400));
+
+        return `clicked ${ref}; now at ${page(browser.page)}`;
+      },
+      type: async (text, ref) => {
+        if (ref !== undefined) await browser.clickRef(ref);
+        await browser.type(text);
+
+        return `typed ${text.length} chars`;
+      },
+      evaluate: async (expression) => browser.evaluate(expression),
+      screenshot: async () => browser.screenshot(),
+      pageText: async () => browser.evaluate('document.body.innerText'),
     };
   }
 
@@ -1756,6 +1831,55 @@ export class Thread extends DurableObject<Env> {
     const goals = await this.goalMap();
 
     return Object.entries(goals).map(([goal, steps]) => ({ goal, steps: steps.length }));
+  }
+
+  private async sheetMap(): Promise<Record<string, SheetSpec>> {
+    const sheets = await this.ctx.storage.get(SHEETS_KEY);
+
+    return sheets !== null && typeof sheets === 'object'
+      ? (sheets as Record<string, SheetSpec>)
+      : {};
+  }
+
+  async sheetSave(
+    name: string,
+    goal: string,
+    expectText: string,
+  ): Promise<{ sheet: string; goal: string; expect: string }> {
+    const goals = await this.goalMap();
+
+    if (goals[goal] === undefined) throw new Error(`unknown goal ${goal}`);
+
+    const sheets = await this.sheetMap();
+
+    sheets[name] = { goal, expect: expectText };
+    await this.ctx.storage.put(SHEETS_KEY, sheets);
+
+    return { sheet: name, goal, expect: expectText };
+  }
+
+  async sheetList(): Promise<Array<{ sheet: string; goal: string; expect: string }>> {
+    const sheets = await this.sheetMap();
+
+    return Object.entries(sheets).map(([sheet, spec]) => ({
+      sheet,
+      goal: spec.goal,
+      expect: spec.expect,
+    }));
+  }
+
+  async sheetRun(name: string): Promise<{ steps: GoalStep[]; expect: string }> {
+    const sheets = await this.sheetMap();
+    const spec = sheets[name];
+
+    if (spec === undefined) throw new Error(`unknown sheet ${name}`);
+
+    const goals = await this.goalMap();
+    const steps = goals[spec.goal];
+
+    if (steps === undefined) throw new Error(`unknown goal ${spec.goal}`);
+
+    return { steps, expect: spec.expect };
   }
 
   async goalClear(name: string): Promise<{ cleared: boolean }> {
