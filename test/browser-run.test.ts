@@ -35,9 +35,11 @@ describe('browser_run', () => {
   it('is in the documented schema', () => {
     const capability = capabilityNamed('browser_run');
 
-    expect(capability?.group).toBe('browser');
-    expect(inputSchema(capability!).properties).toHaveProperty('name');
-    expect(inputSchema(capability!).properties).toHaveProperty('steps');
+    if (capability === undefined) throw new Error('browser_run is missing');
+
+    expect(capability.group).toBe('browser');
+    expect(inputSchema(capability).properties).toHaveProperty('name');
+    expect(inputSchema(capability).properties).toHaveProperty('steps');
   });
 
   it('runs a script of steps in order and returns per-step receipts', async () => {

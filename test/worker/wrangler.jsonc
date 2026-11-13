@@ -5,6 +5,7 @@
   "preview_urls": false,
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "worker_loaders": [{ "binding": "LOADER" }],
   "durable_objects": {
     "bindings": [
       { "name": "THREAD", "class_name": "TestThread" },

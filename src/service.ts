@@ -130,6 +130,10 @@ export const coil = (env: Env, owner: string) => {
     browserSetCookies: async (name: string, cookies: string) =>
       (await known(name)).browserSetCookies(JSON.parse(cookies) as never),
     attachRepo: async (name: string, repo: string) => (await known(name)).attachRepo(repo),
+    computerUsage: async (name: string) => (await known(name)).computerUsage(),
+    workspaceManifest: async (name: string) => (await known(name)).workspaceManifest(),
+    runJs: async (name: string, code: string, paths: readonly string[] = []) =>
+      (await known(name)).runJs(code, paths),
     resetBrowser: async (name: string) => (await known(name)).resetBrowser(),
     recordStep: async (name: string, step: string) =>
       (await known(name)).recordStep(JSON.parse(step) as never),

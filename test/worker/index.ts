@@ -17,6 +17,7 @@ import { coil, sharedView } from '../../src/service';
 import { statsPage } from '../../src/stats-page';
 import { type Env, Thread } from '../../src/thread';
 import { bootSizes, crash, memoryComputer } from '../memory-computer';
+import { cloud5Probes } from './cloud5';
 
 const CONNECTOR_UPSTREAM = 'https://mcp.test/mcp';
 
@@ -347,6 +348,10 @@ export default {
     const other = coil(env, 'bo@example.com');
     const stub = (name: string) => env.THREAD.getByName(name);
     const run = url.searchParams.get('run') ?? crypto.randomUUID().slice(0, 8);
+
+    const cloud5 = cloud5Probes[url.pathname];
+
+    if (cloud5 !== undefined) return cloud5(api, run);
 
     if (url.pathname === '/isolation') {
       const a = `a-${run}`;
@@ -922,6 +927,7 @@ export default {
       const test = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(name);
 
       await api.create({ name, createdBy: 'test' });
+      await api.exec(name, ['bash', '-lc', 'true']);
       await api.send(name, 'r1', 'write kept.txt containing before-pause');
       await stub(name).start('r2', 'write late.txt containing during-turn');
 

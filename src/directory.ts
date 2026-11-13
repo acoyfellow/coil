@@ -1,6 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import { parseStoredEntries, type StoredCatalog } from './catalog';
 import { type LifecycleState, lifecycleOf } from './lifecycle';
+import {
+  type ComputerTotals,
+  type ComputerUsage,
+  parseComputerUsage,
+  totalComputerUsage,
+} from './usage';
 
 export type ThreadSummary = {
   readonly name: string;
@@ -115,6 +121,9 @@ export class Directory extends DurableObject {
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env as never);
     ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS usage (name TEXT PRIMARY KEY, usage TEXT NOT NULL)`,
+    );
+    this.ctx.storage.sql.exec(
       `CREATE TABLE IF NOT EXISTS threads (name TEXT PRIMARY KEY, title TEXT NOT NULL, phase TEXT NOT NULL, busy INTEGER NOT NULL DEFAULT 0, repo TEXT, parent TEXT, forked_from TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
     );
     ctx.storage.sql.exec(
@@ -404,6 +413,25 @@ export class Directory extends DurableObject {
     );
   }
 
+  recordUsage(name: string, usage: ComputerUsage): void {
+    this.ctx.storage.sql.exec(
+      'INSERT INTO usage (name, usage) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET usage = excluded.usage',
+      name,
+      JSON.stringify(usage),
+    );
+  }
+
+  usageTotals(now = Date.now()): ComputerTotals {
+    const rows = this.ctx.storage.sql
+      .exec<{ usage: string }>(
+        'SELECT u.usage AS usage FROM threads t LEFT JOIN usage u ON u.name = t.name',
+      )
+      .toArray()
+      .map((row) => parseComputerUsage(row.usage ?? null));
+
+    return totalComputerUsage(rows, now);
+  }
+
   loopingFor(owner: string): string[] {
     return this.ctx.storage.sql
       .exec<{ name: string }>('SELECT name FROM threads WHERE owner = ? AND looping = 1', owner)
@@ -562,6 +590,7 @@ export class Directory extends DurableObject {
       models: topCounts(models).map(([model, threads]) => ({ model, threads })),
       sources: topCounts(sources).map(([source, threads]) => ({ source, threads })),
       at: now,
+      computers: this.usageTotals(now),
     };
   }
 

@@ -24,6 +24,7 @@ import { TERM_JS, TERM_VERSION } from './ui/term.generated';
 
 export { ConnectorStore } from './connectors/store';
 export { Directory } from './directory';
+export { GitBroker } from './git-broker-entry';
 export { CoilBridge } from './run';
 export { Thread } from './thread';
 

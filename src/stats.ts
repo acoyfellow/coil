@@ -1,3 +1,5 @@
+import type { ComputerTotals } from './usage';
+
 export type InstanceStats = {
   readonly threads: number;
   readonly people: number;
@@ -11,6 +13,7 @@ export type InstanceStats = {
   readonly models: readonly { readonly model: string; readonly threads: number }[];
   readonly sources: readonly { readonly source: string; readonly threads: number }[];
   readonly at: number;
+  readonly computers?: ComputerTotals;
 };
 
 export const STATS_DAYS = 30;

@@ -21,8 +21,10 @@ import { openDurableObjectSqliteStorage } from '@earendil-works/pi-durable/stora
 import { bool, num, opt, str } from '@earendil-works/pi-schema';
 import type { Computer } from './computer';
 import type { Ledger } from './ledger';
+import type { RunJsResult } from './run-js';
 import { params } from './schema';
 import { boundedShell, RUN_LIMIT_SECONDS, TIMED_OUT_EXIT } from './shell';
+import type { Files } from './workspace-store';
 
 export const CONTEXT = BACKGROUND_CONTEXT;
 
@@ -67,6 +69,7 @@ export type BrowserTools = {
 
 export type Extras = {
   readonly fetchText: (url: string) => Promise<string>;
+  readonly runJs?: (code: string) => Promise<RunJsResult>;
 };
 
 export type Children = {
@@ -224,6 +227,7 @@ export const untilAborted = <T>(work: Promise<T>, signal: AbortSignal | undefine
 
 const tools = (
   computer: () => Promise<Computer>,
+  files: Files,
   ledger: Ledger,
   children: Children,
   browser: BrowserTools,
@@ -256,9 +260,7 @@ const tools = (
     replay: 'safe',
     executionMode: 'sequential',
     execute: async (args) => {
-      const box = await computer();
-
-      await box.writeFile(args.path, args.content);
+      await files.write(args.path, args.content);
 
       return text(`Wrote ${args.path} (${args.content.length} chars)`);
     },
@@ -269,7 +271,7 @@ const tools = (
     parameters: params({ path: str() }),
     replay: 'safe',
     executionMode: 'parallel',
-    execute: async (args) => text(clip(await (await computer()).readFile(args.path))),
+    execute: async (args) => text(clip(await files.read(args.path))),
   }),
   defineTool({
     name: 'start_child',
@@ -499,8 +501,7 @@ const tools = (
     execute: async (args) => {
       if (args.old_text === '') return text('old_text is empty. Use write_file to create a file.');
 
-      const box = await computer();
-      const current = await box.readFile(args.path);
+      const current = await files.read(args.path);
       const count = current.split(args.old_text).length - 1;
 
       if (count === 0)
@@ -512,12 +513,35 @@ const tools = (
           `old_text appears ${count} times in ${args.path}. Include more lines so it is unique.`,
         );
 
-      await box.writeFile(
+      await files.write(
         args.path,
         current.replace(args.old_text, () => args.new_text),
       );
 
       return text(`Edited ${args.path}`);
+    },
+  }),
+  defineTool({
+    name: 'run_js',
+    description:
+      'Run JavaScript in a sealed isolate: no network, no shell, starts in milliseconds and does not wake the computer. The code is an async function body with fs.read(path), fs.write(path, text), fs.list() over /workspace files and console.log. Use run for anything that needs Linux, git or packages.',
+    parameters: params({ code: str() }),
+    replay: 'unsafe',
+    executionMode: 'sequential',
+    execute: async (args) => {
+      if (extras.runJs === undefined) return text('run_js is not available here.');
+
+      const ran = await extras.runJs(args.code);
+      const wrote = Object.keys(ran.written);
+      const head = ran.ok ? `ok in ${ran.ms}ms` : `error in ${ran.ms}ms: ${ran.error ?? ''}`;
+      const lines = [
+        head,
+        ran.output,
+        ran.result === null ? '' : `result: ${JSON.stringify(ran.result)}`,
+        wrote.length === 0 ? '' : `wrote: ${wrote.join(', ')}`,
+      ];
+
+      return text(clip(lines.filter((line) => line !== '').join('\n')));
     },
   }),
   defineTool({
@@ -753,6 +777,12 @@ const totalsOf = (buckets: Record<string, unknown>): UsageTotals => {
 
 const THINKING_LEVEL = 'low';
 
+const boxFiles = (computer: () => Promise<Computer>): Files => ({
+  read: async (path) => (await computer()).readFile(path),
+  write: async (path, content) => (await computer()).writeFile(path, content),
+  list: async (path) => (await computer()).list(path),
+});
+
 export const openAgent = async (
   storage: DurableObjectStorage,
   model: ModelChoice,
@@ -767,6 +797,7 @@ export const openAgent = async (
   extraProviders: readonly Provider[] = [],
   route: ModelRoute = () => model,
   plugins: readonly Extension[] = [],
+  files: Files = boxFiles(computer),
 ): Promise<Agent> => {
   const models = createModels(model.options);
 
@@ -793,7 +824,7 @@ export const openAgent = async (
           tag: false,
         }),
       ],
-      tools: tools(computer, ledger, children, browser, extras, threads).map(stoppable),
+      tools: tools(computer, files, ledger, children, browser, extras, threads).map(stoppable),
     }),
   );
 

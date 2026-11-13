@@ -307,14 +307,17 @@ const surfacePane = (h: H, view: ThreadView, surface: Surface): Html =>
   surface.kind === 'browser'
     ? h.keyed('div')(
         `browser-${view.name}-${surface.id}`,
-        [h.Class('surface browser-surface'), h.OnMount(BrowserSurface({ thread: view.name }))],
+        [
+          h.Class('surface browser-surface'),
+          h.OnMount(BrowserSurface({ thread: view.name, running: view.running })),
+        ],
         [],
       )
     : h.keyed('div')(
         `term-${view.name}-${surface.id}`,
         [
           h.Class('surface term-surface'),
-          h.OnMount(TerminalSurface({ thread: view.name, id: surface.id })),
+          h.OnMount(TerminalSurface({ thread: view.name, id: surface.id, running: view.running })),
         ],
         [],
       );

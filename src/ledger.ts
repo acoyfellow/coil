@@ -2,6 +2,7 @@ import { type ModelInfo, parseModelInfo } from '../shared/models';
 import type { Snapshot } from './computer';
 import type { LoopState } from './loop';
 import { type Size, sizeOrDefault } from './size';
+import { type ComputerUsage, parseComputerUsage } from './usage';
 
 export type Phase = 'new' | 'awake' | 'paused';
 
@@ -105,6 +106,14 @@ export class Ledger {
 
   set phase(next: Phase) {
     this.put('phase', next);
+  }
+
+  get computerUsage(): ComputerUsage {
+    return parseComputerUsage(this.get('computerUsage'));
+  }
+
+  set computerUsage(next: ComputerUsage) {
+    this.put('computerUsage', JSON.stringify(next));
   }
 
   get lastActivity(): number {

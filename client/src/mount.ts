@@ -4,6 +4,7 @@ import { rememberFiles } from './command';
 import { attachFollow, followNewContent, pinToBottom } from './follow';
 import { Message } from './message';
 import { attachBrowser } from './surfaces/browser';
+import { whenWanted } from './surfaces/lazy';
 import { attachTerminal } from './surfaces/terminal';
 
 const hold = <A>(
@@ -22,19 +23,25 @@ const hold = <A>(
   );
 
 export const TerminalSurface = Mount.defineStream('TerminalSurface', {
-  args: { thread: Schema.String, id: Schema.String },
+  args: { thread: Schema.String, id: Schema.String, running: Schema.Boolean },
   messages: [Message.CompletedEffect],
-  execute: ({ element, thread, id }) =>
-    hold(() => attachTerminal(element as HTMLElement, thread, id), element),
+  execute: ({ element, thread, id, running }) =>
+    hold(
+      (host) =>
+        whenWanted(host, running, 'Start the computer', () => attachTerminal(host, thread, id)),
+      element,
+    ),
 });
 
 export const BrowserSurface = Mount.defineStream('BrowserSurface', {
-  args: { thread: Schema.String },
+  args: { thread: Schema.String, running: Schema.Boolean },
   messages: [Message.FailedSurface],
-  execute: ({ element, thread }) =>
+  execute: ({ element, thread, running }) =>
     hold<typeof Message.FailedSurface.Type>(
       (host, emit) =>
-        attachBrowser(host, thread, (reason) => emit(Message.FailedSurface({ reason }))),
+        whenWanted(host, running, 'Start the browser', () =>
+          attachBrowser(host, thread, (reason) => emit(Message.FailedSurface({ reason }))),
+        ),
       element,
     ),
 });

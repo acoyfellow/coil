@@ -107,6 +107,23 @@ section h2{font-size:14px;margin:0 0 14px;color:var(--dim);font-weight:600;text-
 footer{color:var(--faint);font-size:13px;margin-top:24px;display:flex;gap:16px;flex-wrap:wrap}
 footer a{color:var(--dim)}`;
 
+const computersSection = (stats: InstanceStats): string => {
+  const c = stats.computers;
+
+  if (c === undefined) return '';
+
+  const idle = c.awakeSeconds === 0 ? 0 : Math.round((1 - c.toolSeconds / c.awakeSeconds) * 100);
+
+  return `<section id="computers"><h2>Computers</h2><div class="tiles">
+${tile(whole.format(c.threads - c.neverBooted), 'threads that ever started one')}
+${tile(whole.format(c.neverBooted), 'threads that never needed one')}
+${tile(whole.format(c.boots), 'boots')}
+${tile(whole.format(c.awakeSeconds), 'seconds awake')}
+${tile(whole.format(c.toolSeconds), 'seconds running tools')}
+${tile(`${Math.max(0, idle)}%`, 'awake but idle')}
+</div></section>`;
+};
+
 export const statsPage = (stats: InstanceStats, origin: string) => {
   const host = new URL(origin).host;
 
@@ -134,6 +151,7 @@ ${tile(whole.format(stats.awake), 'computers awake')}
 ${tile(whole.format(stats.agentMade), 'started by an agent')}
 ${tile(dollars(stats.spend), 'model spend')}
 </div>
+${computersSection(stats)}
 <section><h2>Threads started, last ${stats.perDay.length} days</h2>${chart(stats.perDay)}</section>
 <div class="grid">
 <section><h2>Models</h2>${bars(stats.models.map((row) => ({ label: row.model, threads: row.threads })))}</section>

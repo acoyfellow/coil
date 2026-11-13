@@ -565,6 +565,42 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.browserSetCookies(text(args, 'name'), text(args, 'cookies')),
   },
   {
+    name: 'thread_usage',
+    group: 'threads',
+    summary:
+      'How much computer a thread used: boots, seconds awake, and seconds spent running tools. A chat-only thread shows 0 boots.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: '{ awakeMs, toolMs, boots, awakeSince }',
+    run: (api, args) => api.computerUsage(text(args, 'name')),
+  },
+  {
+    name: 'thread_files',
+    group: 'threads',
+    summary:
+      'Files a thread holds outside its computer. Writes while the computer sleeps land here and move onto its disk on the next boot.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: '{ sealed, files: [{ path, hash, bytes }] }',
+    run: (api, args) => api.workspaceManifest(text(args, 'name')),
+  },
+  {
+    name: 'thread_run_js',
+    group: 'threads',
+    summary:
+      'Run JavaScript in a sealed isolate with no network and no computer. The code gets fs.read, fs.write, fs.list over the thread files and console.log. Files it writes are saved to the thread.',
+    input: {
+      name: NAME,
+      code: {
+        type: 'string',
+        description: 'An async function body. Return a value or console.log it.',
+      },
+    },
+    required: ['name', 'code'],
+    returns: '{ ok, output, result, written, ms, error? }',
+    run: (api, args) => api.runJs(text(args, 'name'), text(args, 'code')),
+  },
+  {
     name: 'thread_repo',
     group: 'threads',
     summary:

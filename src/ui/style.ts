@@ -189,6 +189,7 @@ button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:
 .surface{height:100%;display:flex;flex-direction:column;min-height:0;position:relative}
 .term-surface{background:var(--term-bg)}
 .term-host{flex:1;min-height:0;padding:6px 0 0 8px;--ct-bg:var(--term-bg);--ct-fg:var(--term-fg);--ct-font:var(--mono);--ct-font-size:12.5px}
+.surface-asleep{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:13px;color:var(--dim)}.surface-asleep button{border:1px solid var(--line2);background:var(--bg2,transparent);color:var(--fg);border-radius:8px;padding:6px 14px;cursor:pointer}
 .term-status{position:absolute;inset:auto 10px 10px auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:4px 9px}
 .term-status[hidden]{display:none}
 .urlbar{display:flex;gap:2px;align-items:center;padding:5px 6px;border-bottom:1px solid var(--line);flex:none}

@@ -1,10 +1,11 @@
-import { DurableObject } from 'cloudflare:workers';
+import { DurableObject, exports as workerExports } from 'cloudflare:workers';
 import type { Extension, HarnessSettings } from '@earendil-works/pi-durable';
 import { GATEWAY_MODELS, type ModelInfo, modelInfo as pinnedModelInfo } from '../shared/models';
 import {
   type Agent,
   type BrowserTools,
   type Children,
+  DEFAULT_EXTRAS,
   type Message,
   MODEL_FAILURE_PREFIX,
   type ModelChoice,
@@ -46,6 +47,7 @@ import {
   workspaceTarget,
 } from './extensions';
 import { gatewayModel, isGatewayModel } from './gateway';
+import { BROKER_HOST, brokerRemote } from './git-broker';
 import {
   type ExecRecord,
   Ledger,
@@ -59,12 +61,15 @@ import { type LifecycleState, lifecycleOf } from './lifecycle';
 import { liveEvents } from './live';
 import { decide, digest, type LoopSpec, type LoopState, validSpec } from './loop';
 import { workersAI } from './model';
+import { type RunJsResult, runJs } from './run-js';
 import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
 import { DEFAULT_SIZE, type Size } from './size';
 import { parseSteps, runSteps, type StepExecutor } from './steps';
 import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
+import { type ComputerUsage, metered } from './usage';
 import { pipeSocket } from './vnc';
 import { ensureWebkit } from './webkit-patch';
+import { type Files, filesFor, flushInto, WorkspaceStore } from './workspace-store';
 
 const TURN_DIFF_LIMIT = 60_000;
 
@@ -329,6 +334,38 @@ export class Thread extends DurableObject<Env> {
     };
   }
 
+  private meteredComputer(): Computer {
+    return metered(this.computer(), {
+      read: () => this.ledger.computerUsage,
+      write: (next) => {
+        this.ledger.computerUsage = next;
+        const name = this.ledger.name;
+
+        if (name !== null) this.ctx.waitUntil(this.directory.recordUsage(name, next));
+      },
+    });
+  }
+
+  private storeCache: WorkspaceStore | undefined;
+
+  private get store(): WorkspaceStore {
+    this.storeCache ??= new WorkspaceStore(this.ctx.storage.sql);
+
+    return this.storeCache;
+  }
+
+  private files(): Files {
+    return filesFor({
+      store: this.store,
+      running: () => this.ctx.container?.running === true,
+      box: () => this.awake(),
+    });
+  }
+
+  computerUsage(): ComputerUsage {
+    return this.ledger.computerUsage;
+  }
+
   protected computer(): Computer {
     const container = this.ctx.container;
 
@@ -385,7 +422,7 @@ export class Thread extends DurableObject<Env> {
 
   private awakeInsideLifecycle(): Promise<Computer> {
     this.booting ??= (async () => {
-      const box = this.computer();
+      const box = this.meteredComputer();
 
       if (!box.running()) {
         const from = this.ledger.bootSnapshot();
@@ -393,6 +430,8 @@ export class Thread extends DurableObject<Env> {
         if (this.ledger.phase === 'awake') await this.recordLostComputer(from);
 
         await box.boot(from, this.ledger.size);
+        this.store.seal();
+        await this.installGitBroker();
 
         if (from === undefined && this.ledger.repo !== null) {
           const cloned = await box.exec(
@@ -401,7 +440,7 @@ export class Thread extends DurableObject<Env> {
               '-c',
               `cd ${WORKSPACE} && git clone --depth 50 "$1" .`,
               'clone',
-              this.ledger.repo,
+              this.cloneRemote(this.ledger.repo),
             ],
             '/',
           );
@@ -417,14 +456,13 @@ export class Thread extends DurableObject<Env> {
           );
       }
 
-      this.warmBrowser();
-
       if (this.ledger.phase !== 'awake') {
         this.ledger.phase = 'awake';
         await this.publish();
         this.state();
       }
 
+      await flushInto(this.store, box);
       await this.touch();
 
       return box;
@@ -839,11 +877,12 @@ export class Thread extends DurableObject<Env> {
       this.settings(),
       () => this.ledger.origin.seed,
       this.browserTools(),
-      undefined,
+      { fetchText: DEFAULT_EXTRAS.fetchText, runJs: (code) => this.runJs(code) },
       this.threadDirectory(),
       this.otherProviders(),
       (id) => this.route(id),
       this.plugins(),
+      this.files(),
     )
       .then(async (agent) => {
         const toLive = liveEvents();
@@ -876,6 +915,8 @@ export class Thread extends DurableObject<Env> {
         base: options.base ?? null,
         seed: options.seed ?? null,
       };
+
+      if (options.base != null || options.repo != null) this.store.seal();
       await this.directory.upsert({
         name,
         title: options.title ?? name,
@@ -890,8 +931,6 @@ export class Thread extends DurableObject<Env> {
     }
 
     await this.open();
-
-    if (fresh) this.ctx.waitUntil(this.awake().catch(() => undefined));
 
     return this.view();
   }
@@ -1136,7 +1175,7 @@ export class Thread extends DurableObject<Env> {
 
     const idleFor = Date.now() - this.ledger.lastActivity;
 
-    if (idleFor < AUTO_PAUSE_AFTER_MS || this.viewers > 0 || this.inFlight > 0) {
+    if (idleFor < AUTO_PAUSE_AFTER_MS || this.inFlight > 0) {
       await this.ctx.storage.setAlarm(
         Date.now() + Math.max(IDLE_CHECK_MS, AUTO_PAUSE_AFTER_MS - idleFor),
       );
@@ -1183,21 +1222,65 @@ export class Thread extends DurableObject<Env> {
   }
 
   readFile(path: string): Promise<string> {
-    return this.using(async () => (await this.awake()).readFile(path));
+    return this.using(() => this.files().read(path));
   }
 
   writeFile(path: string, content: string): Promise<{ path: string; bytes: number }> {
     return this.using(async () => {
       const target = workspaceTarget(path);
 
-      await (await this.awake()).writeFile(target, content);
+      await this.files().write(target, content);
 
       return { path: target, bytes: new TextEncoder().encode(content).byteLength };
     });
   }
 
   list(path: string): Promise<Entry[]> {
-    return this.using(async () => (await this.awake()).list(path));
+    return this.using(() => this.files().list(path));
+  }
+
+  private async installGitBroker(): Promise<void> {
+    const container = this.ctx.container;
+
+    if (container === undefined || typeof container.interceptOutboundHttp !== 'function') return;
+
+    await container
+      .interceptOutboundHttp(BROKER_HOST, workerExports.GitBroker({}))
+      .catch((cause: unknown) => console.warn('git broker not installed', String(cause)));
+  }
+
+  gitBrokerRemote(remote: string): string {
+    return brokerRemote(remote);
+  }
+
+  private cloneRemote(remote: string): string {
+    const brokered = (this.env as { GIT_TOKENS?: string }).GIT_TOKENS;
+
+    return brokered !== undefined && brokered !== '' && remote.startsWith('https://')
+      ? brokerRemote(remote)
+      : remote;
+  }
+
+  async runJs(code: string, paths: readonly string[] = []): Promise<RunJsResult> {
+    const files = this.files();
+    const wanted = paths.length > 0 ? paths : this.store.paths();
+    const loaded: Record<string, string> = {};
+
+    for (const path of wanted) {
+      const content = await files.read(path).catch(() => null);
+
+      if (content !== null) loaded[path] = content;
+    }
+
+    const outcome = await runJs(this.env.LOADER, code, loaded);
+
+    for (const [path, content] of Object.entries(outcome.written)) await files.write(path, content);
+
+    return outcome;
+  }
+
+  workspaceManifest() {
+    return { sealed: this.store.sealed, files: this.store.manifest() };
   }
 
   compact(instructions?: string): Promise<Pair> {
@@ -1255,7 +1338,7 @@ export class Thread extends DurableObject<Env> {
 
     if (this.inFlight > 0) throw new ThreadBusy('A command is running. Pause after it ends.');
 
-    const box = this.computer();
+    const box = this.meteredComputer();
 
     if (!box.running()) {
       this.ledger.phase = 'paused';
@@ -1585,7 +1668,7 @@ export class Thread extends DurableObject<Env> {
     await this.ctx.storage.deleteAlarm();
     void this.browser?.then((b) => b.close()).catch(() => undefined);
     this.browser = undefined;
-    if (this.ctx.container?.running) await this.computer().destroy();
+    if (this.ctx.container?.running) await this.meteredComputer().destroy();
     await this.agent?.then((a) => a.close()).catch(() => undefined);
     this.agent = undefined;
     await this.ctx.storage.deleteAll();
@@ -1749,7 +1832,14 @@ export class Thread extends DurableObject<Env> {
         .pop() ?? 'repo';
     const target = empty ? '.' : slug;
     const cloned = await box.exec(
-      ['bash', '-c', `cd ${WORKSPACE} && git clone --depth 50 "$1" "$2"`, 'clone', repo, target],
+      [
+        'bash',
+        '-c',
+        `cd ${WORKSPACE} && git clone --depth 50 "$1" "$2"`,
+        'clone',
+        this.cloneRemote(repo),
+        target,
+      ],
       '/',
     );
 
@@ -2011,6 +2101,9 @@ export class Thread extends DurableObject<Env> {
     server.binaryType = 'arraybuffer';
     server.accept();
     this.watched(server);
+    server.addEventListener('message', () => {
+      this.ledger.lastActivity = Date.now();
+    });
     bridge(server, process, abort);
 
     return new Response(null, { status: 101, webSocket: client });
@@ -2040,21 +2133,6 @@ export class Thread extends DurableObject<Env> {
     pipeSocket(server, tcp);
 
     return new Response(null, { status: 101, webSocket: client });
-  }
-
-  private warmBrowser() {
-    if (this.browser !== undefined || this.ctx.container === undefined) return;
-
-    const container = this.ctx.container;
-
-    this.ctx.waitUntil(
-      this.startDisplay(container)
-        .then(async () => {
-          const browser = await this.openBrowser();
-          await browser.open('https://example.com').catch(() => undefined);
-        })
-        .catch(() => undefined),
-    );
   }
 
   private async startDisplay(container: Container) {
