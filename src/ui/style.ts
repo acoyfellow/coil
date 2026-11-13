@@ -148,7 +148,7 @@ button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:
 .composer{padding:6px 20px calc(14px + env(safe-area-inset-bottom));flex:none}
 .composer-inner{max-width:720px;margin:0 auto;border:1px solid var(--line2);border-radius:12px;padding:8px 8px 6px 12px;background:var(--bg);box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .composer-inner:focus-within{border-color:var(--blue)}
-.composer textarea{display:block;border:0;padding:2px 0;min-height:40px;max-height:min(50dvh,calc(100dvh - 220px));field-sizing:content;overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;box-sizing:border-box;max-width:100%}
+.composer textarea{display:block;border:0;padding:2px 0;min-height:24px;max-height:min(50dvh,calc(100dvh - 220px));resize:none;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;box-sizing:border-box;max-width:100%}
 .composer-inner{min-width:0}
 .composer-inner{container-type:inline-size}
 .composer-foot{display:flex;align-items:center;gap:8px;min-width:0}
@@ -379,7 +379,7 @@ button.usage:hover{background:var(--hover)}
 .item.archived{display:flex;align-items:center;gap:8px;opacity:.7}
 .item.archived .restore{margin-left:auto;border:1px solid var(--line2);border-radius:6px;background:transparent;font-size:11.5px;color:var(--fg);padding:2px 8px}
 .tab-main .icon{width:14px;height:14px;margin-right:5px;vertical-align:-2px}
-.bar .actions .panel-toggle{display:none}
+.bar .panel-toggle{display:none!important}
 .more{display:none!important}
 .narrow{display:none!important}
 .side{grid-column:1;grid-row:1;min-width:0;overflow:hidden}.main{grid-column:2;grid-row:1}.panel{grid-column:3;grid-row:1;overflow:hidden}
@@ -424,7 +424,7 @@ button.usage:hover{background:var(--hover)}
   .side,.panel{display:none}
   .app.show-side .side{display:flex;position:fixed;inset:0;z-index:15;padding-top:env(safe-area-inset-top)}
   .app.show-panel .panel{display:flex;position:fixed;inset:0;z-index:15;padding-top:env(safe-area-inset-top);box-sizing:border-box}
-  .bar .actions .panel-toggle{display:inline-flex}
+  .bar .panel-toggle{display:inline-flex!important}
   .narrow.panel-close{display:inline-flex!important}
   .narrow{display:inline-flex!important}
   .bar{padding:0 6px;position:relative}

@@ -1,5 +1,7 @@
 export const FOLLOW_THRESHOLD_PX = 80;
 
+const MOVE_EPSILON_PX = 2;
+
 const following = new WeakMap<Element, boolean>();
 
 const settledTop = new WeakMap<Element, number>();
@@ -19,54 +21,66 @@ const jumpToBottom = (feed: Element) => {
   settledTop.set(feed, feed.scrollTop);
 };
 
-export const pinToBottom = (feed: Element) => {
-  setFollowing(feed, true);
-  jumpToBottomDoubleBuffered(feed);
-};
-
-export const followNewContent = (feed: Element) => {
-  if (isFollowing(feed)) jumpToBottomDoubleBuffered(feed);
-};
-
-const programmatic = new WeakMap<Element, boolean>();
-
-const jumpToBottomDoubleBuffered = (feed: Element) => {
-  programmatic.set(feed, true);
+const jumpNowAndNextFrame = (feed: Element) => {
   jumpToBottom(feed);
   requestAnimationFrame(() => {
     if (isFollowing(feed)) jumpToBottom(feed);
-    requestAnimationFrame(() => {
-      programmatic.delete(feed);
-    });
   });
 };
 
-const isProgrammatic = (feed: Element): boolean => programmatic.get(feed) === true;
+export const pinToBottom = (feed: Element) => {
+  setFollowing(feed, true);
+  jumpNowAndNextFrame(feed);
+};
+
+export const followNewContent = (feed: Element) => {
+  if (isFollowing(feed)) jumpNowAndNextFrame(feed);
+};
+
+export const readerMoved = (feed: Element) => {
+  const top = feed.scrollTop;
+  const before = settledTop.get(feed) ?? top;
+
+  settledTop.set(feed, top);
+
+  if (top < before - MOVE_EPSILON_PX && distanceFromBottom(feed) > MOVE_EPSILON_PX) {
+    setFollowing(feed, false);
+    return;
+  }
+
+  if (top > before && distanceFromBottom(feed) <= FOLLOW_THRESHOLD_PX) setFollowing(feed, true);
+};
 
 export const attachFollow = (feed: HTMLElement): (() => void) => {
+  let touchY: number | null = null;
+  const canScrollUp = () => feed.scrollTop > 0;
   const release = (event: WheelEvent) => {
-    if (event.deltaY < 0) setFollowing(feed, false);
+    if (event.deltaY < 0 && canScrollUp()) setFollowing(feed, false);
   };
-  const track = () => {
-    if (isProgrammatic(feed)) {
-      programmatic.delete(feed);
-      settledTop.set(feed, feed.scrollTop);
-      return;
-    }
-    const movedDown = feed.scrollTop > (settledTop.get(feed) ?? feed.scrollTop);
-    const near = distanceFromBottom(feed) <= FOLLOW_THRESHOLD_PX;
-
-    settledTop.set(feed, feed.scrollTop);
-    if (!near) setFollowing(feed, false);
-    else if (movedDown) setFollowing(feed, true);
-  };
+  const track = () => readerMoved(feed);
   const releaseKeys = (event: KeyboardEvent) => {
-    if (['PageUp', 'ArrowUp', 'Home'].includes(event.key)) setFollowing(feed, false);
+    if (['PageUp', 'ArrowUp', 'Home'].includes(event.key) && canScrollUp())
+      setFollowing(feed, false);
+  };
+  const touchStart = (event: TouchEvent) => {
+    touchY = event.touches[0]?.clientY ?? null;
+  };
+  const touchMove = (event: TouchEvent) => {
+    const y = event.touches[0]?.clientY;
+
+    if (touchY !== null && y !== undefined && y > touchY + MOVE_EPSILON_PX && canScrollUp())
+      setFollowing(feed, false);
+  };
+  const touchEnd = () => {
+    touchY = null;
   };
 
   feed.addEventListener('wheel', release, { passive: true });
   feed.addEventListener('scroll', track, { passive: true });
   feed.addEventListener('keydown', releaseKeys);
+  feed.addEventListener('touchstart', touchStart, { passive: true });
+  feed.addEventListener('touchmove', touchMove, { passive: true });
+  feed.addEventListener('touchend', touchEnd, { passive: true });
   settledTop.set(feed, feed.scrollTop);
   setFollowing(feed, true);
 
@@ -74,5 +88,8 @@ export const attachFollow = (feed: HTMLElement): (() => void) => {
     feed.removeEventListener('wheel', release);
     feed.removeEventListener('scroll', track);
     feed.removeEventListener('keydown', releaseKeys);
+    feed.removeEventListener('touchstart', touchStart);
+    feed.removeEventListener('touchmove', touchMove);
+    feed.removeEventListener('touchend', touchEnd);
   };
 };

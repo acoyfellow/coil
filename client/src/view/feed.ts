@@ -445,9 +445,21 @@ const conversation = (h: H, model: Model, view: ThreadView): Html => {
       ...(items.length === 0 && model.live === null ? [ready(h, view)] : []),
       ...items,
       ...live,
+      ...(pinsReader(view)
+        ? [
+            h.keyed('div')(
+              `pin:${view.messages.length}`,
+              [
+                h.Class('feed-pin'),
+                h.OnMount(ScrollToEnd({ key: `pin:${view.messages.length}`, pin: true })),
+              ],
+              [],
+            ),
+          ]
+        : []),
       h.keyed('div')(
         endKey,
-        [h.Class('feed-end'), h.OnMount(ScrollToEnd({ key: endKey, pin: pinsReader(view) }))],
+        [h.Class('feed-end'), h.OnMount(ScrollToEnd({ key: endKey, pin: false }))],
         [],
       ),
     ],

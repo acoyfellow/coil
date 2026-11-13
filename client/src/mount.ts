@@ -46,10 +46,73 @@ export const BrowserSurface = Mount.defineStream('BrowserSurface', {
     ),
 });
 
-const fitToContent = (field: HTMLTextAreaElement) => () => {
-  field.style.height = 'auto';
-  field.style.height = `${field.scrollHeight}px`;
+const contentHeight = (
+  field: HTMLTextAreaElement,
+  currentText: () => string,
+  setValue: (text: string) => void,
+): number => {
+  const typed = currentText();
+
+  if (typed !== '' || field.placeholder === '') return field.scrollHeight;
+
+  const { selectionStart, selectionEnd } = field;
+
+  setValue(field.placeholder);
+  const height = field.scrollHeight;
+  setValue(typed);
+  field.setSelectionRange(selectionStart, selectionEnd);
+
+  return height;
 };
+
+export const fitToContent =
+  (
+    field: HTMLTextAreaElement,
+    currentText: () => string = () => field.value,
+    setValue: (text: string) => void = (text) => {
+      field.value = text;
+    },
+  ) =>
+  () => {
+    field.style.height = 'auto';
+
+    const limit = Number.parseFloat(getComputedStyle(field).maxHeight);
+    const wanted = contentHeight(field, currentText, setValue);
+    const capped = Number.isFinite(limit) && wanted > limit;
+
+    field.style.height = `${capped ? limit : wanted}px`;
+    field.style.overflowY = capped ? 'auto' : 'hidden';
+  };
+
+const nativeValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+
+export const refitOnValueSet = (field: HTMLTextAreaElement, refit: () => void): (() => void) => {
+  if (nativeValue?.get === undefined || nativeValue.set === undefined) return () => undefined;
+
+  const read = nativeValue.get;
+  const write = nativeValue.set;
+
+  Object.defineProperty(field, 'value', {
+    configurable: true,
+    get: () => read.call(field),
+    set: (text: string) => {
+      write.call(field, text);
+      refit();
+    },
+  });
+
+  return () => {
+    delete (field as { value?: string }).value;
+  };
+};
+
+const rawAccess = (field: HTMLTextAreaElement) => ({
+  currentText: () => (nativeValue?.get?.call(field) as string | undefined) ?? field.value,
+  setValue: (text: string) => {
+    if (nativeValue?.set !== undefined) nativeValue.set.call(field, text);
+    else field.value = text;
+  },
+});
 
 const IME_PROCESS_KEY = 229;
 
@@ -77,8 +140,10 @@ const attachAutosize = (host: HTMLElement, onFiles: (count: number) => void) => 
     rememberFiles(files);
     onFiles(files.length);
   };
-  const fit = fitToContent(field);
+  const raw = rawAccess(field);
+  const fit = fitToContent(field, raw.currentText, raw.setValue);
   const observer = new ResizeObserver(fit);
+  const unwatchValue = refitOnValueSet(field, fit);
 
   field.addEventListener('input', fit);
   field.addEventListener('keydown', holdEnterWhileComposing, { capture: true });
@@ -96,6 +161,7 @@ const attachAutosize = (host: HTMLElement, onFiles: (count: number) => void) => 
     field.removeEventListener('keydown', holdEnterWhileComposing, { capture: true });
     field.removeEventListener('paste', paste);
     observer.disconnect();
+    unwatchValue();
   };
 };
 

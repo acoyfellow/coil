@@ -139,18 +139,20 @@ const actions = (h: H, model: Model, view: ThreadView): Html => {
           ),
         ],
       ),
-      h.button(
-        [
-          h.Class('act panel-toggle'),
-          h.AriaLabel('Computer'),
-          h.OnClick(Message.OpenedDrawer({ drawer: 'panel' })),
-        ],
-        [icon(h, 'computer'), h.span([h.Class('act-label')], ['Computer'])],
-      ),
-      collapse(h, 'panel'),
     ],
   );
 };
+
+const panelToggle = (h: H): Html =>
+  h.button(
+    [
+      h.Class('collapse panel-toggle'),
+      h.DataAttribute('tip', 'Show the computer'),
+      h.AriaLabel('Toggle computer'),
+      h.OnClick(Message.OpenedDrawer({ drawer: 'panel' })),
+    ],
+    [icon(h, 'computer')],
+  );
 
 const collapse = (h: H, edge: 'side' | 'panel'): Html =>
   h.button(
@@ -201,7 +203,13 @@ export const bar = (h: H, model: Model): Html => {
   if (view === null)
     return h.header(
       [h.Class('bar'), h.Id('bar')],
-      [threads, collapse(h, 'side'), h.h1([h.Title(model.name)], [model.name])],
+      [
+        threads,
+        collapse(h, 'side'),
+        h.h1([h.Title(model.name)], [model.name]),
+        collapse(h, 'panel'),
+        panelToggle(h),
+      ],
     );
 
   return h.header(
@@ -216,6 +224,8 @@ export const bar = (h: H, model: Model): Html => {
       ),
       h.button([h.Class('more'), h.AriaLabel('Actions'), h.OnClick(Message.ToggledMenu())], ['⋯']),
       actions(h, model, view),
+      collapse(h, 'panel'),
+      panelToggle(h),
     ],
   );
 };
