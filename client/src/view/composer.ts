@@ -82,7 +82,7 @@ export const composer = (h: H, model: Model): Html => {
                       ),
                       h.OnClick(Message.SubmittedDraft()),
                     ],
-                    ['↑'],
+                    [icon(h, 'send')],
                   ),
             ],
           ),

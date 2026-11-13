@@ -34,7 +34,7 @@ const tab = (
                 h.AriaLabel(`Close ${label}`),
                 h.OnClick(Message.ClickedCloseSurface({ id })),
               ],
-              ['×'],
+              [icon(h, 'close')],
             ),
           ]
         : []),
@@ -57,8 +57,14 @@ const addMenu = (h: H, model: Model, surfaces: readonly Surface[]): Html =>
       h.div(
         [h.Class('add-menu'), h.Hidden(!model.addMenuOpen)],
         [
-          h.button([h.OnClick(Message.ClickedAddSurface({ kind: 'terminal' }))], ['▸_  Terminal']),
-          h.button([h.OnClick(Message.ClickedAddSurface({ kind: 'browser' }))], ['◎  Browser']),
+          h.button(
+            [h.OnClick(Message.ClickedAddSurface({ kind: 'terminal' }))],
+            [icon(h, 'terminal'), 'Terminal'],
+          ),
+          h.button(
+            [h.OnClick(Message.ClickedAddSurface({ kind: 'browser' }))],
+            [icon(h, 'browser'), 'Browser'],
+          ),
         ],
       ),
     ],
@@ -73,25 +79,14 @@ const tabs = (h: H, model: Model, view: ThreadView | null): Html => {
       h.div(
         [h.Class('tab-strip')],
         [
-          ...surfaces.map((surface) =>
-            tab(
-              h,
-              model,
-              surface.id,
-              `${surface.kind === 'browser' ? '◎ ' : '▸ '}${surface.title}`,
-              true,
-              null,
-            ),
-          ),
+          tab(h, model, 'files', 'Files', false, 'folder'),
+          ...surfaces.map((surface) => tab(h, model, surface.id, surface.title, true, null)),
           ...(view === null ? [] : [addMenu(h, model, surfaces)]),
         ],
       ),
-      h.span([h.Class('tab-sep')], []),
-      tab(h, model, 'files', 'Files', false, 'files'),
-      tab(h, model, 'history', 'History', false, 'history'),
       h.button(
         [h.Class('narrow panel-close'), h.AriaLabel('Close'), h.OnClick(Message.ClosedDrawer())],
-        ['✕'],
+        [icon(h, 'close')],
       ),
     ],
   );
@@ -124,14 +119,63 @@ const entryRow = (h: H, dir: string, entry: DirEntry): Html => {
       h.Class('row'),
       h.OnClick(isDir ? Message.ClickedDir({ path: full }) : Message.ClickedFile({ path: full })),
     ],
-    [h.span([h.Class('faint')], [isDir ? '▸' : '·']), `${entry.name}${isDir ? '/' : ''}`],
+    [
+      isDir ? icon(h, 'folder') : h.span([h.Class('icon-gap')], []),
+      `${entry.name}${isDir ? '/' : ''}`,
+    ],
+  );
+};
+
+const historyButton = (h: H): Html =>
+  h.button(
+    [
+      h.Class('history-open'),
+      h.DataAttribute('tip', 'Turns, forks and rewind'),
+      h.AriaLabel('History'),
+      h.OnClick(Message.OpenedHistory()),
+    ],
+    [icon(h, 'history'), h.span([], ['History'])],
+  );
+
+export const historyModal = (h: H, model: Model): Html => {
+  const view = model.view._tag === 'Ready' ? model.view.value : null;
+
+  if (!model.historyOpen || view === null) return null;
+
+  return h.div(
+    [h.Class('dialog-backdrop'), h.OnClick(Message.ClosedHistory())],
+    [
+      h.div(
+        [
+          h.Class('dialog history-dialog'),
+          h.Id('history'),
+          h.Role('dialog'),
+          h.AriaModal(true),
+          h.AriaLabel('History'),
+          h.OnClick(Message.CompletedEffect(), { propagation: 'Stop' }),
+        ],
+        [
+          h.div(
+            [h.Class('dialog-head')],
+            [
+              h.h2([], ['History']),
+              h.button(
+                [h.Class('icon-btn'), h.AriaLabel('Close'), h.OnClick(Message.ClosedHistory())],
+                [icon(h, 'close')],
+              ),
+            ],
+          ),
+          h.div([h.Class('history-body')], [history(h, model, view)]),
+        ],
+      ),
+    ],
   );
 };
 
 const files = (h: H, model: Model): Html => {
   const back = h.div(
     [h.Class('row'), h.OnClick(Message.ClosedFile())],
-    [`← ${model.dirPath === '.' ? '/workspace' : model.dirPath}`],
+    [icon(h, 'back'), model.dirPath === '.' ? '/workspace' : model.dirPath],
   );
   const body = FileView.match(model.file, {
     Loading: () => [back, skeleton(h)],
@@ -158,7 +202,10 @@ const files = (h: H, model: Model): Html => {
     },
   });
 
-  return h.div([h.Class('files')], [crumbs(h, model.dirPath), ...body]);
+  return h.div(
+    [h.Class('files')],
+    [h.div([h.Class('files-head')], [crumbs(h, model.dirPath), historyButton(h)]), ...body],
+  );
 };
 
 const threadLink = (h: H, name: string, text: string): Html =>
@@ -307,17 +354,14 @@ const surfacePane = (h: H, view: ThreadView, surface: Surface): Html =>
   surface.kind === 'browser'
     ? h.keyed('div')(
         `browser-${view.name}-${surface.id}`,
-        [
-          h.Class('surface browser-surface'),
-          h.OnMount(BrowserSurface({ thread: view.name, running: view.running })),
-        ],
+        [h.Class('surface browser-surface'), h.OnMount(BrowserSurface({ thread: view.name }))],
         [],
       )
     : h.keyed('div')(
         `term-${view.name}-${surface.id}`,
         [
           h.Class('surface term-surface'),
-          h.OnMount(TerminalSurface({ thread: view.name, id: surface.id, running: view.running })),
+          h.OnMount(TerminalSurface({ thread: view.name, id: surface.id })),
         ],
         [],
       );
@@ -339,7 +383,7 @@ const pane = (h: H, model: Model): Html[] => {
 
       if (surface !== undefined) return [surfacePane(h, value, surface)];
 
-      return [model.tab === 'history' ? history(h, model, value) : files(h, model)];
+      return [files(h, model)];
     },
   });
 };

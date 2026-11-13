@@ -7,11 +7,15 @@ import {
   CloseSurface,
   ConfirmResize,
   CopyText,
+  CreateFolder,
+  CreateNamedFolder,
   CreateThread,
-  EditSpendLimit,
+  DeleteFolder,
   ExpireToast,
+  FileThread,
   FocusComposer,
   FocusModelSearch,
+  FocusMovePicker,
   FocusPalette,
   FocusSettings,
   Install,
@@ -20,11 +24,12 @@ import {
   LoadDir,
   LoadFile,
   LoadPage,
-  LoadSpend,
   LoadThreads,
   LoadView,
+  MoveFolder,
   PushUrl,
   RefreshViewSoon,
+  RenameFolder,
   Resize,
   RevealModelOption,
   RunAction,
@@ -41,6 +46,7 @@ import {
   UploadFiles,
 } from './command';
 import { browserTabFor } from './focus';
+import { dropPlan } from './folder-drop';
 import { Message } from './message';
 import {
   type Action,
@@ -52,6 +58,7 @@ import {
   ViewState,
 } from './model';
 import { moveIndex, pickerOptions } from './model-picker';
+import { moveChoices } from './move-picker';
 import { finishedThreads } from './notify';
 import { paletteItems } from './palette';
 import { pathForThread } from './route';
@@ -100,7 +107,7 @@ const withCommands = (result: UpdateReturn, commands: readonly AnyCommand[]): Up
   commands: [...(result.commands ?? []), ...commands],
 });
 
-const firstSurfaceTab = (view: ThreadView | null): string => view?.surfaces[0]?.id ?? 'files';
+const firstSurfaceTab = (_view: ThreadView | null): string => 'files';
 
 const openThread = (model: Model, name: string | null): UpdateReturn => {
   const same = name === model.name;
@@ -248,7 +255,7 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
         model: modifyFields(model, {
           live: () => ({ ...liveFrom(model), text: '', thinking: '' }),
         }),
-        commands: [RefreshViewSoon({ name }), LoadSpend()],
+        commands: [RefreshViewSoon({ name })],
       };
     case 'compaction':
       return {
@@ -322,7 +329,7 @@ const withTab = (model: Model, tab: string): Model =>
 const ensureTab = (model: Model): Model => {
   const view = viewOf(model);
 
-  if (view === null || model.tab === 'files' || model.tab === 'history') return model;
+  if (view === null || model.tab === 'files') return model;
   if (view.surfaces.some((surface) => surface.id === model.tab)) return model;
 
   return modifyFields(model, { tab: () => firstSurfaceTab(view) });
@@ -364,17 +371,13 @@ export const update = (model: Model, message: Message): UpdateReturn =>
         account: () => (account === null ? null : { name: account, gateway }),
       }),
     }),
-    LoadedSpend: (spend) => ({ model: modifyFields(model, { spend: () => spend }) }),
-    ClickedSpendLimit: () => ({
-      model,
-      commands: [
-        EditSpendLimit({ current: model.spend?.limit ?? null, spent: model.spend?.spent ?? 0 }),
-      ],
-    }),
-    LoadedThreads: ({ threads }) => {
+    LoadedThreads: ({ threads, folders }) => {
       const before = model.threads._tag === 'Ready' ? model.threads.value : [];
       const finished = finishedThreads(before, threads);
-      const next = modifyFields(model, { threads: () => ThreadsState.Ready({ value: threads }) });
+      const next = modifyFields(model, {
+        threads: () => ThreadsState.Ready({ value: threads }),
+        folders: (current) => folders ?? current,
+      });
 
       return finished.length === 0
         ? { model: next }
@@ -572,6 +575,8 @@ export const update = (model: Model, message: Message): UpdateReturn =>
     }),
     ClickedOutside: () => ({
       model: modifyFields(model, {
+        menuOpen: () => false,
+        rowMenu: () => null,
         sizeMenuOpen: () => false,
         addMenuOpen: () => false,
         modelMenuOpen: () => false,
@@ -644,7 +649,9 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       key === 'stop'
         ? model.settings !== null
           ? { model: modifyFields(model, { settings: () => null }) }
-          : stopFromKeyboard(model)
+          : model.historyOpen
+            ? { model: modifyFields(model, { historyOpen: () => false }) }
+            : stopFromKeyboard(model)
         : key === 'settings'
           ? update(model, Message.OpenedSettings({ section: null }))
           : {
@@ -721,6 +728,147 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       };
     },
     UpdatedListFilter: ({ value }) => ({ model: modifyFields(model, { listFilter: () => value }) }),
+    ClickedNewFolder: () => ({ model, commands: [CreateFolder({ thread: null })] }),
+    StartedDrag: ({ drag }) => ({
+      model: modifyFields(model, { dragging: () => drag, rowMenu: () => null }),
+    }),
+    EndedDrag: () => ({
+      model: modifyFields(model, { dragging: () => null, dropTarget: () => null }),
+    }),
+    EnteredDrop: ({ target }) =>
+      model.dropTarget === target
+        ? { model }
+        : { model: modifyFields(model, { dropTarget: () => target }) },
+    DroppedOn: ({ target, place }) => {
+      const cleared = modifyFields(model, { dragging: () => null, dropTarget: () => null });
+      const threads = model.threads._tag === 'Ready' ? model.threads.value : [];
+      const plan = dropPlan(model.dragging, target, place, model.folders, threads);
+
+      switch (plan._tag) {
+        case 'None':
+          return { model: cleared };
+        case 'FileThread':
+          return {
+            model: modifyFields(cleared, {
+              threads: (state) =>
+                state._tag === 'Ready'
+                  ? ThreadsState.Ready({
+                      value: state.value.map((each) =>
+                        each.name === plan.name ? { ...each, folder: plan.folder } : each,
+                      ),
+                    })
+                  : state,
+            }),
+            commands: [FileThread({ name: plan.name, folder: plan.folder, label: plan.label })],
+          };
+        case 'NewFolder':
+          return { model: cleared, commands: [CreateFolder({ thread: plan.name })] };
+        case 'MoveFolder':
+          return {
+            model: modifyFields(cleared, {
+              folders: (list) =>
+                list.map((each) => (each.id === plan.id ? { ...each, order: plan.order } : each)),
+            }),
+            commands: [MoveFolder({ id: plan.id, order: plan.order })],
+          };
+      }
+    },
+    StartedFolderRename: ({ id }) => ({
+      model: modifyFields(model, { editingFolder: () => id }),
+    }),
+    CancelledFolderRename: () => ({ model: modifyFields(model, { editingFolder: () => null }) }),
+    RenamedFolder: ({ id, name }) => {
+      const done = modifyFields(model, { editingFolder: () => null });
+      const current = model.folders.find((each) => each.id === id);
+
+      if (current === undefined || name.trim() === '' || name.trim() === current.name)
+        return { model: done };
+
+      return {
+        model: modifyFields(done, {
+          folders: (list) =>
+            list.map((each) => (each.id === id ? { ...each, name: name.trim() } : each)),
+        }),
+        commands: [RenameFolder({ id, name: name.trim() })],
+      };
+    },
+    ClickedDeleteFolder: ({ id }) => ({
+      model,
+      commands: [
+        DeleteFolder({ id, label: model.folders.find((each) => each.id === id)?.name ?? 'folder' }),
+      ],
+    }),
+    OpenedMovePicker: ({ name }) => ({
+      model: modifyFields(model, {
+        rowMenu: () => null,
+        movePicker: () => ({ name, query: '', index: 0 }),
+      }),
+      commands: [FocusMovePicker()],
+    }),
+    UpdatedMovePicker: ({ query }) => ({
+      model: modifyFields(model, {
+        movePicker: (picker) => (picker === null ? null : { ...picker, query, index: 0 }),
+      }),
+    }),
+    MovedMovePicker: ({ delta }) => {
+      const picker = model.movePicker;
+
+      if (picker === null) return { model };
+
+      const count = moveChoices(model, picker.name, picker.query).length;
+
+      return {
+        model: modifyFields(model, {
+          movePicker: () => ({
+            ...picker,
+            index: count === 0 ? 0 : (picker.index + delta + count) % count,
+          }),
+        }),
+      };
+    },
+    ChoseMovePicker: ({ index }) => {
+      const picker = model.movePicker;
+
+      if (picker === null) return { model };
+
+      const choice = moveChoices(model, picker.name, picker.query)[index];
+      const closed = modifyFields(model, { movePicker: () => null });
+
+      if (choice === undefined) return { model: closed };
+      if (choice._tag === 'Create')
+        return {
+          model: closed,
+          commands: [CreateNamedFolder({ name: choice.label, thread: picker.name })],
+        };
+
+      return {
+        model: closed,
+        commands: [FileThread({ name: picker.name, folder: choice.folder, label: choice.label })],
+      };
+    },
+    OpenedHistory: () => ({ model: modifyFields(model, { historyOpen: () => true }) }),
+    ClosedHistory: () => ({ model: modifyFields(model, { historyOpen: () => false }) }),
+    ClosedMovePicker: () => ({ model: modifyFields(model, { movePicker: () => null }) }),
+    ChoseMoveTo: ({ name, folder }) => {
+      const closed = modifyFields(model, { rowMenu: () => null });
+
+      if (folder === '') return { model: closed, commands: [CreateFolder({ thread: name })] };
+
+      return {
+        model: closed,
+        commands: [
+          FileThread({
+            name,
+            folder,
+            label: model.folders.find((each) => each.id === folder)?.name ?? 'Recent',
+          }),
+        ],
+      };
+    },
+    ChangedFolders: ({ note }) =>
+      note === ''
+        ? { model, commands: [LoadThreads()] }
+        : withCommands(toast(model, note), [LoadThreads()]),
     ToggledRowMenu: ({ name }) => ({
       model: modifyFields(model, { rowMenu: (open) => (open === name ? null : name) }),
     }),

@@ -3,6 +3,7 @@ import { defineTaggedUnion } from 'foldkit/schema';
 import {
   ConnectorState,
   DirEntry,
+  Folder,
   type LiveEvent,
   ModelOption,
   Size,
@@ -54,7 +55,7 @@ export const emptyLive: Live = {
   compacting: false,
 };
 
-export const SettingsSection = Schema.Literals(['account', 'usage', 'app', 'connectors']);
+export const SettingsSection = Schema.Literals(['account', 'app', 'connectors']);
 
 export type SettingsSection = typeof SettingsSection.Type;
 
@@ -100,15 +101,19 @@ export const NewThreadForm = Schema.Struct({
 
 export type NewThreadForm = typeof NewThreadForm.Type;
 
+export const Dragging = Schema.Struct({
+  kind: Schema.Literals(['thread', 'folder']),
+  id: Schema.String,
+});
+
+export type Dragging = typeof Dragging.Type;
+
 export const Theme = Schema.Literals(['system', 'light', 'dark']);
 
 export type Theme = typeof Theme.Type;
 
 export const Model = Schema.Struct({
   who: Schema.String,
-  spend: Schema.NullOr(
-    Schema.Struct({ spent: Schema.Number, limit: Schema.NullOr(Schema.Number) }),
-  ),
   threads: ThreadsState,
   name: Schema.NullOr(Schema.String),
   view: ViewState,
@@ -139,9 +144,17 @@ export const Model = Schema.Struct({
   collapsed: Schema.Array(Schema.String),
   listFilter: Schema.String,
   rowMenu: Schema.NullOr(Schema.String),
+  folders: Schema.Array(Folder),
+  dragging: Schema.NullOr(Dragging),
+  dropTarget: Schema.NullOr(Schema.String),
+  editingFolder: Schema.NullOr(Schema.String),
+  movePicker: Schema.NullOr(
+    Schema.Struct({ name: Schema.String, query: Schema.String, index: Schema.Number }),
+  ),
   notify: Schema.Literals(['unsupported', 'default', 'granted', 'denied']),
   uploading: Schema.Number,
   palette: Schema.NullOr(Schema.Struct({ query: Schema.String, index: Schema.Number })),
+  historyOpen: Schema.Boolean,
   settings: Schema.NullOr(Schema.Struct({ query: Schema.String, section: SettingsSection })),
   addMenuOpen: Schema.Boolean,
   drawer: Drawer,

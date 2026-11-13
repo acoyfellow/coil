@@ -571,7 +571,7 @@ export class Thread extends DurableObject<Env> {
         const withTask = task !== undefined && task.trim() !== '';
         const owner = await this.ownerEmail();
 
-        await this.assertChildBudget(owner, withTask);
+        this.countChild(withTask);
         const name = `${
           title
             .toLowerCase()
@@ -935,39 +935,15 @@ export class Thread extends DurableObject<Env> {
     return this.view();
   }
 
-  private async assertChildBudget(owner: string, withTask: boolean): Promise<void> {
+  private countChild(withTask: boolean): void {
     if (withTask && this.ledger.loop?.enabled === true)
       throw new Error('A looping thread cannot start other threads with a task');
 
     this.ledger.childrenMade += 1;
-    await this.assertUnderLimit(owner);
-  }
-
-  private async assertUnderLimit(owner: string): Promise<void> {
-    const limit = await this.directory.limitFor(owner);
-
-    if (limit === null) return;
-
-    const spent = await this.directory.spendFor(owner);
-
-    if (spent >= limit)
-      throw new Error(
-        `Your spend limit of $${limit.toFixed(2)} is reached ($${spent.toFixed(2)} spent). Raise or remove it in the sidebar to continue.`,
-      );
-  }
-
-  private async assertOwnerBudget(): Promise<void> {
-    const owner = this.ledger.owner;
-
-    if (owner === null || owner === '') return;
-
-    await this.assertUnderLimit(owner);
   }
 
   async start(requestId: string, input: string): Promise<{ requestId: string }> {
     while (this.pausing !== undefined) await this.pausing.catch(() => undefined);
-
-    await this.assertOwnerBudget();
 
     this.inFlight += 1;
 
@@ -1068,7 +1044,7 @@ export class Thread extends DurableObject<Env> {
     if (!this.ledger.busy) return;
 
     this.ledger.busy = false;
-    await this.publish({ spend: (await this.usage()).cost, failed: await this.lastTurnFailed() });
+    await this.publish({ failed: await this.lastTurnFailed() });
     this.state();
     await this.deliverDone().catch(() => undefined);
     await this.drainInbox().catch(() => undefined);
@@ -1494,7 +1470,6 @@ export class Thread extends DurableObject<Env> {
       ...spec,
       enabled: true,
       runs: [],
-      startedCost: (await this.usage()).cost,
       nextAt: Date.now(),
       stoppedBecause: null,
       loopId: crypto.randomUUID(),
@@ -1525,7 +1500,6 @@ export class Thread extends DurableObject<Env> {
       current !== null &&
       current.enabled &&
       current.runs.length === snapshot.runs.length &&
-      current.startedCost === snapshot.startedCost &&
       current.loopId === snapshot.loopId
     );
   }
@@ -1538,9 +1512,8 @@ export class Thread extends DurableObject<Env> {
     const stopped = { ...loop, enabled: false, stoppedBecause: reason };
 
     this.ledger.loop = stopped;
-    const cost = (await this.usage()).cost;
-    await this.publish({ looping: false, spend: cost });
-    await this.ledger.logExec(['coil', 'loop-digest'], 0, digest(stopped, cost), 'agent');
+    await this.publish({ looping: false });
+    await this.ledger.logExec(['coil', 'loop-digest'], 0, digest(stopped), 'agent');
   }
 
   private async loopStep() {
@@ -1548,14 +1521,9 @@ export class Thread extends DurableObject<Env> {
 
     if (loop === null || !loop.enabled) return;
 
-    const cost = (await this.usage()).cost;
-    const owner = await this.ownerEmail();
-    const ownerSpend = await this.directory.spendFor(owner);
-    const ownerLimit = await this.directory.limitFor(owner);
-
     if (!this.loopStillCurrent(loop)) return;
 
-    const decision = decide(loop, Date.now(), cost, this.ledger.busy, ownerSpend, ownerLimit);
+    const decision = decide(loop, Date.now(), this.ledger.busy);
 
     if (decision.kind === 'wait') {
       await this.ctx.storage.setAlarm(Math.min(decision.at, Date.now() + AUTO_PAUSE_AFTER_MS));
@@ -1591,7 +1559,7 @@ export class Thread extends DurableObject<Env> {
       return;
     }
 
-    const run = { at: Date.now(), costBefore: cost, gateExit: null };
+    const run = { at: Date.now(), gateExit: null };
     const next = {
       ...loop,
       runs: [...loop.runs, run],

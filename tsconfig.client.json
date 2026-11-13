@@ -20,6 +20,6 @@
     "shared",
     "src/ui/icons.generated.ts",
     "src/flow.ts",
-    "test/client.test.ts"
+    "test/client*.test.ts"
   ]
 }

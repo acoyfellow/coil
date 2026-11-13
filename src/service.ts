@@ -209,22 +209,6 @@ export const coil = (env: Env, owner: string) => {
 
       return names;
     },
-    spend: async () => ({
-      spent: await directory.spendFor(owner),
-      limit: await directory.limitFor(owner),
-    }),
-    setSpendLimit: async (dollars: number | null) => {
-      if (dollars !== null && !(Number.isFinite(dollars) && dollars > 0))
-        throw new Error('A spend limit must be a positive dollar amount, or none');
-
-      return {
-        spent: await directory.spendFor(owner),
-        limit: await directory.setLimit(
-          owner,
-          dollars === null ? null : Math.round(dollars * 100) / 100,
-        ),
-      };
-    },
     share: async (name: string) => {
       await known(name);
 
@@ -259,6 +243,24 @@ export const coil = (env: Env, owner: string) => {
       await directory.upsert({ name, archived });
 
       return (await directory.get(name)) ?? Promise.reject(new Error(`unknown thread ${name}`));
+    },
+    folders: () => directory.folders(owner),
+    createFolder: (name: string, order?: number) => directory.createFolder(owner, name, order),
+    renameFolder: (id: string, name: string) => directory.renameFolder(owner, id, name),
+    moveFolder: (id: string, order: number) => directory.moveFolder(owner, id, order),
+    deleteFolder: (id: string) => directory.deleteFolder(owner, id),
+    fileThread: (name: string, folder: string | null) => directory.fileThread(owner, name, folder),
+    moveThreadTo: async (name: string, folderName: string | null) => {
+      if (folderName === null || folderName.trim() === '')
+        return directory.fileThread(owner, name, null);
+
+      const wanted = folderName.trim().toLowerCase();
+      const known = (await directory.folders(owner)).find(
+        (folder) => folder.name.toLowerCase() === wanted || folder.id === folderName,
+      );
+      const folder = known ?? (await directory.createFolder(owner, folderName));
+
+      return directory.fileThread(owner, name, folder.id);
     },
     pin: async (name: string, pinned: boolean) => {
       await known(name);

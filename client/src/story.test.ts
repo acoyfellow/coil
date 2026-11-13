@@ -47,16 +47,17 @@ const opened = (overrides: Partial<ThreadView> = {}): Model => ({
 });
 
 describe('opening a thread', () => {
-  test('a loaded view keeps the terminal tab when the thread has one', () => {
+  test('a loaded view opens on the files tab even when the thread has a terminal', () => {
     story(
       update,
       given(
         initialModel({ name: 'demo', now: 1_000, online: true, theme: 'system', openNew: false }),
       ),
       message(Message.LoadedView({ name: 'demo', view: thread() })),
+      Command.resolve(LoadDir, Message.LoadedDir({ name: 'demo', path: '.', entries: [] })),
       model((current) => {
         expect(current.view._tag).toBe('Ready');
-        expect(current.tab).toBe('t1');
+        expect(current.tab).toBe('files');
       }),
     );
   });
@@ -71,6 +72,7 @@ describe('opening a thread', () => {
         LoadView,
         Message.LoadedView({ name: 'other', view: thread({ name: 'other', title: 'Other' }) }),
       ),
+      Command.resolve(LoadDir, Message.LoadedDir({ name: 'other', path: '.', entries: [] })),
       message(Message.LoadedView({ name: 'demo', view: thread({ title: 'Stale' }) })),
       model((current) => {
         expect(current.name).toBe('other');

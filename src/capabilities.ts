@@ -565,6 +565,62 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.browserSetCookies(text(args, 'name'), text(args, 'cookies')),
   },
   {
+    name: 'folder_list',
+    group: 'threads',
+    summary: 'List your sidebar folders in order.',
+    input: {},
+    required: [],
+    returns: 'Array of { id, name, order }',
+    run: (api) => api.folders(),
+  },
+  {
+    name: 'folder_create',
+    group: 'threads',
+    summary: 'Make a sidebar folder. It goes after the others.',
+    input: { name: { type: 'string', description: 'Folder name, for example "Coil"' } },
+    required: ['name'],
+    returns: '{ id, name, order }',
+    run: (api, args) => api.createFolder(text(args, 'name')),
+  },
+  {
+    name: 'folder_rename',
+    group: 'threads',
+    summary: 'Rename a sidebar folder.',
+    input: {
+      id: { type: 'string', description: 'Folder id from folder_list' },
+      name: { type: 'string', description: 'New name' },
+    },
+    required: ['id', 'name'],
+    returns: '{ id, name, order }',
+    run: (api, args) => api.renameFolder(text(args, 'id'), text(args, 'name')),
+  },
+  {
+    name: 'folder_delete',
+    group: 'threads',
+    summary: 'Delete a sidebar folder. Its threads go back to Recent; no thread is deleted.',
+    input: { id: { type: 'string', description: 'Folder id from folder_list' } },
+    required: ['id'],
+    returns: 'null',
+    run: (api, args) => api.deleteFolder(text(args, 'id')),
+  },
+  {
+    name: 'thread_move',
+    group: 'threads',
+    summary:
+      'Move a thread into a sidebar folder by folder name or id. A new name makes the folder. An empty folder moves the thread back to Recent.',
+    input: {
+      name: NAME,
+      folder: { type: 'string', description: 'Folder name or id; empty for Recent' },
+    },
+    required: ['name'],
+    returns: 'The thread summary with its folder id',
+    run: (api, args) =>
+      api.moveThreadTo(
+        text(args, 'name'),
+        typeof args.folder === 'string' && args.folder.trim() !== '' ? args.folder : null,
+      ),
+  },
+  {
     name: 'thread_usage',
     group: 'threads',
     summary:

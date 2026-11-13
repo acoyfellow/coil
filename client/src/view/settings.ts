@@ -25,12 +25,6 @@ export const sectionsFor = (model: Model): readonly Section[] => [
     words: 'account sign out log out gateway who email',
   },
   {
-    id: 'usage',
-    label: 'Usage',
-    hint: 'Spend and limit',
-    words: 'spend cost money limit usage budget',
-  },
-  {
     id: 'app',
     label: 'App',
     hint: 'Theme, notifications, install',
@@ -97,28 +91,6 @@ const accountPane = (h: H, model: Model): Html[] => [
         ),
       ]
     : [h.p([h.Class('settings-note')], ['Cloudflare Access signs you in on this instance.'])]),
-];
-
-const money = (value: number) => `$${value.toFixed(2)}`;
-
-const usagePane = (h: H, model: Model): Html[] => [
-  h.h3([], ['Usage']),
-  fact(h, 'Spent', model.spend === null ? '…' : money(model.spend.spent), 'settings-spent'),
-  fact(
-    h,
-    'Limit',
-    model.spend?.limit === null || model.spend === null ? 'none' : money(model.spend.limit),
-  ),
-  h.div(
-    [h.Class('settings-actions')],
-    [
-      h.button(
-        [h.Class('settings-button'), h.Type('button'), h.OnClick(Message.ClickedSpendLimit())],
-        ['Set a limit'],
-      ),
-    ],
-  ),
-  h.p([h.Class('settings-note')], ['coil stops new turns when spend reaches the limit.']),
 ];
 
 const THEME_LABEL: Record<Model['theme'], string> = {
@@ -254,8 +226,6 @@ const pane = (h: H, model: Model, section: SettingsSection): Html[] => {
   switch (section) {
     case 'account':
       return accountPane(h, model);
-    case 'usage':
-      return usagePane(h, model);
     case 'app':
       return appPane(h, model);
     case 'connectors':

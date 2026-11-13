@@ -16,7 +16,6 @@ const t = (name: string, busy: boolean, looping = false): ThreadSummary => ({
   updatedAt: 0,
   archived: false,
   model: '',
-  spend: 0,
   looping,
 });
 

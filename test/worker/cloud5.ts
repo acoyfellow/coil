@@ -105,10 +105,57 @@ const forkdebug: Probe = async (api, run) => {
   return Response.json({ parentHeld, parentRead, forkHeld, forkSees });
 };
 
+const folders: Probe = async (api, run) => {
+  const a = `fa-${run}`;
+  const b = `fb-${run}`;
+
+  await api.create({ name: a, createdBy: 'test' });
+  await api.create({ name: b, createdBy: 'test' });
+
+  const coil = await api.createFolder('  Coil   work ');
+  const other = await api.createFolder('Customer0');
+  const renamed = await api.renameFolder(coil.id, 'Coil');
+  const filed = await api.fileThread(a, coil.id);
+  const byAgent = await api.moveThreadTo(b, 'personal');
+  const reused = await api.moveThreadTo(b, 'PERSONAL');
+  const moved = await api.moveFolder(other.id, 0);
+  const order = (await api.folders()).map((folder) => folder.name);
+  const badFolder = await api.fileThread(a, 'f-nope').then(
+    () => 'accepted',
+    (error: Error) => error.message,
+  );
+  const emptyName = await api.createFolder('   ').then(
+    () => 'accepted',
+    (error: Error) => error.message,
+  );
+
+  await api.deleteFolder(coil.id);
+
+  const afterDelete = (await api.list()).find((thread) => thread.name === a);
+  const unfiled = await api.moveThreadTo(b, null);
+
+  return Response.json({
+    firstName: coil.name,
+    renamed: renamed.name,
+    filedFolder: filed.folder,
+    coilId: coil.id,
+    agentFolderName: (await api.folders()).find((folder) => folder.id === byAgent.folder)?.name,
+    reusedSame: reused.folder === byAgent.folder,
+    movedOrder: moved.order,
+    order,
+    badFolder,
+    emptyName,
+    afterDeleteFolder: afterDelete?.folder ?? null,
+    threadStillThere: afterDelete !== undefined,
+    unfiled: unfiled.folder,
+  });
+};
+
 export const cloud5Probes: Readonly<Record<string, Probe>> = {
   '/cloud5-lazy': lazy,
   '/cloud5-usage': usage,
   '/cloud5-workspace': workspace,
   '/cloud5-runjs': runjs,
+  '/folders': folders,
   '/cloud5-forkdebug': forkdebug,
 };

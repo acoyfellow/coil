@@ -26,11 +26,6 @@ const actionsFor = (model: Model): PaletteItem[] => {
   const base: PaletteItem[] = [
     { label: 'New thread', hint: 'command', message: Message.ClickedNewThread() },
     { label: 'Settings', hint: '⌘,', message: Message.OpenedSettings({ section: null }) },
-    {
-      label: 'Spend and limit',
-      hint: 'settings',
-      message: Message.OpenedSettings({ section: 'usage' }),
-    },
     { label: 'Toggle theme', hint: 'command', message: Message.ClickedTheme() },
     ...(model.connectors
       ? [

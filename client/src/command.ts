@@ -126,65 +126,121 @@ export const RevealModelOption = Command.define('RevealModelOption', {
   }),
 });
 
-export const LoadSpend = Command.define('LoadSpend', {
-  messages: [Message.LoadedSpend, Message.CompletedEffect],
-  execute: Effect.gen(function* () {
-    const client = yield* CoilClient;
-
-    return Message.LoadedSpend(yield* client.GetSpend());
-  }).pipe(Effect.orElseSucceed(() => Message.CompletedEffect())),
-});
-
-export const parseLimit = (raw: string | null): number | null | 'cancel' | 'invalid' => {
-  if (raw === null) return 'cancel';
-
-  const text = raw.trim().replace(/^\$/, '');
-
-  if (text === '' || /^(none|no|off|0)$/i.test(text)) return null;
-
-  const dollars = Number(text);
-
-  return Number.isFinite(dollars) && dollars > 0 ? dollars : 'invalid';
-};
-
-export const EditSpendLimit = Command.define('EditSpendLimit', {
-  args: { current: Schema.NullOr(Schema.Number), spent: Schema.Number },
-  messages: [Message.LoadedSpend, Message.FailedOp, Message.CompletedEffect],
-  execute: ({ current, spent }) =>
-    Effect.gen(function* () {
-      const answer = parseLimit(
-        globalThis.prompt(
-          `You have spent $${spent.toFixed(2)} across all your threads.\nSet a spend limit in dollars. New turns stop when you reach it. Leave empty for no limit.`,
-          current === null ? '' : String(current),
-        ),
-      );
-
-      if (answer === 'cancel') return Message.CompletedEffect();
-      if (answer === 'invalid')
-        return Message.FailedOp({
-          name: '',
-          reason: 'Enter a dollar amount, like 50, or leave it empty for no limit.',
-        });
-
-      const client = yield* CoilClient;
-
-      return Message.LoadedSpend(yield* client.SetSpendLimit({ dollars: answer }));
-    }).pipe(
-      Effect.catch((error) =>
-        Effect.succeed(Message.FailedOp({ name: '', reason: reasonOf(error) })),
-      ),
-    ),
-});
-
 export const LoadThreads = Command.define('LoadThreads', {
   messages: [Message.LoadedThreads, Message.FailedThreads],
   execute: Effect.gen(function* () {
     const client = yield* CoilClient;
 
-    return Message.LoadedThreads({ threads: yield* client.ListThreads() });
+    const threads = yield* client.ListThreads();
+    const folders = yield* client.ListFolders().pipe(Effect.catch(() => Effect.succeed(undefined)));
+
+    return Message.LoadedThreads({ threads, folders });
   }).pipe(
     Effect.catch((error) => Effect.succeed(Message.FailedThreads({ reason: reasonOf(error) }))),
   ),
+});
+
+const folderFailed = (error: Parameters<typeof reasonOf>[0]) =>
+  Effect.succeed(Message.FailedOp({ name: '', reason: reasonOf(error) }));
+
+export const CreateFolder = Command.define('CreateFolder', {
+  args: { thread: Schema.NullOr(Schema.String) },
+  messages: [Message.ChangedFolders, Message.FailedOp, Message.CompletedEffect],
+  execute: ({ thread }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const name = yield* Effect.sync(() => globalThis.prompt('Folder name', '')?.trim() ?? '');
+
+      if (name === '') return Message.CompletedEffect();
+
+      const folder = yield* client.CreateFolder({ name });
+
+      if (thread !== null) yield* client.FileThread({ name: thread, folder: folder.id });
+
+      return Message.ChangedFolders({ note: `Made folder ${folder.name}.` });
+    }).pipe(Effect.catch(folderFailed)),
+});
+
+export const CreateNamedFolder = Command.define('CreateNamedFolder', {
+  args: { name: Schema.String, thread: Schema.String },
+  messages: [Message.ChangedFolders, Message.FailedOp],
+  execute: ({ name, thread }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const folder = yield* client.CreateFolder({ name });
+
+      yield* client.FileThread({ name: thread, folder: folder.id });
+
+      return Message.ChangedFolders({ note: `Moved to new folder ${folder.name}.` });
+    }).pipe(Effect.catch(folderFailed)),
+});
+
+export const FocusMovePicker = Command.define('FocusMovePicker', {
+  messages: [Message.CompletedEffect],
+  execute: Effect.sync(() => {
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLInputElement>('#move-picker-input')?.focus(),
+    );
+
+    return Message.CompletedEffect();
+  }),
+});
+
+export const RenameFolder = Command.define('RenameFolder', {
+  args: { id: Schema.String, name: Schema.String },
+  messages: [Message.ChangedFolders, Message.FailedOp],
+  execute: ({ id, name }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const folder = yield* client.RenameFolder({ id, name });
+
+      return Message.ChangedFolders({ note: `Renamed to ${folder.name}.` });
+    }).pipe(Effect.catch(folderFailed)),
+});
+
+export const DeleteFolder = Command.define('DeleteFolder', {
+  args: { id: Schema.String, label: Schema.String },
+  messages: [Message.ChangedFolders, Message.FailedOp, Message.CompletedEffect],
+  execute: ({ id, label }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const sure = yield* Effect.sync(() =>
+        globalThis.confirm(`Delete the folder ${label}? Its threads move back to Recent.`),
+      );
+
+      if (!sure) return Message.CompletedEffect();
+      yield* client.DeleteFolder({ id });
+
+      return Message.ChangedFolders({ note: `Deleted folder ${label}.` });
+    }).pipe(Effect.catch(folderFailed)),
+});
+
+export const MoveFolder = Command.define('MoveFolder', {
+  args: { id: Schema.String, order: Schema.Number },
+  messages: [Message.ChangedFolders, Message.FailedOp],
+  execute: ({ id, order }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+
+      yield* client.MoveFolder({ id, order });
+
+      return Message.ChangedFolders({ note: '' });
+    }).pipe(Effect.catch(folderFailed)),
+});
+
+export const FileThread = Command.define('FileThread', {
+  args: { name: Schema.String, folder: Schema.NullOr(Schema.String), label: Schema.String },
+  messages: [Message.ChangedFolders, Message.FailedOp],
+  execute: ({ name, folder, label }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+
+      yield* client.FileThread({ name, folder });
+
+      return Message.ChangedFolders({
+        note: folder === null ? 'Moved to Recent.' : `Moved to ${label}.`,
+      });
+    }).pipe(Effect.catch(folderFailed)),
 });
 
 export const LoadView = Command.define('LoadView', {

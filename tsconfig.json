@@ -22,6 +22,6 @@
     "shared"
   ],
   "exclude": [
-    "test/client.test.ts"
+    "test/client*.test.ts"
   ]
 }

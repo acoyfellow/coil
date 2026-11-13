@@ -29,13 +29,22 @@ export const ThreadSummary = Schema.Struct({
   updatedAt: Schema.Number,
   archived: Schema.Boolean,
   model: Schema.String,
-  spend: Schema.Number,
   looping: Schema.Boolean,
   failed: Schema.optional(Schema.Boolean),
   pinned: Schema.optional(Schema.Boolean),
+  folder: Schema.optional(Schema.NullOr(Schema.String)),
 });
 
 export type ThreadSummary = typeof ThreadSummary.Type;
+
+export const Folder = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  order: Schema.Number,
+  createdAt: Schema.Number,
+});
+
+export type Folder = typeof Folder.Type;
 
 export const Origin = Schema.Struct({
   parent: Schema.NullOr(Schema.String),
@@ -138,7 +147,6 @@ export const LoopSpec = Schema.Struct({
   prompt: Schema.String,
   everySeconds: Schema.Number,
   maxRuns: Schema.Number,
-  maxSpend: Schema.Number,
   gate: Schema.NullOr(Schema.String),
 });
 
@@ -148,11 +156,9 @@ export const LoopState = Schema.Struct({
   runs: Schema.Array(
     Schema.Struct({
       at: Schema.Number,
-      costBefore: Schema.Number,
       gateExit: Schema.NullOr(Schema.Number),
     }),
   ),
-  startedCost: Schema.Number,
   nextAt: Schema.Number,
   stoppedBecause: Schema.NullOr(Schema.String),
   loopId: Schema.optional(Schema.String),
@@ -226,8 +232,6 @@ export const ConnectorState = Schema.Struct({
 
 export type ConnectorState = typeof ConnectorState.Type;
 
-export const Spend = Schema.Struct({ spent: Schema.Number, limit: Schema.NullOr(Schema.Number) });
-
 export class UnknownThread extends Schema.TaggedError<UnknownThread>()('UnknownThread', {
   name: Schema.String,
 }) {}
@@ -264,12 +268,6 @@ const target = { name: Schema.String };
 export const CoilRpcs = RpcGroup.make(
   Rpc.make('WhoAmI', { success: Who, error: CoilError }),
   Rpc.make('ListConnectors', { success: Schema.Array(ConnectorState), error: CoilError }),
-  Rpc.make('GetSpend', { success: Spend, error: CoilError }),
-  Rpc.make('SetSpendLimit', {
-    payload: { dollars: Schema.NullOr(Schema.Number) },
-    success: Spend,
-    error: CoilError,
-  }),
   Rpc.make('Sizes', { success: Schema.Array(Size), error: CoilError }),
   Rpc.make('ListThreads', { success: Schema.Array(ThreadSummary), error: CoilError }),
   Rpc.make('CreateThread', {
@@ -386,6 +384,32 @@ export const CoilRpcs = RpcGroup.make(
     error: CoilError,
   }),
   Rpc.make('DeleteThread', { payload: target, success: Schema.Null, error: CoilError }),
+  Rpc.make('ListFolders', { success: Schema.Array(Folder), error: CoilError }),
+  Rpc.make('CreateFolder', {
+    payload: { name: Schema.String, order: Schema.optional(Schema.Number) },
+    success: Folder,
+    error: CoilError,
+  }),
+  Rpc.make('RenameFolder', {
+    payload: { id: Schema.String, name: Schema.String },
+    success: Folder,
+    error: CoilError,
+  }),
+  Rpc.make('MoveFolder', {
+    payload: { id: Schema.String, order: Schema.Number },
+    success: Folder,
+    error: CoilError,
+  }),
+  Rpc.make('DeleteFolder', {
+    payload: { id: Schema.String },
+    success: Schema.Null,
+    error: CoilError,
+  }),
+  Rpc.make('FileThread', {
+    payload: { ...target, folder: Schema.NullOr(Schema.String) },
+    success: ThreadSummary,
+    error: CoilError,
+  }),
   Rpc.make('ListBases', { success: Schema.Array(Base), error: CoilError }),
   Rpc.make('PrepareBase', {
     payload: { repo: Schema.String, setup: Schema.String },

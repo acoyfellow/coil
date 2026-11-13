@@ -5,8 +5,9 @@ import type { Model } from '../model';
 import { bar } from './bar';
 import { composer } from './composer';
 import { feed } from './feed';
+import { movePicker } from './move-picker';
 import { palette } from './palette';
-import { panel } from './panel';
+import { historyModal, panel } from './panel';
 import { type H, spinner } from './parts';
 import { settings } from './settings';
 import { side } from './side';
@@ -134,7 +135,7 @@ const appClass = (model: Model): string =>
 const title = (model: Model): string => {
   if (model.name === null || model.view._tag !== 'Ready') return 'coil';
 
-  return `${model.view.value.busy ? '● ' : ''}${model.view.value.title} · coil`;
+  return `${model.view.value.busy ? '(working) ' : ''}${model.view.value.title} · coil`;
 };
 
 export const view = (model: Model, h: H): Document => ({
@@ -168,6 +169,8 @@ export const view = (model: Model, h: H): Document => ({
       ),
       newThreadDialog(h, model),
       palette(h, model),
+      movePicker(h, model),
+      historyModal(h, model),
       settings(h, model),
       ...toasts(h, model),
     ],

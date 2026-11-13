@@ -15,6 +15,19 @@ const USED = {
   trash: 'trash-2',
   share: 'share-2',
   settings: 'settings',
+  close: 'x',
+  menu: 'menu',
+  more: 'ellipsis',
+  plus: 'plus',
+  send: 'arrow-up',
+  down: 'arrow-down',
+  back: 'arrow-left',
+  forward: 'arrow-right',
+  reload: 'rotate-cw',
+  caret: 'chevron-right',
+  folder: 'folder',
+  terminal: 'terminal',
+  browser: 'globe',
 };
 
 const inner = (name) => {

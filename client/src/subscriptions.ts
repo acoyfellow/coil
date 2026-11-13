@@ -193,7 +193,13 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
     { open: Schema.Boolean },
     {
       modelToDependencies: (model) => ({
-        open: model.sizeMenuOpen || model.addMenuOpen || model.modelMenuOpen || model.usageOpen,
+        open:
+          model.menuOpen ||
+          model.rowMenu !== null ||
+          model.sizeMenuOpen ||
+          model.addMenuOpen ||
+          model.modelMenuOpen ||
+          model.usageOpen,
       }),
       dependenciesToStream: ({ open }) => (open ? outsideClicks : Stream.empty),
     },

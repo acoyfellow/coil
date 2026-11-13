@@ -13,9 +13,6 @@ const escapeHtml = (value: string) => value.replace(/[&<>"]/gu, (char) => ENTITI
 
 const whole = new Intl.NumberFormat('en-US');
 
-const dollars = (value: number) =>
-  value >= 100 ? `$${whole.format(Math.round(value))}` : `$${value.toFixed(2)}`;
-
 const sinceLabel = (firstAt: number | null, now: number) => {
   if (firstAt === null) return 'no threads yet';
 
@@ -132,7 +129,7 @@ export const statsPage = (stats: InstanceStats, origin: string) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-${seoHead({ origin, path: '/stats', title: `${host} stats · coil`, description: `Live totals for the coil instance at ${host}: ${stats.threads} threads, models in use, and spend.` })}
+${seoHead({ origin, path: '/stats', title: `${host} stats · coil`, description: `Live totals for the coil instance at ${host}: ${stats.threads} threads, and models in use.` })}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${FONTS}">
 <meta http-equiv="refresh" content="60">
@@ -149,7 +146,6 @@ ${tile(whole.format(stats.people), stats.people === 1 ? 'person' : 'people')}
 ${tile(whole.format(stats.working), 'working right now', stats.working > 0)}
 ${tile(whole.format(stats.awake), 'computers awake')}
 ${tile(whole.format(stats.agentMade), 'started by an agent')}
-${tile(dollars(stats.spend), 'model spend')}
 </div>
 ${computersSection(stats)}
 <section><h2>Threads started, last ${stats.perDay.length} days</h2>${chart(stats.perDay)}</section>

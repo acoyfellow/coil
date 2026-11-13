@@ -6,7 +6,7 @@ import { type LiveTool, type Model, ViewState } from '../model';
 import { FollowFeed, ScrollToEnd } from '../mount';
 import { MAX_RECONNECTS } from '../subscriptions';
 import { markdown } from './markdown';
-import { type H, skeleton, spinner } from './parts';
+import { type H, icon, skeleton, spinner } from './parts';
 
 const EXIT_CODE = /^exit (\d+)/;
 
@@ -42,7 +42,7 @@ const tool = (
       h.summary(
         [],
         [
-          running ? spinner(h) : h.span([h.Class('caret')], ['▶']),
+          running ? spinner(h) : h.span([h.Class('caret')], [icon(h, 'caret')]),
           h.b([], [name]),
           h.span([h.Class('arg')], [toolTarget(args)]),
           ...(elapsed === null ? [] : [h.span([h.Class('tool-time')], [elapsed])]),
@@ -61,7 +61,10 @@ const thinking = (h: H, key: string, text: string, streaming: boolean): Html =>
     [
       h.summary(
         [],
-        [streaming ? spinner(h) : h.span([h.Class('caret')], ['▶']), h.b([], ['Reasoning'])],
+        [
+          streaming ? spinner(h) : h.span([h.Class('caret')], [icon(h, 'caret')]),
+          h.b([], ['Reasoning']),
+        ],
       ),
       h.div([h.Class('body')], [text]),
     ],
@@ -493,7 +496,7 @@ export const feed = (h: H, model: Model): Html => {
           h.AriaLabel('Scroll to latest message'),
           h.OnClick(Message.ClickedJumpToLatest()),
         ],
-        ['↓ Latest'],
+        [icon(h, 'down'), 'Latest'],
       ),
     ],
   );

@@ -1,4 +1,5 @@
 import { browserPath } from '../../../shared/protocol';
+import { ICONS } from '../../../src/ui/icons.generated';
 import { socketUrl } from './dom';
 import { attachVnc } from './vnc';
 
@@ -9,10 +10,11 @@ type ServerNote = {
 
 const MAX_RETRY_MS = 8000;
 
-const button = (label: string, title: string, onClick: () => void): HTMLButtonElement => {
+const button = (iconName: string, title: string, onClick: () => void): HTMLButtonElement => {
   const element = document.createElement('button');
 
-  element.textContent = label;
+  element.className = 'icon-btn';
+  element.innerHTML = `<svg viewBox="0 0 24 24" class="icon" aria-hidden="true">${ICONS[iconName] ?? ''}</svg>`;
   element.title = title;
   element.setAttribute('aria-label', title);
   element.onclick = onClick;
@@ -61,11 +63,11 @@ export const attachBrowser = (
 
   bar.className = 'urlbar';
   bar.append(
-    button('←', 'Back', () => send({ back: true })),
-    button('→', 'Forward', () => send({ forward: true })),
-    button('↻', 'Reload', () => send({ reload: true })),
+    button('back', 'Back', () => send({ back: true })),
+    button('forward', 'Forward', () => send({ forward: true })),
+    button('reload', 'Reload', () => send({ reload: true })),
     url,
-    button('+', 'New tab', () => send({ tab: true })),
+    button('plus', 'New tab', () => send({ tab: true })),
   );
   body.className = 'browser-body';
   host.replaceChildren(bar, body);

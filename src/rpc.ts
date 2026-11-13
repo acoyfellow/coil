@@ -10,6 +10,7 @@ import {
   type DirEntry,
   type ExecResult,
   Failed,
+  type Folder,
   Invalid,
   type LoopSpec,
   type LoopState,
@@ -124,10 +125,6 @@ export type CoilApi = {
   readonly stopLoop: (name: string) => Promise<typeof LoopState.Type | null>;
   readonly getLoop: (name: string) => Promise<typeof LoopState.Type | null>;
   readonly stopAllLoops: () => Promise<readonly string[]>;
-  readonly spend: () => Promise<{ spent: number; limit: number | null }>;
-  readonly setSpendLimit: (
-    dollars: number | null,
-  ) => Promise<{ spent: number; limit: number | null }>;
   readonly share: (name: string) => Promise<{ path: string }>;
   readonly unshare: (name: string) => Promise<null>;
   readonly stop: (name: string) => Promise<null>;
@@ -136,6 +133,12 @@ export type CoilApi = {
   readonly rename: (name: string, title: string) => Out<typeof ThreadSummary>;
   readonly archive: (name: string, archived: boolean) => Out<typeof ThreadSummary>;
   readonly pin: (name: string, pinned: boolean) => Out<typeof ThreadSummary>;
+  readonly folders: () => Promise<readonly (typeof Folder.Type)[]>;
+  readonly createFolder: (name: string, order?: number) => Out<typeof Folder>;
+  readonly renameFolder: (id: string, name: string) => Out<typeof Folder>;
+  readonly moveFolder: (id: string, order: number) => Out<typeof Folder>;
+  readonly deleteFolder: (id: string) => Promise<null>;
+  readonly fileThread: (name: string, folder: string | null) => Out<typeof ThreadSummary>;
   readonly remove: (name: string) => Promise<null>;
   readonly bases: () => Promise<readonly (typeof Base.Type)[]>;
   readonly prepare: (repo: string, setup: string) => Out<typeof Prepared>;
@@ -156,8 +159,6 @@ export const handlersFor = (caller: Caller) => {
   return CoilRpcs.of({
     WhoAmI: () => Effect.succeed({ who: caller.who, connectors: caller.connectors === true }),
     ListConnectors: () => attempt(async () => (await caller.listConnectors?.()) ?? []),
-    GetSpend: () => attempt(() => api.spend()),
-    SetSpendLimit: ({ dollars }) => attempt(() => api.setSpendLimit(dollars)),
     Sizes: () => Effect.succeed([...SIZES]),
     ListThreads: () => attempt(() => api.list()),
     CreateThread: (input) =>
@@ -199,6 +200,12 @@ export const handlersFor = (caller: Caller) => {
     Rename: ({ name, title }) => attempt(() => api.rename(name, title)),
     Archive: ({ name, archived }) => attempt(() => api.archive(name, archived)),
     Pin: ({ name, pinned }) => attempt(() => api.pin(name, pinned)),
+    ListFolders: () => attempt(() => api.folders()),
+    CreateFolder: ({ name, order }) => attempt(() => api.createFolder(name, order)),
+    RenameFolder: ({ id, name }) => attempt(() => api.renameFolder(id, name)),
+    MoveFolder: ({ id, order }) => attempt(() => api.moveFolder(id, order)),
+    DeleteFolder: ({ id }) => attempt(() => api.deleteFolder(id)),
+    FileThread: ({ name, folder }) => attempt(() => api.fileThread(name, folder)),
     DeleteThread: ({ name }) => attempt(() => api.remove(name)),
     ListBases: () => attempt(() => api.bases()),
     PrepareBase: ({ repo, setup }) => attempt(() => api.prepare(repo, setup)),

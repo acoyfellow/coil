@@ -94,14 +94,13 @@ test('token refresh: one call for many waiters, revoked signs out cleanly, blips
   });
 });
 
-test('instance stats count threads, work, and spend without naming anything', {
+test('instance stats count threads and work without naming anything', {
   timeout: 60_000,
 }, async () => {
   const out = await get('/stats-probe');
 
   expect(out.threadsAdded).toBe(1);
   expect(out.workingAdded).toBe(1);
-  expect(out.spendAdded).toBe(1.25);
   expect(out.todayCount).toBeGreaterThanOrEqual(1);
   expect(out.days).toBe(30);
   expect(out.webSource).toBeGreaterThanOrEqual(1);
@@ -253,22 +252,6 @@ test('looping threads cannot send work to other threads', { timeout: 60_000 }, a
   const out = await get('/loop-send');
 
   expect(out.sent).toContain('cannot send work');
-});
-
-test('one spend limit, set by each person: none by default, blocks new turns once reached, per owner', {
-  timeout: 60_000,
-}, async () => {
-  const out = await get('/limit');
-
-  expect(out.noLimit).toEqual({ spent: 0, limit: null });
-  expect(out.firstTurn).toBe('allowed');
-  expect(out.set.limit).toBe(25);
-  expect(out.overLimit).toMatch(/spend limit of \$25\.00 is reached/);
-  expect(out.neighborSpend).toEqual({ spent: 0, limit: null });
-  expect(out.raised.limit).toBe(100);
-  expect(out.underRaised).toBe('allowed');
-  expect(out.cleared.limit).toBeNull();
-  expect(out.badLimit).toMatch(/positive dollar amount/);
 });
 
 test('a connector signs in with PKCE and a one-use state, seals its tokens, refreshes once for many callers, and forgets a revoked grant', {

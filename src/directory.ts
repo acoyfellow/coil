@@ -23,10 +23,17 @@ export type ThreadSummary = {
   readonly updatedAt: number;
   readonly archived: boolean;
   readonly model: string;
-  readonly spend: number;
   readonly looping: boolean;
   readonly failed?: boolean;
   readonly pinned?: boolean;
+  readonly folder?: string | null;
+};
+
+export type Folder = {
+  readonly id: string;
+  readonly name: string;
+  readonly order: number;
+  readonly createdAt: number;
 };
 
 export type ThreadUpdate = Partial<Omit<ThreadSummary, 'name' | 'createdAt'>> & {
@@ -47,10 +54,10 @@ type Row = {
   updated_at: number;
   archived: number;
   model: string;
-  spend: number;
   looping: number;
   failed: number;
   pinned: number;
+  folder: string | null;
 };
 
 const fromRow = (row: Row): ThreadSummary => ({
@@ -73,11 +80,30 @@ const fromRow = (row: Row): ThreadSummary => ({
   updatedAt: row.updated_at,
   archived: row.archived === 1,
   model: row.model,
-  spend: row.spend,
   looping: row.looping === 1,
   failed: row.failed === 1,
   pinned: row.pinned === 1,
+  folder: row.folder ?? null,
 });
+
+type FolderRow = { id: string; name: string; ord: number; created_at: number };
+
+const fromFolderRow = (row: FolderRow): Folder => ({
+  id: row.id,
+  name: row.name,
+  order: row.ord,
+  createdAt: row.created_at,
+});
+
+export const FOLDER_NAME_MAX = 60;
+
+export const folderName = (raw: string): string => {
+  const name = raw.trim().replace(/\s+/g, ' ').slice(0, FOLDER_NAME_MAX);
+
+  if (name === '') throw new Error('A folder needs a name.');
+
+  return name;
+};
 
 import {
   isRevoked,
@@ -100,8 +126,6 @@ import {
 
 const REFRESH_ATTEMPTS = 3;
 const REFRESH_BACKOFF_MS = 400;
-
-export const TURN_RESERVE = 0.5;
 
 export type Grant = {
   readonly owner: string;
@@ -130,9 +154,6 @@ export class Directory extends DurableObject {
       `CREATE TABLE IF NOT EXISTS shares (token TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, created_at INTEGER NOT NULL)`,
     );
     this.ctx.storage.sql.exec(
-      `CREATE TABLE IF NOT EXISTS limits (owner TEXT PRIMARY KEY, dollars REAL NOT NULL)`,
-    );
-    this.ctx.storage.sql.exec(
       `CREATE TABLE IF NOT EXISTS bases (repo TEXT PRIMARY KEY, snapshot_id TEXT NOT NULL, thread TEXT NOT NULL, setup TEXT NOT NULL, at INTEGER NOT NULL)`,
     );
     this.ctx.storage.sql.exec(
@@ -144,7 +165,99 @@ export class Directory extends DurableObject {
     this.ctx.storage.sql.exec(
       `CREATE TABLE IF NOT EXISTS catalogs (account_id TEXT PRIMARY KEY, entries TEXT NOT NULL, fetched_at INTEGER NOT NULL)`,
     );
+    this.ctx.storage.sql.exec(
+      `CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL, ord REAL NOT NULL, created_at INTEGER NOT NULL)`,
+    );
     this.migrate();
+  }
+
+  folders(owner: string): Folder[] {
+    return this.ctx.storage.sql
+      .exec<FolderRow>(
+        'SELECT id, name, ord, created_at FROM folders WHERE owner = ? ORDER BY ord, created_at',
+        owner,
+      )
+      .toArray()
+      .map(fromFolderRow);
+  }
+
+  folder(owner: string, id: string): Folder {
+    const row = this.ctx.storage.sql
+      .exec<FolderRow>(
+        'SELECT id, name, ord, created_at FROM folders WHERE owner = ? AND id = ?',
+        owner,
+        id,
+      )
+      .toArray()[0];
+
+    if (row === undefined) throw new Error(`unknown folder ${id}`);
+
+    return fromFolderRow(row);
+  }
+
+  createFolder(owner: string, name: string, order?: number): Folder {
+    const last = this.folders(owner).at(-1)?.order ?? 0;
+    const id = `f-${crypto.randomUUID().slice(0, 8)}`;
+
+    this.ctx.storage.sql.exec(
+      'INSERT INTO folders (id, owner, name, ord, created_at) VALUES (?, ?, ?, ?, ?)',
+      id,
+      owner,
+      folderName(name),
+      order ?? last + 1,
+      Date.now(),
+    );
+
+    return this.folder(owner, id);
+  }
+
+  renameFolder(owner: string, id: string, name: string): Folder {
+    this.folder(owner, id);
+    this.ctx.storage.sql.exec(
+      'UPDATE folders SET name = ? WHERE owner = ? AND id = ?',
+      folderName(name),
+      owner,
+      id,
+    );
+
+    return this.folder(owner, id);
+  }
+
+  moveFolder(owner: string, id: string, order: number): Folder {
+    if (!Number.isFinite(order)) throw new Error('order must be a number');
+
+    this.folder(owner, id);
+    this.ctx.storage.sql.exec(
+      'UPDATE folders SET ord = ? WHERE owner = ? AND id = ?',
+      order,
+      owner,
+      id,
+    );
+
+    return this.folder(owner, id);
+  }
+
+  deleteFolder(owner: string, id: string): null {
+    this.folder(owner, id);
+    this.ctx.storage.sql.exec(
+      'UPDATE threads SET folder = NULL WHERE owner = ? AND folder = ?',
+      owner,
+      id,
+    );
+    this.ctx.storage.sql.exec('DELETE FROM folders WHERE owner = ? AND id = ?', owner, id);
+
+    return null;
+  }
+
+  fileThread(owner: string, name: string, folder: string | null): ThreadSummary {
+    const thread = this.get(name);
+
+    if (thread === null || thread.owner !== owner) throw new Error(`unknown thread ${name}`);
+    if (folder !== null) this.folder(owner, folder);
+
+    this.ctx.storage.sql.exec('UPDATE threads SET folder = ? WHERE name = ?', folder, name);
+
+    return this.get(name) ?? thread;
   }
 
   saveGrant(grant: Grant): void {
@@ -368,6 +481,8 @@ export class Directory extends DurableObject {
       this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0`);
     if (!columns.includes('failed'))
       this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`);
+    if (!columns.includes('folder'))
+      this.ctx.storage.sql.exec(`ALTER TABLE threads ADD COLUMN folder TEXT`);
   }
 
   upsert(update: ThreadUpdate): void {
@@ -384,15 +499,14 @@ export class Directory extends DurableObject {
       owner: current?.owner || update.owner || '',
       archived: (update.archived ?? current?.archived ?? false) ? 1 : 0,
       model: update.model ?? current?.model ?? '',
-      spend: update.spend ?? current?.spend ?? 0,
       looping: (update.looping ?? current?.looping ?? false) ? 1 : 0,
       failed: (update.failed ?? current?.failed ?? false) ? 1 : 0,
       pinned: (update.pinned ?? current?.pinned ?? false) ? 1 : 0,
     };
 
     this.ctx.storage.sql.exec(
-      `INSERT INTO threads (name, title, phase, busy, repo, parent, forked_from, created_by, owner, created_at, updated_at, archived, model, spend, looping, failed, pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(name) DO UPDATE SET title = excluded.title, phase = excluded.phase, busy = excluded.busy, repo = excluded.repo, parent = excluded.parent, forked_from = excluded.forked_from, owner = excluded.owner, updated_at = excluded.updated_at, archived = excluded.archived, model = excluded.model, spend = excluded.spend, looping = excluded.looping, failed = excluded.failed, pinned = excluded.pinned`,
+      `INSERT INTO threads (name, title, phase, busy, repo, parent, forked_from, created_by, owner, created_at, updated_at, archived, model, looping, failed, pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET title = excluded.title, phase = excluded.phase, busy = excluded.busy, repo = excluded.repo, parent = excluded.parent, forked_from = excluded.forked_from, owner = excluded.owner, updated_at = excluded.updated_at, archived = excluded.archived, model = excluded.model, looping = excluded.looping, failed = excluded.failed, pinned = excluded.pinned`,
       update.name,
       next.title,
       next.phase,
@@ -406,7 +520,6 @@ export class Directory extends DurableObject {
       now,
       next.archived,
       next.model,
-      next.spend,
       next.looping,
       next.failed,
       next.pinned,
@@ -478,37 +591,6 @@ export class Directory extends DurableObject {
     );
   }
 
-  spendFor(owner: string): number {
-    const row = this.ctx.storage.sql
-      .exec<{ total: number | null; working: number | null }>(
-        'SELECT SUM(spend) AS total, SUM(busy) AS working FROM threads WHERE owner = ?',
-        owner,
-      )
-      .toArray()[0];
-
-    return (row?.total ?? 0) + (row?.working ?? 0) * TURN_RESERVE;
-  }
-
-  limitFor(owner: string): number | null {
-    return (
-      this.ctx.storage.sql
-        .exec<{ dollars: number }>('SELECT dollars FROM limits WHERE owner = ?', owner)
-        .toArray()[0]?.dollars ?? null
-    );
-  }
-
-  setLimit(owner: string, dollars: number | null): number | null {
-    if (dollars === null) this.ctx.storage.sql.exec('DELETE FROM limits WHERE owner = ?', owner);
-    else
-      this.ctx.storage.sql.exec(
-        'INSERT INTO limits (owner, dollars) VALUES (?, ?) ON CONFLICT(owner) DO UPDATE SET dollars = excluded.dollars',
-        owner,
-        dollars,
-      );
-
-    return this.limitFor(owner);
-  }
-
   agentThreadsFor(owner: string): number {
     return (
       this.ctx.storage.sql
@@ -540,14 +622,13 @@ export class Directory extends DurableObject {
         working: number | null;
         awake: number;
         agentMade: number;
-        spend: number | null;
         firstAt: number | null;
         lastAt: number | null;
       }>(
         `SELECT COUNT(*) AS threads, COUNT(DISTINCT owner) AS people, SUM(busy) AS working,
           SUM(CASE WHEN phase = 'awake' THEN 1 ELSE 0 END) AS awake,
           SUM(CASE WHEN created_by LIKE 'thread:%' OR created_by = 'agent' THEN 1 ELSE 0 END) AS agentMade,
-          SUM(spend) AS spend, MIN(created_at) AS firstAt, MAX(updated_at) AS lastAt FROM threads`,
+          MIN(created_at) AS firstAt, MAX(updated_at) AS lastAt FROM threads`,
       )
       .toArray()[0];
     const since = now - STATS_DAYS * DAY_MS;
@@ -583,7 +664,6 @@ export class Directory extends DurableObject {
       working: totals?.working ?? 0,
       awake: totals?.awake ?? 0,
       agentMade: totals?.agentMade ?? 0,
-      spend: totals?.spend ?? 0,
       firstAt: totals?.firstAt ?? null,
       lastAt: totals?.lastAt ?? null,
       perDay: lastDays(now).map((day) => ({ day, threads: counted.get(day) ?? 0 })),

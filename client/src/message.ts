@@ -3,6 +3,7 @@ import { defineMessageUnion } from 'foldkit/message';
 import {
   ConnectorState,
   DirEntry,
+  Folder,
   LiveEvent,
   ModelOption,
   Pair,
@@ -12,14 +13,33 @@ import {
   ThreadSummary,
   ThreadView,
 } from '../../shared/protocol';
-import { Action, SettingsSection, Theme, ThreadOp } from './model';
+import { Action, Dragging, SettingsSection, Theme, ThreadOp } from './model';
 
 export const Message = defineMessageUnion({
   LoadedWho: { who: Schema.String, connectors: Schema.Boolean },
   LoadedAccount: { account: Schema.NullOr(Schema.String), gateway: Schema.NullOr(Schema.String) },
-  LoadedSpend: { spent: Schema.Number, limit: Schema.NullOr(Schema.Number) },
-  ClickedSpendLimit: {},
-  LoadedThreads: { threads: Schema.Array(ThreadSummary) },
+  LoadedThreads: {
+    threads: Schema.Array(ThreadSummary),
+    folders: Schema.optional(Schema.Array(Folder)),
+  },
+  ClickedNewFolder: {},
+  StartedDrag: { drag: Dragging },
+  EndedDrag: {},
+  EnteredDrop: { target: Schema.String },
+  DroppedOn: { target: Schema.String, place: Schema.Literals(['into', 'before', 'after']) },
+  StartedFolderRename: { id: Schema.String },
+  RenamedFolder: { id: Schema.String, name: Schema.String },
+  CancelledFolderRename: {},
+  ClickedDeleteFolder: { id: Schema.String },
+  ChoseMoveTo: { name: Schema.String, folder: Schema.NullOr(Schema.String) },
+  OpenedMovePicker: { name: Schema.String },
+  UpdatedMovePicker: { query: Schema.String },
+  MovedMovePicker: { delta: Schema.Number },
+  ChoseMovePicker: { index: Schema.Number },
+  ClosedMovePicker: {},
+  OpenedHistory: {},
+  ClosedHistory: {},
+  ChangedFolders: { note: Schema.String },
   FailedThreads: { reason: Schema.String },
   ClickedRetryThreads: {},
   Ticked: { now: Schema.Number },

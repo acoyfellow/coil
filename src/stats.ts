@@ -6,7 +6,6 @@ export type InstanceStats = {
   readonly working: number;
   readonly awake: number;
   readonly agentMade: number;
-  readonly spend: number;
   readonly firstAt: number | null;
   readonly lastAt: number | null;
   readonly perDay: readonly { readonly day: string; readonly threads: number }[];

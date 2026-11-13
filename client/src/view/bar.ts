@@ -72,7 +72,11 @@ const actions = (h: H, model: Model, view: ThreadView): Html => {
   const button = (spec: ActionButton) => actionButton(h, model, locked, spec);
 
   return h.div(
-    [h.Class(`actions${model.menuOpen ? ' open' : ''}`), h.Id('actions')],
+    [
+      h.Class(`actions${model.menuOpen ? ' open' : ''}`),
+      h.Id('actions'),
+      h.DataAttribute('popover', 'actions'),
+    ],
     [
       h.div(
         [h.Class('act-group')],
@@ -189,7 +193,7 @@ export const bar = (h: H, model: Model): Html => {
       h.AriaLabel('Threads'),
       h.OnClick(Message.OpenedDrawer({ drawer: 'side' })),
     ],
-    ['☰'],
+    [icon(h, 'menu')],
   );
 
   if (model.name === null)
@@ -218,11 +222,23 @@ export const bar = (h: H, model: Model): Html => {
       threads,
       collapse(h, 'side'),
       h.h1([h.Title(model.name)], [view.title]),
-      h.span(
-        [h.Class(`chip ${phaseKey(view)}`), h.Id('phase')],
-        [...(view.busy ? [spinner(h)] : []), phaseLabel(view)],
+      ...(phaseLabel(view) === 'new'
+        ? []
+        : [
+            h.span(
+              [h.Class(`chip ${phaseKey(view)}`), h.Id('phase')],
+              [...(view.busy ? [spinner(h)] : []), phaseLabel(view)],
+            ),
+          ]),
+      h.button(
+        [
+          h.Class('more icon-btn'),
+          h.AriaLabel('Actions'),
+          h.DataAttribute('popover', 'actions'),
+          h.OnClick(Message.ToggledMenu()),
+        ],
+        [icon(h, 'more')],
       ),
-      h.button([h.Class('more'), h.AriaLabel('Actions'), h.OnClick(Message.ToggledMenu())], ['⋯']),
       actions(h, model, view),
       collapse(h, 'panel'),
       panelToggle(h),

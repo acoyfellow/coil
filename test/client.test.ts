@@ -39,7 +39,6 @@ const summary = (name: string, phase: string, busy: boolean): ThreadSummary => (
   updatedAt: Date.now(),
   archived: false,
   model: '',
-  spend: 0,
   looping: false,
 });
 

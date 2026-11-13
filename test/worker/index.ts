@@ -572,7 +572,7 @@ export default {
       const before = await directory.stats();
 
       await api.create({ name, createdBy: 'web', title: 'secret project title' });
-      await directory.upsert({ name, busy: true, spend: 1.25 });
+      await directory.upsert({ name, busy: true });
 
       const after = await directory.stats();
       const html = statsPage(after, 'https://coil.example');
@@ -582,7 +582,6 @@ export default {
       return Response.json({
         threadsAdded: after.threads - before.threads,
         workingAdded: after.working - before.working,
-        spendAdded: Math.round((after.spend - before.spend) * 100) / 100,
         todayCount: after.perDay.at(-1)?.threads ?? 0,
         days: after.perDay.length,
         webSource: after.sources.find((row) => row.source === 'web')?.threads ?? 0,
@@ -666,47 +665,6 @@ export default {
       });
     }
 
-    if (url.pathname === '/limit') {
-      const mine = `lim-${run}`;
-      const owner = `limit-${run}@example.com`;
-      const me = coil(env, owner);
-      const neighbor = coil(env, `neighbor-${run}@example.com`);
-      const directory = env.DIRECTORY.getByName('all');
-      const outcome = (work: Promise<unknown>) =>
-        work.then(
-          () => 'allowed',
-          (error: Error) => error.message,
-        );
-
-      await me.create({ name: mine, createdBy: 'test' });
-
-      const noLimit = await me.spend();
-
-      const firstTurn = await outcome(me.send(mine, 'a', 'write a.txt containing 1'));
-
-      await directory.upsert({ name: mine, spend: 30 });
-
-      const set = await me.setSpendLimit(25);
-      const overLimit = await outcome(me.send(mine, 'b', 'write b.txt containing 2'));
-      const neighborSpend = await neighbor.spend();
-      const raised = await me.setSpendLimit(100);
-      const underRaised = await outcome(me.send(mine, 'c', 'write c.txt containing 3'));
-      const cleared = await me.setSpendLimit(null);
-      const badLimit = await outcome(me.setSpendLimit(-5));
-
-      return Response.json({
-        noLimit,
-        firstTurn,
-        set,
-        overLimit,
-        neighborSpend,
-        raised,
-        underRaised,
-        cleared,
-        badLimit,
-      });
-    }
-
     if (url.pathname === '/tools') {
       const name = `tools-${run}`;
       const test = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(name);
@@ -774,7 +732,6 @@ export default {
         prompt: 'take the next step',
         everySeconds: 30,
         maxRuns: 5,
-        maxSpend: 1,
         gate: 'at-least 3 step-',
       });
 
@@ -800,7 +757,6 @@ export default {
         prompt: 'never',
         everySeconds: 3600,
         maxRuns: 5,
-        maxSpend: 1,
         gate: null,
       });
       const killed = await api.stopAllLoops();
@@ -829,7 +785,6 @@ export default {
         prompt: 'x',
         everySeconds: 3600,
         maxRuns: 2,
-        maxSpend: 1,
         gate: null,
       });
 
@@ -845,7 +800,6 @@ export default {
         prompt: 'take the next step',
         everySeconds: 30,
         maxRuns: 5,
-        maxSpend: 1,
         gate: null,
       });
       await test.forceDueForTest();

@@ -7,7 +7,6 @@ import {
   LoadAccount,
   LoadConnectors,
   LoadModels,
-  LoadSpend,
   LoadThreads,
   LoadView,
   LoadWho,
@@ -36,14 +35,13 @@ export type Flags = typeof Flags.Type;
 
 export const initialModel = (flags: Flags): Model => ({
   who: '',
-  spend: null,
   threads: ThreadsState.Loading(),
   name: flags.name,
   view: ViewState.Loading(),
   live: null,
   streamEpoch: 0,
   reconnects: 0,
-  tab: 't1',
+  tab: 'files',
   dirPath: '.',
   entries: { _tag: 'Loading' },
   file: FileView.Closed(),
@@ -63,9 +61,15 @@ export const initialModel = (flags: Flags): Model => ({
   collapsed: storedCollapsed(),
   listFilter: '',
   rowMenu: null,
+  folders: [],
+  dragging: null,
+  dropTarget: null,
+  editingFolder: null,
+  movePicker: null,
   notify: notifyPermission(),
   uploading: 0,
   palette: null,
+  historyOpen: false,
   settings:
     flags.openSettings === undefined || flags.openSettings === null
       ? null
@@ -92,7 +96,6 @@ export const init = (flags: Flags, url: Url): Update.Return<Model, Message, Coil
     LoadWho(),
     LoadConnectors(),
     LoadAccount(),
-    LoadSpend(),
     LoadModels(),
     LoadThreads(),
     ...(flags.name === null ? [] : [LoadView({ name: flags.name, refresh: false })]),
