@@ -18,7 +18,7 @@ turns race on one thread, or an unexamined gate lets a failing loop run forever.
 ## Check (one command)
 
 ```sh
-cd ~/cloudflare/coil-webkit
+cd ~/cloudflare/coil
 npx vitest run test/loop.test.ts
 ```
 
@@ -27,7 +27,7 @@ This must pass. It asserts the decision order and the stop reasons.
 ## Model check (every order of steps)
 
 ```sh
-cd ~/cloudflare/coil-webkit/.agents/skills/verify-loop
+cd ~/cloudflare/coil/.agents/skills/verify-loop
 export PATH=/opt/homebrew/opt/openjdk/bin:$PATH TLA2TOOLS=/tmp/fv/tools/tla2tools.jar
 java -cp "$TLA2TOOLS" tlc2.TLC Loop.tla
 ```

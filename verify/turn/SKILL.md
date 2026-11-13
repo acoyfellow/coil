@@ -18,7 +18,7 @@ user's work or double-counts turns.
 ## Check (one command)
 
 ```sh
-cd ~/cloudflare/coil-webkit
+cd ~/cloudflare/coil
 npx vitest run test/thread.test.ts
 ```
 
@@ -28,7 +28,7 @@ startTurn from interleaving.
 ## Model check (every order of steps)
 
 ```sh
-cd ~/cloudflare/coil-webkit/verify/turn
+cd ~/cloudflare/coil/verify/turn
 export PATH=/opt/homebrew/opt/openjdk/bin:$PATH TLA2TOOLS=/tmp/fv/tools/tla2tools.jar
 java -cp "$TLA2TOOLS" tlc2.TLC Turn.tla
 ```

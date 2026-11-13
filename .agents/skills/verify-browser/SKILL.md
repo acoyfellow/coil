@@ -19,7 +19,7 @@ from the list while it is active.
 ## Check (one command)
 
 ```sh
-cd ~/cloudflare/coil-webkit
+cd ~/cloudflare/coil
 npx vitest run test/surfaces.test.ts
 ```
 
@@ -29,7 +29,7 @@ surface API.
 ## Model check (every order of steps)
 
 ```sh
-cd ~/cloudflare/coil-webkit/.agents/skills/verify-browser
+cd ~/cloudflare/coil/.agents/skills/verify-browser
 export PATH=/opt/homebrew/opt/openjdk/bin:$PATH TLA2TOOLS=/tmp/fv/tools/tla2tools.jar
 java -cp "$TLA2TOOLS" tlc2.TLC Browser.tla
 ```

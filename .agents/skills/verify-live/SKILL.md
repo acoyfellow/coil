@@ -20,7 +20,7 @@ shows ghost tools or double events, or output text is dropped.
 ## Check (one command)
 
 ```sh
-cd ~/cloudflare/coil-webkit
+cd ~/cloudflare/coil
 npx vitest run test/live.test.ts
 ```
 
@@ -30,7 +30,7 @@ event streams.
 ## Model check (every order of steps)
 
 ```sh
-cd ~/cloudflare/coil-webkit/.agents/skills/verify-live
+cd ~/cloudflare/coil/.agents/skills/verify-live
 export PATH=/opt/homebrew/opt/openjdk/bin:$PATH TLA2TOOLS=/tmp/fv/tools/tla2tools.jar
 java -cp "$TLA2TOOLS" tlc2.TLC Live.tla
 ```

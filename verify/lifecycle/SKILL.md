@@ -17,7 +17,7 @@ the thread is working, sleeping, or broken.
 ## Check (one command)
 
 ```sh
-cd ~/cloudflare/coil-webkit
+cd ~/cloudflare/coil
 npx vitest run test/lifecycle.test.ts
 ```
 
@@ -26,7 +26,7 @@ This must pass. It asserts the priority `compacting > working > failed > phase`.
 ## Model check (every order of steps)
 
 ```sh
-cd ~/cloudflare/coil-webkit/verify/lifecycle
+cd ~/cloudflare/coil/verify/lifecycle
 export PATH=/opt/homebrew/opt/openjdk/bin:$PATH TLA2TOOLS=/tmp/fv/tools/tla2tools.jar
 java -cp "$TLA2TOOLS" tlc2.TLC Lifecycle.tla
 ```
