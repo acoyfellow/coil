@@ -4,7 +4,9 @@ import { type LiveEvent, SIZES, type Size, type ThreadView } from '../../shared/
 import {
   AddSurface,
   AskNotify,
+  CheckDisk,
   CloseSurface,
+  ConfirmDiscard,
   ConfirmResize,
   CopyText,
   CreateFolder,
@@ -27,6 +29,7 @@ import {
   LoadThreads,
   LoadView,
   MoveFolder,
+  PushEditorText,
   PushUrl,
   RefreshViewSoon,
   RenameFolder,
@@ -36,6 +39,7 @@ import {
   RunOp,
   SaveCollapsed,
   SaveDraft,
+  SaveFile,
   SaveTheme,
   SendMessage,
   ShowNotifications,
@@ -45,6 +49,19 @@ import {
   systemIsDark,
   UploadFiles,
 } from './command';
+import {
+  type Buffer,
+  diskChanged,
+  edited,
+  isDirty,
+  keptMine,
+  opened,
+  planSave,
+  saved,
+  saveFailed,
+  savingStarted,
+  tookTheirs,
+} from './editor-state';
 import { browserTabFor } from './focus';
 import { dropPlan } from './folder-drop';
 import { Message } from './message';
@@ -248,7 +265,7 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
             }),
           },
         ),
-        commands: [RefreshViewSoon({ name })],
+        commands: [RefreshViewSoon({ name }), ...recheckOpenFile(model, name)],
       };
     case 'turn_end':
       return {
@@ -334,6 +351,37 @@ const ensureTab = (model: Model): Model => {
 
   return modifyFields(model, { tab: () => firstSurfaceTab(view) });
 };
+
+const recheckOpenFile = (model: Model, name: string): AnyCommand[] =>
+  model.file._tag === 'Editing' ? [CheckDisk({ name, path: model.file.buffer.path })] : [];
+
+type BufferStep = {
+  readonly buffer: Buffer;
+  readonly commands?: readonly AnyCommand[];
+  readonly toast?: string;
+};
+
+const withOpenBuffer = (model: Model, step: (buffer: Buffer) => BufferStep): UpdateReturn => {
+  if (model.file._tag !== 'Editing') return { model };
+
+  const next = step(model.file.buffer);
+  const withFile = modifyFields(model, { file: () => FileView.Editing({ buffer: next.buffer }) });
+
+  const base: UpdateReturn = { model: withFile, commands: next.commands ?? [] };
+
+  return next.toast === undefined
+    ? base
+    : withCommands(toast(withFile, next.toast, true), next.commands ?? []);
+};
+
+const withBuffer = (
+  model: Model,
+  path: string,
+  step: (buffer: Buffer) => BufferStep,
+): UpdateReturn =>
+  model.file._tag === 'Editing' && model.file.buffer.path === path
+    ? withOpenBuffer(model, step)
+    : { model };
 
 const forCurrent = (model: Model, name: string, apply: () => UpdateReturn): UpdateReturn =>
   name === model.name ? apply() : { model };
@@ -649,9 +697,11 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       key === 'stop'
         ? model.settings !== null
           ? { model: modifyFields(model, { settings: () => null }) }
-          : model.historyOpen
-            ? { model: modifyFields(model, { historyOpen: () => false }) }
-            : stopFromKeyboard(model)
+          : model.file._tag !== 'Closed'
+            ? update(model, Message.RequestedCloseFile())
+            : model.historyOpen
+              ? { model: modifyFields(model, { historyOpen: () => false }) }
+              : stopFromKeyboard(model)
         : key === 'settings'
           ? update(model, Message.OpenedSettings({ section: null }))
           : {
@@ -934,8 +984,61 @@ export const update = (model: Model, message: Message): UpdateReturn =>
           },
     LoadedFile: ({ name, path, text }) =>
       forCurrent(model, name, () => ({
-        model: modifyFields(model, { file: () => FileView.Loaded({ path, text }) }),
+        model: modifyFields(model, {
+          file: () => FileView.Editing({ buffer: opened(path, text) }),
+        }),
       })),
+    EditedFile: ({ path, text }) =>
+      withBuffer(model, path, (buffer) => ({ buffer: edited(buffer, text) })),
+    RequestedSave: ({ path }) =>
+      withBuffer(model, path, (buffer) => {
+        const plan = planSave(buffer);
+
+        if (plan.kind === 'blocked') return { buffer, toast: plan.reason };
+        if (plan.kind === 'nothing' || model.name === null) return { buffer };
+
+        return {
+          buffer: savingStarted(buffer),
+          commands: [SaveFile({ name: model.name, path, text: plan.text })],
+        };
+      }),
+    SavedFile: ({ name, path, text }) =>
+      forCurrent(model, name, () =>
+        withBuffer(model, path, (buffer) => ({ buffer: saved(buffer, text) })),
+      ),
+    FailedSave: ({ name, path, reason }) =>
+      forCurrent(model, name, () =>
+        withBuffer(model, path, (buffer) => ({
+          buffer: saveFailed(buffer),
+          toast: `Could not save ${path}: ${reason}`,
+        })),
+      ),
+    CheckedDisk: ({ name, path, text }) =>
+      forCurrent(model, name, () =>
+        withBuffer(model, path, (buffer) => {
+          const change = diskChanged(buffer, text);
+
+          if (change.kind === 'same') return { buffer };
+          if (change.kind === 'reload')
+            return {
+              buffer: change.buffer,
+              commands: [PushEditorText({ text: change.buffer.text })],
+            };
+
+          return { buffer: change.buffer };
+        }),
+      ),
+    KeptMine: () => withOpenBuffer(model, (buffer) => ({ buffer: keptMine(buffer) })),
+    RequestedCloseFile: () =>
+      model.file._tag === 'Editing' && isDirty(model.file.buffer)
+        ? { model, commands: [ConfirmDiscard({ path: model.file.buffer.path })] }
+        : { model: modifyFields(model, { file: () => FileView.Closed() }) },
+    TookTheirs: () =>
+      withOpenBuffer(model, (buffer) => {
+        const taken = tookTheirs(buffer);
+
+        return { buffer: taken, commands: [PushEditorText({ text: taken.text })] };
+      }),
     FailedFiles: ({ name, reason }) =>
       forCurrent(model, name, () => ({
         model: modifyFields(model, {

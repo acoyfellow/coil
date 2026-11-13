@@ -1,3 +1,5 @@
+import { Context } from 'effect';
+import { rpcHandler } from '../../src/rpc';
 import type { coil } from '../../src/service';
 
 type Api = ReturnType<typeof coil>;
@@ -151,6 +153,57 @@ const folders: Probe = async (api, run) => {
   });
 };
 
+const rpc = async (api: Api, tag: string, payload: unknown) => {
+  const handler = rpcHandler({ who: 'ana@example.com', api });
+  const reply = await handler(
+    new Request('http://coil/api/rpc', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ _tag: 'Request', id: '1', tag, payload, headers: [] }),
+    }),
+    Context.empty(),
+  );
+  const [first] = (await reply.json()) as { exit: { _tag: string; value?: unknown } }[];
+
+  return first?.exit;
+};
+
+const ideSave: Probe = async (api, run) => {
+  const name = `ide-${run}`;
+
+  await api.create({ name, createdBy: 'test' });
+  await api.write(name, 'src/app.ts', 'export const a = 1;\n');
+
+  const opened = await rpc(api, 'ReadFile', { name, path: 'src/app.ts' });
+  const saved = await rpc(api, 'WriteFile', {
+    name,
+    path: 'src/app.ts',
+    content: 'export const a = 2;\n',
+  });
+  const reread = await rpc(api, 'ReadFile', { name, path: 'src/app.ts' });
+  const asleep = await api.computerUsage(name);
+  const outside = await rpc(api, 'WriteFile', { name, path: '../etc/passwd', content: 'x' });
+  const stranger = await rpc(
+    { ...api, write: () => Promise.reject(new Error('unknown thread')) } as Api,
+    'WriteFile',
+    { name: `nobody-${run}`, path: 'a', content: 'x' },
+  );
+
+  await api.exec(name, ['bash', '-lc', 'true']);
+
+  const onDisk = await api.read(name, 'src/app.ts');
+
+  return Response.json({
+    opened,
+    saved,
+    reread,
+    bootsAfterSave: asleep.boots,
+    escape: outside?._tag,
+    stranger: stranger?._tag,
+    onDisk,
+  });
+};
+
 export const cloud5Probes: Readonly<Record<string, Probe>> = {
   '/cloud5-lazy': lazy,
   '/cloud5-usage': usage,
@@ -158,4 +211,5 @@ export const cloud5Probes: Readonly<Record<string, Probe>> = {
   '/cloud5-runjs': runjs,
   '/folders': folders,
   '/cloud5-forkdebug': forkdebug,
+  '/ide-save': ideSave,
 };

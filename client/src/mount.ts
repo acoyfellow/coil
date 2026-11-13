@@ -4,6 +4,7 @@ import { rememberFiles } from './command';
 import { attachFollow, followNewContent, pinToBottom } from './follow';
 import { Message } from './message';
 import { attachBrowser } from './surfaces/browser';
+import { attachEditorLazy } from './surfaces/editor-lazy';
 import { attachTerminal } from './surfaces/terminal';
 
 const hold = <A>(
@@ -25,6 +26,22 @@ export const TerminalSurface = Mount.defineStream('TerminalSurface', {
   args: { thread: Schema.String, id: Schema.String },
   messages: [Message.CompletedEffect],
   execute: ({ element, thread, id }) => hold((host) => attachTerminal(host, thread, id), element),
+});
+
+type EditorMessage = typeof Message.EditedFile.Type | typeof Message.RequestedSave.Type;
+
+export const CodeEditor = Mount.defineStream('CodeEditor', {
+  args: { path: Schema.String, text: Schema.String },
+  messages: [Message.EditedFile, Message.RequestedSave],
+  execute: ({ element, path, text }) =>
+    hold<EditorMessage>(
+      (host, emit) =>
+        attachEditorLazy(host, path, text, {
+          changed: (next) => emit(Message.EditedFile({ path, text: next })),
+          save: () => emit(Message.RequestedSave({ path })),
+        }),
+      element,
+    ),
 });
 
 export const BrowserSurface = Mount.defineStream('BrowserSurface', {

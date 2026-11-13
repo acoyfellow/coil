@@ -75,10 +75,21 @@ export const ThreadOp = Schema.Union([
 
 export type ThreadOp = typeof ThreadOp.Type;
 
+export const EditorBuffer = Schema.Struct({
+  path: Schema.String,
+  base: Schema.String,
+  text: Schema.String,
+  saving: Schema.Boolean,
+  conflict: Schema.NullOr(Schema.String),
+});
+
+export type EditorBuffer = typeof EditorBuffer.Type;
+
 export const FileView = defineTaggedUnion({
   Closed: {},
   Loading: { path: Schema.String },
   Loaded: { path: Schema.String, text: Schema.String },
+  Editing: { buffer: EditorBuffer },
 });
 
 export type FileView = typeof FileView.Type;

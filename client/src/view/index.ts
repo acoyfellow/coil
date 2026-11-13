@@ -7,7 +7,7 @@ import { composer } from './composer';
 import { feed } from './feed';
 import { movePicker } from './move-picker';
 import { palette } from './palette';
-import { historyModal, panel } from './panel';
+import { fileModal, historyModal, panel } from './panel';
 import { type H, spinner } from './parts';
 import { settings } from './settings';
 import { side } from './side';
@@ -171,6 +171,7 @@ export const view = (model: Model, h: H): Document => ({
       palette(h, model),
       movePicker(h, model),
       historyModal(h, model),
+      fileModal(h, model),
       settings(h, model),
       ...toasts(h, model),
     ],

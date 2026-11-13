@@ -216,6 +216,22 @@ details[open]>summary .caret .icon{transform:rotate(90deg)}
 .dialog-head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 10px 18px;border-bottom:1px solid var(--line)}
 .dialog-head h2{margin:0;font-size:15px}
 .history-body{overflow:auto;padding:8px 10px 14px}
+.editor-dialog{width:min(1100px,94vw);height:min(82vh,900px);display:flex;flex-direction:column;overflow:hidden;padding:0}
+.editor-dialog .viewer{flex:1;overflow:auto;margin:0;padding:12px 16px}
+@media (max-width:720px){.editor-backdrop{padding:0}.editor-dialog{width:100vw;height:100dvh;max-height:none;border-radius:0;border:0}}
+.editor-pane{display:flex;flex-direction:column;height:100%;background:var(--bg)}
+.editor-bar{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 6px;border-bottom:1px solid var(--line);flex:none}
+.editor-bar .icon-btn{width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--dim)}
+.editor-bar .icon-btn:hover{background:var(--raise);color:var(--fg)}
+.editor-path{flex:1;min-width:0;display:flex;align-items:center;gap:6px;font:12px var(--mono);color:var(--fg);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dirty-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);flex:none}
+.editor-save{height:28px;padding:0 12px;border:1px solid var(--line2);border-radius:7px;background:var(--bg);color:var(--fg);font-size:12px;flex:none}
+.editor-save:not(:disabled){background:var(--text);color:var(--bg);border-color:var(--text)}
+.editor-save:disabled{color:var(--faint)}
+.editor-conflict{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;background:var(--orange-soft,#fff3e6);border-bottom:1px solid var(--line);font-size:12.5px}
+.editor-conflict span{flex:1;min-width:160px}
+.editor-conflict button{height:26px;padding:0 10px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);font-size:12px}
+.editor-host{flex:1;min-height:0;overflow:hidden}
 .tab-sep{width:1px;height:18px;background:var(--line);margin:0 4px;flex:none}
 .tab{display:inline-flex;align-items:center;border-radius:6px;flex:none}
 .tab .tab-main{padding:3px 8px;font-size:12.5px}

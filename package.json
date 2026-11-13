@@ -23,6 +23,10 @@
   },
   "dependencies": {
     "@cloudflare/sandbox": "1.0.3",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/merge": "6.12.3",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@earendil-works/chord": "1.5.0",
     "@earendil-works/pi-ai": "1.5.0",
     "@earendil-works/pi-durable": "1.5.0",
@@ -30,6 +34,7 @@
     "@effect/platform-browser": "4.1.2",
     "@novnc/novnc": "1.7.0",
     "cloudterm": "github:acoyfellow/cloudterm#2fbaeb4",
+    "codemirror": "6.0.2",
     "effect": "4.1.2",
     "foldkit": "0.170.0"
   },

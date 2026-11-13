@@ -316,6 +316,11 @@ export const CoilRpcs = RpcGroup.make(
     success: Schema.String,
     error: CoilError,
   }),
+  Rpc.make('WriteFile', {
+    payload: { ...target, path: Schema.String, content: Schema.String },
+    success: Schema.Struct({ path: Schema.String, bytes: Schema.Number }),
+    error: CoilError,
+  }),
   Rpc.make('Compact', { payload: target, success: Pair, error: CoilError }),
   Rpc.make('Pause', { payload: target, success: Schema.NullOr(Pair), error: CoilError }),
   Rpc.make('Resize', { payload: { ...target, size: Size }, success: Resized, error: CoilError }),

@@ -5,6 +5,7 @@ import { pinToBottom } from './follow';
 import { Message } from './message';
 import { Action, Theme, ThreadOp } from './model';
 import { CoilClient, type RpcClientError } from './rpc';
+import { replaceTextLazy } from './surfaces/editor-lazy';
 
 export const reasonOf = (error: CoilError | RpcClientError): string => {
   switch (error._tag) {
@@ -388,6 +389,54 @@ export const LoadDir = Command.define('LoadDir', {
       Effect.catch((error) =>
         Effect.succeed(Message.FailedFiles({ name, reason: reasonOf(error) })),
       ),
+    ),
+});
+
+export const SaveFile = Command.define('SaveFile', {
+  args: { name: Schema.String, path: Schema.String, text: Schema.String },
+  messages: [Message.SavedFile, Message.FailedSave],
+  execute: ({ name, path, text }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+
+      yield* client.WriteFile({ name, path, content: text });
+
+      return Message.SavedFile({ name, path, text });
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.succeed(Message.FailedSave({ name, path, reason: reasonOf(error) })),
+      ),
+    ),
+});
+
+export const ConfirmDiscard = Command.define('ConfirmDiscard', {
+  args: { path: Schema.String },
+  messages: [Message.ClosedFile, Message.CompletedEffect],
+  execute: ({ path }) =>
+    Effect.sync(() =>
+      globalThis.confirm(`Close ${path} and discard your unsaved changes?`)
+        ? Message.ClosedFile()
+        : Message.CompletedEffect(),
+    ),
+});
+
+export const CheckDisk = Command.define('CheckDisk', {
+  args: { name: Schema.String, path: Schema.String },
+  messages: [Message.CheckedDisk, Message.CompletedEffect],
+  execute: ({ name, path }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+
+      return Message.CheckedDisk({ name, path, text: yield* client.ReadFile({ name, path }) });
+    }).pipe(Effect.catch(() => Effect.succeed(Message.CompletedEffect()))),
+});
+
+export const PushEditorText = Command.define('PushEditorText', {
+  args: { text: Schema.String },
+  messages: [Message.CompletedEffect],
+  execute: ({ text }) =>
+    Effect.promise(() => replaceTextLazy(document.querySelector('#editor'), text)).pipe(
+      Effect.as(Message.CompletedEffect()),
     ),
 });
 
