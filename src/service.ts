@@ -102,7 +102,30 @@ export const coil = (env: Env, owner: string) => {
 
   return {
     models,
-    list: () => directory.list(owner),
+    list: async () => {
+      const threads = await directory.list(owner);
+      const awake = threads.filter((summary) => summary.phase === 'awake' && !summary.busy);
+
+      if (awake.length === 0) return threads;
+
+      const phases = new Map(
+        await Promise.all(
+          awake.map(async (summary) => {
+            const phase = await thread(summary.name)
+              .reconcilePhase()
+              .catch(() => summary.phase);
+
+            return [summary.name, phase] as const;
+          }),
+        ),
+      );
+
+      return threads.map((summary) => {
+        const phase = phases.get(summary.name);
+
+        return phase === undefined ? summary : { ...summary, phase };
+      });
+    },
     create,
     view: async (name: string) => (await known(name)).view(),
     events: async (name: string, request: Request) =>

@@ -1159,7 +1159,11 @@ export class Thread extends DurableObject<Env> {
       return;
     }
 
-    if (!this.computer().running()) return;
+    if (!this.computer().running()) {
+      await this.markStoppedComputer();
+
+      return;
+    }
 
     try {
       await this.pause();
@@ -1634,6 +1638,20 @@ export class Thread extends DurableObject<Env> {
     await this.publish({ model: id });
 
     return this.usage();
+  }
+
+  private async markStoppedComputer(): Promise<void> {
+    if (this.ledger.phase !== 'awake' || this.booting !== undefined) return;
+
+    this.ledger.phase = 'paused';
+    await this.publish();
+    this.state();
+  }
+
+  async reconcilePhase(): Promise<Phase> {
+    if (!this.computer().running()) await this.markStoppedComputer();
+
+    return this.ledger.phase;
   }
 
   async destroyAll(): Promise<null> {

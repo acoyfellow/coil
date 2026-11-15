@@ -876,6 +876,41 @@ export default {
       });
     }
 
+    if (url.pathname === '/stale-awake') {
+      const name = `stale-${run}`;
+      const test = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(name);
+
+      await api.create({ name, createdBy: 'test' });
+      await api.exec(name, ['bash', '-lc', 'true']);
+
+      const before = (await api.list()).find((t) => t.name === name)?.phase ?? null;
+
+      await test.crashComputer();
+      await test.forgetActivity();
+      await test.runAlarm();
+
+      const after = (await api.list()).find((t) => t.name === name)?.phase ?? null;
+      const viewed = await api.view(name);
+      const second = `stale2-${run}`;
+      const secondTest = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(
+        second,
+      );
+
+      await api.create({ name: second, createdBy: 'test' });
+      await api.exec(second, ['bash', '-lc', 'true']);
+      await secondTest.crashComputer();
+
+      const healedByList = (await api.list()).find((t) => t.name === second)?.phase ?? null;
+
+      return Response.json({
+        before,
+        after,
+        viewPhase: viewed.phase,
+        running: viewed.running,
+        healedByList,
+      });
+    }
+
     if (url.pathname === '/lifecycle') {
       const name = `l-${run}`;
       const test = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(name);
