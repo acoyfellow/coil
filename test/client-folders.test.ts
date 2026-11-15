@@ -192,6 +192,19 @@ describe('the sidebar shows folders', { timeout: COLD_BOOT_MS }, () => {
     expect(document.querySelector('#new-folder')).not.toBeNull();
   });
 
+  it('hides the computer panel when no thread is open, and shows it once one is', async () => {
+    const errors = await boot('/');
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector('.app')?.classList.contains('no-thread')).toBe(true);
+    expect(document.querySelector('.panel')?.textContent ?? '').not.toContain('Pick a thread');
+
+    const errorsOpen = await boot('/t/paused-one');
+
+    expect(errorsOpen).toEqual([]);
+    expect(document.querySelector('.app')?.classList.contains('no-thread')).toBe(false);
+  });
+
   it('the row menu moves a thread into a folder', async () => {
     const calls: string[] = [];
     const errors = await boot('/', calls);

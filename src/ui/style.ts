@@ -203,9 +203,10 @@ details[open]>summary .caret .icon{transform:rotate(90deg)}
 ::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
 ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--dim) 35%,transparent);border-radius:6px}
 ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--dim) 60%,transparent)}
-.files{min-height:100%;background-image:url(/brand/tangent-light.svg);background-repeat:repeat}
-:root[data-theme=dark] .files{background-image:url(/brand/tangent-dark.svg)}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .files{background-image:url(/brand/tangent-dark.svg)}}
+.files{min-height:100%}
+.files.is-empty{background-image:url(/brand/tangent-light.svg);background-repeat:repeat}
+:root[data-theme=dark] .files.is-empty{background-image:url(/brand/tangent-dark.svg)}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .files.is-empty{background-image:url(/brand/tangent-dark.svg)}}
 .files-head{display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 8px 8px 2px}
 .files-head .crumbs{flex:1;min-width:0}
 .files .row,.files .viewer,.files .err{background:var(--bg)}
@@ -461,6 +462,8 @@ button.usage:hover{background:var(--hover)}
 .collapse .icon{width:16px;height:16px}
 .side-hidden .side,.side-hidden .side-resizer{display:none}
 .panel-hidden .panel,.panel-hidden .panel-resizer{display:none}
+.app.no-thread{grid-template-columns:var(--side-w,248px) minmax(0,1fr) 0}
+.app.no-thread .panel,.app.no-thread .panel-resizer,.app.no-thread .bar .panel-toggle,.app.no-thread .collapse-panel{display:none!important}
 @container (max-width:620px){
   .bar{position:relative}
 }

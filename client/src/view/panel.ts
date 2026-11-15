@@ -300,8 +300,10 @@ const treeBody = (h: H, model: Model): Html[] => {
 const files = (h: H, model: Model): Html => {
   const body = treeBody(h, model);
 
+  const empty = model.entries._tag === 'Ready' && model.entries.value.length === 0;
+
   return h.div(
-    [h.Class('files')],
+    [h.Class(empty ? 'files is-empty' : 'files')],
     [h.div([h.Class('files-head')], [crumbs(h, model.dirPath), historyButton(h)]), ...body],
   );
 };
@@ -465,13 +467,7 @@ const surfacePane = (h: H, view: ThreadView, surface: Surface): Html =>
       );
 
 const pane = (h: H, model: Model): Html[] => {
-  if (model.name === null)
-    return [
-      h.div(
-        [h.Class('empty')],
-        [h.div([h.Class('empty-inner')], [h.p([], ['Pick a thread to see its computer.'])])],
-      ),
-    ];
+  if (model.name === null) return [];
 
   return ViewState.match(model.view, {
     Loading: () => [skeleton(h)],

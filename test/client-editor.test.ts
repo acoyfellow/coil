@@ -217,6 +217,15 @@ describe('the code editor', { timeout: COLD_BOOT_MS }, () => {
     disk.set('hello.ts', 'const a = 1;\n');
   });
 
+  it('shows the empty-folder pattern only for an empty folder, not for a folder with files', async () => {
+    const errors = await boot('/t/paused-one');
+
+    await waitFor(() => document.querySelectorAll('.files .row').length > 0);
+
+    expect(errors).toEqual([]);
+    expect(document.querySelector('.files')?.classList.contains('is-empty')).toBe(false);
+  });
+
   it('opens a file in CodeMirror, marks edits unsaved, and saves through WriteFile', async () => {
     const calls: string[] = [];
     const errors = await openHello(calls);

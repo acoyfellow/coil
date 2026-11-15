@@ -127,6 +127,7 @@ const appClass = (model: Model): string =>
     'app',
     model.drawer === 'side' ? 'show-side' : '',
     model.drawer === 'panel' ? 'show-panel' : '',
+    model.name === null ? 'no-thread' : '',
     model.online ? '' : 'offline',
   ]
     .filter((part) => part !== '')
