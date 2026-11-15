@@ -199,6 +199,33 @@ export const filesFor = ({ store, running, box }: FilesDeps): Files => ({
   },
 });
 
+export const SKIPPED_DIRECTORIES = new Set(['node_modules', '.git']);
+export const MAX_LISTED_FILES = 2000;
+
+export const walkFiles = async (
+  list: (path: string) => Promise<readonly Entry[]>,
+  limit = MAX_LISTED_FILES,
+): Promise<string[]> => {
+  const found: string[] = [];
+  const queue: string[] = [''];
+
+  while (queue.length > 0 && found.length < limit) {
+    const directory = queue.shift() ?? '';
+    const entries = await list(directory === '' ? '.' : directory).catch(() => [] as Entry[]);
+
+    for (const entry of entries) {
+      const name = entry.name.slice(entry.name.lastIndexOf('/') + 1);
+      const path = directory === '' ? entry.name : `${directory}/${name}`;
+
+      if (entry.type === 'directory') {
+        if (!SKIPPED_DIRECTORIES.has(name)) queue.push(path);
+      } else if (found.length < limit) found.push(path);
+    }
+  }
+
+  return found.sort();
+};
+
 export const flushInto = async (store: WorkspaceStore, box: Computer): Promise<number> => {
   const files = store.files();
 

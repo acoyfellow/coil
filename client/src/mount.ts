@@ -4,7 +4,7 @@ import { rememberFiles } from './command';
 import { attachFollow, followNewContent, pinToBottom } from './follow';
 import { Message } from './message';
 import { attachBrowser } from './surfaces/browser';
-import { attachEditorLazy } from './surfaces/editor-lazy';
+import { attachCompareLazy, attachEditorLazy } from './surfaces/editor-lazy';
 import { attachTerminal } from './surfaces/terminal';
 
 const hold = <A>(
@@ -42,6 +42,13 @@ export const CodeEditor = Mount.defineStream('CodeEditor', {
         }),
       element,
     ),
+});
+
+export const MergeCompare = Mount.defineStream('MergeCompare', {
+  args: { path: Schema.String, mine: Schema.String, theirs: Schema.String },
+  messages: [Message.CompletedEffect],
+  execute: ({ element, path, mine, theirs }) =>
+    hold((host) => attachCompareLazy(host, path, mine, theirs), element),
 });
 
 export const BrowserSurface = Mount.defineStream('BrowserSurface', {

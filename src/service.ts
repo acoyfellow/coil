@@ -173,6 +173,7 @@ export const coil = (env: Env, owner: string) => {
     write: async (name: string, path: string, content: string) =>
       (await known(name)).writeFile(path, content),
     list_dir: async (name: string, path: string) => (await known(name)).list(path),
+    list_files: async (name: string) => (await known(name)).listFiles(),
     compact: async (name: string) => (await known(name)).compact(),
     pause: async (name: string) => (await known(name)).pause(),
     resize: async (name: string, size: Size) => (await known(name)).resize(size),

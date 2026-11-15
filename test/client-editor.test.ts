@@ -98,6 +98,7 @@ const fakeApi = (calls: string[]): CoilApi =>
       return { size, restarted: false };
     },
     list_dir: async () => [{ name: 'hello.ts', type: 'file', size: 10 }],
+    list_files: async () => [...disk.keys()].sort(),
     read: async (_name: string, path: string) => {
       calls.push(`read ${path}`);
 
@@ -252,5 +253,56 @@ describe('the code editor', { timeout: COLD_BOOT_MS }, () => {
 
     expect(document.querySelector('#file-dialog')).toBeNull();
     expect(document.querySelector('.files .row')).not.toBeNull();
+  });
+
+  it('editor tabs and the styled discard dialog work in the real DOM, with no browser confirm', async () => {
+    disk.set('notes/plan.md', '# plan\n');
+    const confirmSpy = vi.fn(() => true);
+    vi.stubGlobal('confirm', confirmSpy);
+    const errors = await openHello([]);
+
+    expect(document.querySelectorAll('.editor-tab')).toHaveLength(1);
+
+    globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', metaKey: true }));
+    await waitFor(() => document.querySelector('#quick-open [data-path="notes/plan.md"]') !== null);
+    document.querySelector<HTMLButtonElement>('#quick-open [data-path="notes/plan.md"]')?.click();
+    await waitFor(() => document.querySelectorAll('.editor-tab').length === 2);
+
+    expect(document.querySelector('#quick-open')).toBeNull();
+    expect(document.querySelector('.editor-tab.on')?.getAttribute('data-path')).toBe(
+      'notes/plan.md',
+    );
+
+    document
+      .querySelector<HTMLButtonElement>('.editor-tab[data-path="hello.ts"] .editor-tab-name')
+      ?.click();
+    await waitFor(() =>
+      (document.querySelector('#editor .cm-content')?.textContent ?? '').includes('const a'),
+    );
+    await typeInto('x');
+    await settle();
+    document
+      .querySelector<HTMLButtonElement>('.editor-tab[data-path="hello.ts"] .editor-tab-close')
+      ?.click();
+    await settle();
+
+    expect(document.querySelector('#discard-dialog')?.textContent).toContain('hello.ts');
+    document.querySelector<HTMLButtonElement>('#discard-keep')?.click();
+    await settle();
+    expect(document.querySelector('#discard-dialog')).toBeNull();
+    expect(document.querySelectorAll('.editor-tab')).toHaveLength(2);
+
+    document
+      .querySelector<HTMLButtonElement>('.editor-tab[data-path="hello.ts"] .editor-tab-close')
+      ?.click();
+    await settle();
+    document.querySelector<HTMLButtonElement>('#discard-confirm')?.click();
+    await settle();
+
+    expect(document.querySelectorAll('.editor-tab')).toHaveLength(1);
+    expect(document.querySelector('.editor-tab')?.getAttribute('data-path')).toBe('notes/plan.md');
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(errors).toEqual([]);
+    vi.unstubAllGlobals();
   });
 });

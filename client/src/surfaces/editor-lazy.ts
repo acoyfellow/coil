@@ -21,5 +21,24 @@ export const attachEditorLazy = (
   };
 };
 
+export const attachCompareLazy = (
+  host: HTMLElement,
+  path: string,
+  mine: string,
+  theirs: string,
+): (() => void) => {
+  let detach: (() => void) | null = null;
+  let gone = false;
+
+  void load().then((editor) => {
+    if (!gone) detach = editor.attachCompare(host, path, mine, theirs);
+  });
+
+  return () => {
+    gone = true;
+    detach?.();
+  };
+};
+
 export const replaceTextLazy = (host: Element | null, text: string): Promise<boolean> =>
   load().then((editor) => editor.replaceText(host, text));

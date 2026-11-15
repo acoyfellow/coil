@@ -108,6 +108,7 @@ export type CoilApi = {
   ) => Promise<{ status: string; answer: string }>;
   readonly exec: (name: string, argv: string[]) => Out<typeof ExecResult>;
   readonly list_dir: (name: string, path: string) => Promise<readonly DirEntry[]>;
+  readonly list_files: (name: string) => Promise<readonly string[]>;
   readonly read: (name: string, path: string) => Promise<string>;
   readonly write: (
     name: string,
@@ -183,6 +184,7 @@ export const handlersFor = (caller: Caller) => {
       attempt(async () => ({ requestId, ...(await api.send(name, requestId, text)) })),
     Exec: ({ name, argv }) => attempt(() => api.exec(name, [...argv])),
     ListDir: ({ name, path }) => attempt(() => api.list_dir(name, path)),
+    ListFiles: ({ name }) => attempt(() => api.list_files(name)),
     ReadFile: ({ name, path }) => attempt(() => api.read(name, path)),
     WriteFile: ({ name, path, content }) => attempt(() => api.write(name, path, content)),
     Compact: ({ name }) => attempt(() => api.compact(name)),

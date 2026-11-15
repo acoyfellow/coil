@@ -315,6 +315,11 @@ export const CoilRpcs = RpcGroup.make(
     success: Schema.Array(DirEntry),
     error: CoilError,
   }),
+  Rpc.make('ListFiles', {
+    payload: target,
+    success: Schema.Array(Schema.String),
+    error: CoilError,
+  }),
   Rpc.make('ReadFile', {
     payload: { ...target, path: Schema.String },
     success: Schema.String,

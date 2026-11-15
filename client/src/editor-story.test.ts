@@ -3,8 +3,10 @@ import { describe, expect, test } from 'vitest';
 import type { ThreadView } from '../../shared/protocol';
 import {
   CheckDisk,
-  ConfirmDiscard,
   ExpireToast,
+  FocusQuickOpen,
+  ListWorkspaceFiles,
+  LoadFile,
   PushEditorText,
   RefreshViewSoon,
   SaveFile,
@@ -39,7 +41,22 @@ const editing = (): Model => ({
   tab: 'files',
 });
 
-const buffer = (current: Model) => (current.file._tag === 'Editing' ? current.file.buffer : null);
+const buffer = (current: Model) => {
+  const file = current.file;
+
+  return file._tag === 'Editing'
+    ? (file.open.find((open) => open.path === file.active) ?? null)
+    : null;
+};
+
+const tabPaths = (current: Model) =>
+  current.file._tag === 'Editing' ? current.file.open.map((open) => open.path) : [];
+
+const activePath = (current: Model) =>
+  current.file._tag === 'Editing' ? current.file.active : null;
+
+const discardPrompt = (current: Model) =>
+  current.file._tag === 'Editing' ? current.file.discard : null;
 
 const toolEnd = Message.ReceivedEvent({
   name: 'demo',
@@ -143,19 +160,155 @@ describe('the editor, told as stories', () => {
     );
   });
 
-  test('closing a file with unsaved edits asks first, and keeps it open if the user says no', () => {
+  test('editor discard dialog: closing unsaved edits asks in-app; Keep editing keeps them', () => {
     story(
       update,
       given(editing()),
       message(Message.LoadedFile({ name: 'demo', path: 'a.ts', text: 'one' })),
       message(Message.EditedFile({ path: 'a.ts', text: 'two' })),
       message(Message.RequestedCloseFile()),
-      Command.expectExact(ConfirmDiscard),
-      Command.resolve(ConfirmDiscard, Message.CompletedEffect()),
-      model((current) => expect(buffer(current)?.text).toBe('two')),
+      Command.expectNone(),
+      model((current) => expect(discardPrompt(current)).toBe('a.ts')),
+      message(Message.CancelledDiscard()),
+      model((current) => {
+        expect(discardPrompt(current)).toBeNull();
+        expect(buffer(current)?.text).toBe('two');
+      }),
       message(Message.RequestedCloseFile()),
-      Command.resolve(ConfirmDiscard, Message.ClosedFile()),
+      message(Message.PressedShortcut({ key: 'stop' })),
+      model((current) => {
+        expect(discardPrompt(current)).toBeNull();
+        expect(current.file._tag).toBe('Editing');
+      }),
+      message(Message.RequestedCloseFile()),
+      message(Message.ConfirmedDiscard()),
       model((current) => expect(current.file._tag).toBe('Closed')),
+    );
+  });
+
+  test('editor tabs: two files open as tabs, clicking an open file focuses its tab', () => {
+    story(
+      update,
+      given(editing()),
+      message(Message.LoadedFile({ name: 'demo', path: 'a.ts', text: 'one' })),
+      message(Message.ClickedFile({ path: 'notes/b.md' })),
+      Command.expectExact(LoadFile),
+      model((current) => expect(activePath(current)).toBe('a.ts')),
+      Command.resolve(
+        LoadFile,
+        Message.LoadedFile({ name: 'demo', path: 'notes/b.md', text: '# b' }),
+      ),
+      model((current) => {
+        expect(tabPaths(current)).toEqual(['a.ts', 'notes/b.md']);
+        expect(activePath(current)).toBe('notes/b.md');
+      }),
+      message(Message.ClickedFile({ path: 'a.ts' })),
+      Command.expectNone(),
+      model((current) => {
+        expect(activePath(current)).toBe('a.ts');
+        expect(tabPaths(current)).toHaveLength(2);
+      }),
+      message(Message.FocusedTab({ path: 'notes/b.md' })),
+      model((current) => expect(buffer(current)?.text).toBe('# b')),
+    );
+  });
+
+  test('editor tabs: Discard closes only the dirty tab and focuses its neighbour', () => {
+    story(
+      update,
+      given(editing()),
+      message(Message.LoadedFile({ name: 'demo', path: 'a.ts', text: 'one' })),
+      message(Message.LoadedFile({ name: 'demo', path: 'b.ts', text: 'bee' })),
+      message(Message.EditedFile({ path: 'b.ts', text: 'changed' })),
+      message(Message.RequestedCloseTab({ path: 'b.ts' })),
+      model((current) => expect(discardPrompt(current)).toBe('b.ts')),
+      message(Message.ConfirmedDiscard()),
+      model((current) => {
+        expect(tabPaths(current)).toEqual(['a.ts']);
+        expect(activePath(current)).toBe('a.ts');
+      }),
+      message(Message.RequestedCloseTab({ path: 'a.ts' })),
+      model((current) => expect(current.file._tag).toBe('Closed')),
+    );
+  });
+
+  test('editor saves the right tab when a save result arrives for a background tab', () => {
+    story(
+      update,
+      given(editing()),
+      message(Message.LoadedFile({ name: 'demo', path: 'a.ts', text: 'one' })),
+      message(Message.EditedFile({ path: 'a.ts', text: 'two' })),
+      message(Message.LoadedFile({ name: 'demo', path: 'b.ts', text: 'bee' })),
+      message(Message.RequestedSave({ path: 'a.ts' })),
+      Command.expectHas(SaveFile),
+      Command.resolve(SaveFile, Message.SavedFile({ name: 'demo', path: 'a.ts', text: 'two' })),
+      model((current) => {
+        expect(activePath(current)).toBe('b.ts');
+        const a = current.file._tag === 'Editing' ? current.file.open[0] : undefined;
+        expect(a?.base).toBe('two');
+        expect(a?.saving).toBe(false);
+      }),
+    );
+  });
+
+  test('editor quick open: Cmd-P lists files, typing filters, Enter opens a tab', () => {
+    story(
+      update,
+      given(editing()),
+      message(Message.PressedShortcut({ key: 'quick-open' })),
+      Command.expectHas(ListWorkspaceFiles),
+      Command.resolve(FocusQuickOpen, Message.CompletedEffect()),
+      Command.resolve(
+        ListWorkspaceFiles,
+        Message.LoadedFileList({ name: 'demo', files: ['README.md', 'src/app.ts', 'src/util.ts'] }),
+      ),
+      message(Message.UpdatedQuickOpen({ query: 'app' })),
+      message(Message.ChoseQuickOpen({ index: 0 })),
+      Command.expectExact(LoadFile),
+      model((current) => {
+        expect(current.quickOpen).toBeNull();
+        expect(current.file._tag).toBe('Loading');
+      }),
+      Command.resolve(
+        LoadFile,
+        Message.LoadedFile({ name: 'demo', path: 'src/app.ts', text: 'x' }),
+      ),
+      model((current) => expect(tabPaths(current)).toEqual(['src/app.ts'])),
+    );
+  });
+
+  test('editor quick open does nothing without an open thread, and Escape closes it first', () => {
+    story(
+      update,
+      given({ ...editing(), name: null }),
+      message(Message.OpenedQuickOpen()),
+      Command.expectNone(),
+      model((current) => expect(current.quickOpen).toBeNull()),
+    );
+    story(
+      update,
+      given({ ...editing(), quickOpen: { query: '', index: 0, files: [] } }),
+      message(Message.PressedShortcut({ key: 'stop' })),
+      model((current) => expect(current.quickOpen).toBeNull()),
+    );
+  });
+
+  test('editor compare: Compare shows the agent diff, Escape hides it before closing', () => {
+    story(
+      update,
+      given(editing()),
+      message(Message.LoadedFile({ name: 'demo', path: 'a.ts', text: 'one' })),
+      message(Message.EditedFile({ path: 'a.ts', text: 'mine' })),
+      message(Message.CheckedDisk({ name: 'demo', path: 'a.ts', text: 'agent' })),
+      message(Message.ToggledCompare()),
+      model((current) =>
+        expect(current.file._tag === 'Editing' && current.file.comparing).toBe(true),
+      ),
+      message(Message.PressedShortcut({ key: 'stop' })),
+      model((current) => {
+        expect(current.file._tag).toBe('Editing');
+        expect(current.file._tag === 'Editing' && current.file.comparing).toBe(false);
+      }),
     );
   });
 });

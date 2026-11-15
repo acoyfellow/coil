@@ -6,7 +6,6 @@ import {
   AskNotify,
   CheckDisk,
   CloseSurface,
-  ConfirmDiscard,
   ConfirmResize,
   CopyText,
   CreateFolder,
@@ -19,10 +18,12 @@ import {
   FocusModelSearch,
   FocusMovePicker,
   FocusPalette,
+  FocusQuickOpen,
   FocusSettings,
   Install,
   JumpToLatest,
   KillLoops,
+  ListWorkspaceFiles,
   LoadDir,
   LoadFile,
   LoadPage,
@@ -62,6 +63,17 @@ import {
   savingStarted,
   tookTheirs,
 } from './editor-state';
+import {
+  activeBuffer,
+  addTab,
+  closeTab,
+  focusTab,
+  fuzzyFiles,
+  hasTab,
+  requestClose,
+  type Tabs,
+  updateTab,
+} from './editor-tabs';
 import { browserTabFor } from './focus';
 import { dropPlan } from './folder-drop';
 import { Message } from './message';
@@ -353,7 +365,45 @@ const ensureTab = (model: Model): Model => {
 };
 
 const recheckOpenFile = (model: Model, name: string): AnyCommand[] =>
-  model.file._tag === 'Editing' ? [CheckDisk({ name, path: model.file.buffer.path })] : [];
+  model.file._tag === 'Editing'
+    ? model.file.open.map((buffer) => CheckDisk({ name, path: buffer.path }))
+    : [];
+
+type Editing = Extract<Model['file'], { _tag: 'Editing' }>;
+
+const tabsOf = (file: Editing): Tabs => ({ open: file.open, active: file.active });
+
+const editingFrom = (file: Editing, tabs: Tabs, patch: Partial<Editing> = {}): Model['file'] =>
+  tabs.active === null
+    ? FileView.Closed()
+    : FileView.Editing({
+        open: tabs.open,
+        active: tabs.active,
+        discard: patch.discard === undefined ? file.discard : patch.discard,
+        comparing: patch.comparing === undefined ? file.comparing : patch.comparing,
+      });
+
+const openedTab = (model: Model, buffer: Buffer): Model['file'] =>
+  model.file._tag === 'Editing'
+    ? editingFrom(model.file, addTab(tabsOf(model.file), buffer), { comparing: false })
+    : FileView.Editing({ open: [buffer], active: buffer.path, discard: null, comparing: false });
+
+const closeWithAsk = (model: Model, path: string): UpdateReturn => {
+  if (model.file._tag !== 'Editing') return { model };
+
+  const file = model.file;
+  const step = requestClose(tabsOf(file), path);
+
+  return step.kind === 'ask'
+    ? {
+        model: modifyFields(model, {
+          file: () => editingFrom(file, tabsOf(file), { discard: path }),
+        }),
+      }
+    : {
+        model: modifyFields(model, { file: () => editingFrom(file, step.tabs, { discard: null }) }),
+      };
+};
 
 type BufferStep = {
   readonly buffer: Buffer;
@@ -364,8 +414,31 @@ type BufferStep = {
 const withOpenBuffer = (model: Model, step: (buffer: Buffer) => BufferStep): UpdateReturn => {
   if (model.file._tag !== 'Editing') return { model };
 
-  const next = step(model.file.buffer);
-  const withFile = modifyFields(model, { file: () => FileView.Editing({ buffer: next.buffer }) });
+  const current = activeBuffer(tabsOf(model.file));
+
+  return current === null ? { model } : withBuffer(model, current.path, step);
+};
+
+const withBuffer = (
+  model: Model,
+  path: string,
+  step: (buffer: Buffer) => BufferStep,
+): UpdateReturn => {
+  if (model.file._tag !== 'Editing') return { model };
+
+  const file = model.file;
+  const current = file.open.find((buffer) => buffer.path === path);
+
+  if (current === undefined) return { model };
+
+  const next = step(current);
+  const withFile = modifyFields(model, {
+    file: () =>
+      editingFrom(
+        file,
+        updateTab(tabsOf(file), current.path, () => next.buffer),
+      ),
+  });
 
   const base: UpdateReturn = { model: withFile, commands: next.commands ?? [] };
 
@@ -373,15 +446,6 @@ const withOpenBuffer = (model: Model, step: (buffer: Buffer) => BufferStep): Upd
     ? base
     : withCommands(toast(withFile, next.toast, true), next.commands ?? []);
 };
-
-const withBuffer = (
-  model: Model,
-  path: string,
-  step: (buffer: Buffer) => BufferStep,
-): UpdateReturn =>
-  model.file._tag === 'Editing' && model.file.buffer.path === path
-    ? withOpenBuffer(model, step)
-    : { model };
 
 const forCurrent = (model: Model, name: string, apply: () => UpdateReturn): UpdateReturn =>
   name === model.name ? apply() : { model };
@@ -697,19 +761,23 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       key === 'stop'
         ? model.settings !== null
           ? { model: modifyFields(model, { settings: () => null }) }
-          : model.file._tag !== 'Closed'
-            ? update(model, Message.RequestedCloseFile())
-            : model.historyOpen
-              ? { model: modifyFields(model, { historyOpen: () => false }) }
-              : stopFromKeyboard(model)
+          : model.quickOpen !== null
+            ? { model: modifyFields(model, { quickOpen: () => null }) }
+            : model.file._tag !== 'Closed'
+              ? update(model, Message.RequestedCloseFile())
+              : model.historyOpen
+                ? { model: modifyFields(model, { historyOpen: () => false }) }
+                : stopFromKeyboard(model)
         : key === 'settings'
           ? update(model, Message.OpenedSettings({ section: null }))
-          : {
-              model: modifyFields(model, {
-                palette: (open) => (open === null ? { query: '', index: 0 } : null),
-              }),
-              commands: [FocusPalette()],
-            },
+          : key === 'quick-open'
+            ? update(model, Message.OpenedQuickOpen())
+            : {
+                model: modifyFields(model, {
+                  palette: (open) => (open === null ? { query: '', index: 0 } : null),
+                }),
+                commands: [FocusPalette()],
+              },
     UpdatedPalette: ({ query }) => ({
       model: modifyFields(model, { palette: () => ({ query, index: 0 }) }),
     }),
@@ -975,19 +1043,119 @@ export const update = (model: Model, message: Message): UpdateReturn =>
             }
           : { model },
       ),
-    ClickedFile: ({ path }) =>
+    ClickedFile: ({ path }) => {
+      if (model.name === null) return { model };
+
+      const file = model.file;
+
+      if (file._tag === 'Editing' && hasTab(tabsOf(file), path))
+        return {
+          model: modifyFields(model, {
+            file: () => editingFrom(file, focusTab(tabsOf(file), path), { comparing: false }),
+          }),
+        };
+
+      return {
+        model:
+          file._tag === 'Editing'
+            ? model
+            : modifyFields(model, { file: () => FileView.Loading({ path }) }),
+        commands: [LoadFile({ name: model.name, path })],
+      };
+    },
+    LoadedFile: ({ name, path, text }) =>
+      forCurrent(model, name, () => ({
+        model: modifyFields(model, { file: () => openedTab(model, opened(path, text)) }),
+      })),
+    FocusedTab: ({ path }) =>
+      model.file._tag === 'Editing'
+        ? {
+            model: modifyFields(model, {
+              file: () =>
+                model.file._tag === 'Editing'
+                  ? editingFrom(model.file, focusTab(tabsOf(model.file), path), {
+                      comparing: false,
+                    })
+                  : model.file,
+            }),
+          }
+        : { model },
+    RequestedCloseTab: ({ path }) => closeWithAsk(model, path),
+    ConfirmedDiscard: () => {
+      if (model.file._tag !== 'Editing' || model.file.discard === null) return { model };
+
+      const file = model.file;
+      const doomed = file.discard ?? '';
+
+      return {
+        model: modifyFields(model, {
+          file: () => editingFrom(file, closeTab(tabsOf(file), doomed), { discard: null }),
+        }),
+      };
+    },
+    CancelledDiscard: () =>
+      model.file._tag === 'Editing'
+        ? {
+            model: modifyFields(model, {
+              file: () =>
+                model.file._tag === 'Editing'
+                  ? editingFrom(model.file, tabsOf(model.file), { discard: null })
+                  : model.file,
+            }),
+          }
+        : { model },
+    ToggledCompare: () =>
+      model.file._tag === 'Editing'
+        ? {
+            model: modifyFields(model, {
+              file: () =>
+                model.file._tag === 'Editing'
+                  ? editingFrom(model.file, tabsOf(model.file), {
+                      comparing: !model.file.comparing,
+                    })
+                  : model.file,
+            }),
+          }
+        : { model },
+    OpenedQuickOpen: () =>
       model.name === null
         ? { model }
         : {
-            model: modifyFields(model, { file: () => FileView.Loading({ path }) }),
-            commands: [LoadFile({ name: model.name, path })],
+            model: modifyFields(model, {
+              quickOpen: () => ({ query: '', index: 0, files: null }),
+              palette: () => null,
+            }),
+            commands: [ListWorkspaceFiles({ name: model.name }), FocusQuickOpen()],
           },
-    LoadedFile: ({ name, path, text }) =>
+    LoadedFileList: ({ name, files }) =>
       forCurrent(model, name, () => ({
         model: modifyFields(model, {
-          file: () => FileView.Editing({ buffer: opened(path, text) }),
+          quickOpen: (open) => (open === null ? null : { ...open, files }),
         }),
       })),
+    UpdatedQuickOpen: ({ query }) => ({
+      model: modifyFields(model, {
+        quickOpen: (open) => (open === null ? null : { ...open, query, index: 0 }),
+      }),
+    }),
+    MovedQuickOpen: ({ delta }) => {
+      const open = model.quickOpen;
+
+      if (open === null) return { model };
+
+      const count = fuzzyFiles(open.files ?? [], open.query).length;
+      const index = count === 0 ? 0 : (open.index + delta + count) % count;
+
+      return { model: modifyFields(model, { quickOpen: () => ({ ...open, index }) }) };
+    },
+    ChoseQuickOpen: ({ index }) => {
+      const open = model.quickOpen;
+      const path = open === null ? undefined : fuzzyFiles(open.files ?? [], open.query)[index];
+      const closed = modifyFields(model, { quickOpen: () => null });
+
+      return path === undefined ? { model: closed } : update(closed, Message.ClickedFile({ path }));
+    },
+    ClosedQuickOpen: () => ({ model: modifyFields(model, { quickOpen: () => null }) }),
     EditedFile: ({ path, text }) =>
       withBuffer(model, path, (buffer) => ({ buffer: edited(buffer, text) })),
     RequestedSave: ({ path }) =>
@@ -1022,22 +1190,29 @@ export const update = (model: Model, message: Message): UpdateReturn =>
           if (change.kind === 'reload')
             return {
               buffer: change.buffer,
-              commands: [PushEditorText({ text: change.buffer.text })],
+              commands: [PushEditorText({ path, text: change.buffer.text })],
             };
 
           return { buffer: change.buffer };
         }),
       ),
     KeptMine: () => withOpenBuffer(model, (buffer) => ({ buffer: keptMine(buffer) })),
-    RequestedCloseFile: () =>
-      model.file._tag === 'Editing' && isDirty(model.file.buffer)
-        ? { model, commands: [ConfirmDiscard({ path: model.file.buffer.path })] }
-        : { model: modifyFields(model, { file: () => FileView.Closed() }) },
+    RequestedCloseFile: () => {
+      if (model.file._tag !== 'Editing')
+        return { model: modifyFields(model, { file: () => FileView.Closed() }) };
+      if (model.file.discard !== null) return update(model, Message.CancelledDiscard());
+      if (model.file.comparing) return update(model, Message.ToggledCompare());
+
+      return closeWithAsk(model, model.file.active);
+    },
     TookTheirs: () =>
       withOpenBuffer(model, (buffer) => {
         const taken = tookTheirs(buffer);
 
-        return { buffer: taken, commands: [PushEditorText({ text: taken.text })] };
+        return {
+          buffer: taken,
+          commands: [PushEditorText({ path: taken.path, text: taken.text })],
+        };
       }),
     FailedFiles: ({ name, reason }) =>
       forCurrent(model, name, () => ({

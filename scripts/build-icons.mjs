@@ -27,6 +27,7 @@ const USED = {
   caret: 'chevron-right',
   folder: 'folder',
   'cloud-upload': 'cloud-upload',
+  search: 'search',
   terminal: 'terminal',
   browser: 'globe',
   pin: 'pin',

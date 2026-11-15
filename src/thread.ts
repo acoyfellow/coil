@@ -69,7 +69,7 @@ import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
 import { type ComputerUsage, metered } from './usage';
 import { pipeSocket } from './vnc';
 import { ensureWebkit } from './webkit-patch';
-import { type Files, filesFor, flushInto, WorkspaceStore } from './workspace-store';
+import { type Files, filesFor, flushInto, WorkspaceStore, walkFiles } from './workspace-store';
 
 const TURN_DIFF_LIMIT = 60_000;
 
@@ -1213,6 +1213,10 @@ export class Thread extends DurableObject<Env> {
 
   list(path: string): Promise<Entry[]> {
     return this.using(() => this.files().list(path));
+  }
+
+  listFiles(): Promise<string[]> {
+    return this.using(() => walkFiles((path) => this.files().list(path)));
   }
 
   private async installGitBroker(): Promise<void> {

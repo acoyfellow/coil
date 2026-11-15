@@ -69,6 +69,7 @@ export const initialModel = (flags: Flags): Model => ({
   notify: notifyPermission(),
   uploading: 0,
   palette: null,
+  quickOpen: null,
   historyOpen: false,
   settings:
     flags.openSettings === undefined || flags.openSettings === null

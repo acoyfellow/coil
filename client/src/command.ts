@@ -409,15 +409,26 @@ export const SaveFile = Command.define('SaveFile', {
     ),
 });
 
-export const ConfirmDiscard = Command.define('ConfirmDiscard', {
-  args: { path: Schema.String },
-  messages: [Message.ClosedFile, Message.CompletedEffect],
-  execute: ({ path }) =>
-    Effect.sync(() =>
-      globalThis.confirm(`Close ${path} and discard your unsaved changes?`)
-        ? Message.ClosedFile()
-        : Message.CompletedEffect(),
-    ),
+export const ListWorkspaceFiles = Command.define('ListWorkspaceFiles', {
+  args: { name: Schema.String },
+  messages: [Message.LoadedFileList],
+  execute: ({ name }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+
+      return Message.LoadedFileList({ name, files: yield* client.ListFiles({ name }) });
+    }).pipe(Effect.catch(() => Effect.succeed(Message.LoadedFileList({ name, files: [] })))),
+});
+
+export const FocusQuickOpen = Command.define('FocusQuickOpen', {
+  messages: [Message.CompletedEffect],
+  execute: Effect.sync(() => {
+    requestAnimationFrame(() =>
+      document.querySelector<HTMLInputElement>('#quick-open-input')?.focus(),
+    );
+
+    return Message.CompletedEffect();
+  }),
 });
 
 export const CheckDisk = Command.define('CheckDisk', {
@@ -432,12 +443,12 @@ export const CheckDisk = Command.define('CheckDisk', {
 });
 
 export const PushEditorText = Command.define('PushEditorText', {
-  args: { text: Schema.String },
+  args: { path: Schema.String, text: Schema.String },
   messages: [Message.CompletedEffect],
-  execute: ({ text }) =>
-    Effect.promise(() => replaceTextLazy(document.querySelector('#editor'), text)).pipe(
-      Effect.as(Message.CompletedEffect()),
-    ),
+  execute: ({ path, text }) =>
+    Effect.promise(() =>
+      replaceTextLazy(document.querySelector(`#editor[data-path="${CSS.escape(path)}"]`), text),
+    ).pipe(Effect.as(Message.CompletedEffect())),
 });
 
 export const LoadFile = Command.define('LoadFile', {

@@ -133,6 +133,12 @@ const shortcuts = windowEvent('keydown', (event) => {
     return Message.PressedShortcut({ key: 'palette' });
   }
 
+  if ((key.metaKey || key.ctrlKey) && !key.shiftKey && key.key.toLowerCase() === 'p') {
+    key.preventDefault();
+
+    return Message.PressedShortcut({ key: 'quick-open' });
+  }
+
   if ((key.metaKey || key.ctrlKey) && key.key === ',') {
     key.preventDefault();
 

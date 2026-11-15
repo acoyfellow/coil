@@ -1,10 +1,10 @@
 import type { Html } from 'foldkit/html';
 import type { DirEntry, Surface, ThreadView } from '../../../shared/protocol';
-import { isDirty } from '../editor-state';
 import { Message } from '../message';
-import { type EditorBuffer, FileView, type Model, ViewState } from '../model';
-import { BrowserSurface, CodeEditor, TerminalSurface } from '../mount';
+import { FileView, type Model, ViewState } from '../model';
+import { BrowserSurface, TerminalSurface } from '../mount';
 import { pathForThread } from '../route';
+import { editorPane } from './editor';
 import { ago, bytes, type H, icon, phaseLabel, skeleton } from './parts';
 
 const tab = (
@@ -141,69 +141,6 @@ const pendingMark = (h: H): Html =>
     [icon(h, 'cloud-upload')],
   );
 
-const editorBar = (h: H, buffer: EditorBuffer): Html =>
-  h.div(
-    [h.Class('editor-bar')],
-    [
-      h.span(
-        [h.Class('editor-path'), h.Title(buffer.path)],
-        [
-          buffer.path,
-          ...(isDirty(buffer)
-            ? [h.span([h.Class('dirty-dot'), h.AriaLabel('Unsaved changes')], [])]
-            : []),
-        ],
-      ),
-      h.button(
-        [
-          h.Class('editor-save'),
-          h.Id('editor-save'),
-          h.DataAttribute('tip', 'Save (⌘S). Saving does not start the computer.'),
-          h.Disabled(!isDirty(buffer) || buffer.saving || buffer.conflict !== null),
-          h.OnClick(Message.RequestedSave({ path: buffer.path })),
-        ],
-        [buffer.saving ? 'Saving…' : isDirty(buffer) ? 'Save' : 'Saved'],
-      ),
-      h.button(
-        [
-          h.Class('icon-btn'),
-          h.Id('editor-close'),
-          h.AriaLabel('Close file'),
-          h.OnClick(Message.RequestedCloseFile()),
-        ],
-        [icon(h, 'close')],
-      ),
-    ],
-  );
-
-const conflictBar = (h: H): Html =>
-  h.div(
-    [h.Class('editor-conflict'), h.Role('alert')],
-    [
-      h.span([], ['The agent changed this file while you were editing.']),
-      h.button([h.OnClick(Message.KeptMine())], ['Keep mine']),
-      h.button([h.OnClick(Message.TookTheirs())], ['Take theirs']),
-    ],
-  );
-
-const editorPane = (h: H, model: Model, buffer: EditorBuffer): Html =>
-  h.div(
-    [h.Class('editor-pane')],
-    [
-      editorBar(h, buffer),
-      ...(buffer.conflict === null ? [] : [conflictBar(h)]),
-      h.keyed('div')(
-        `editor-${model.name ?? ''}-${buffer.path}`,
-        [
-          h.Class('editor-host'),
-          h.Id('editor'),
-          h.OnMount(CodeEditor({ path: buffer.path, text: buffer.text })),
-        ],
-        [],
-      ),
-    ],
-  );
-
 const fileDialog = (h: H, label: string, children: readonly Html[]): Html =>
   h.div(
     [h.Class('dialog-backdrop editor-backdrop'), h.OnClick(Message.RequestedCloseFile())],
@@ -241,7 +178,7 @@ export const fileModal = (h: H, model: Model): Html =>
       ]),
     Loaded: ({ path, text }) =>
       fileDialog(h, path, [h.pre([h.Class('viewer')], [text === '' ? '(empty file)' : text])]),
-    Editing: ({ buffer }) => fileDialog(h, buffer.path, [editorPane(h, model, buffer)]),
+    Editing: (file) => fileDialog(h, file.active, [editorPane(h, model, file)]),
   });
 
 const historyButton = (h: H): Html =>

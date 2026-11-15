@@ -226,7 +226,22 @@ const asleepPending: Probe = async (api, run) => {
   });
 };
 
+const ideList: Probe = async (api, run) => {
+  const name = `idelist-${run}`;
+
+  await api.create({ name, createdBy: 'test' });
+  await api.write(name, 'src/a.ts', 'export {};\n');
+  await api.write(name, 'notes/b.md', '# b\n');
+  await api.write(name, 'node_modules/x/index.js', 'skip\n');
+
+  const asleep = await rpc(api, 'ListFiles', { name });
+  const usage = await api.computerUsage(name);
+
+  return Response.json({ asleep, bootsWhileListing: usage.boots });
+};
+
 export const cloud5Probes: Readonly<Record<string, Probe>> = {
+  '/ide-list': ideList,
   '/asleep-pending': asleepPending,
   '/cloud5-lazy': lazy,
   '/cloud5-usage': usage,

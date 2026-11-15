@@ -89,8 +89,21 @@ export const FileView = defineTaggedUnion({
   Closed: {},
   Loading: { path: Schema.String },
   Loaded: { path: Schema.String, text: Schema.String },
-  Editing: { buffer: EditorBuffer },
+  Editing: {
+    open: Schema.Array(EditorBuffer),
+    active: Schema.String,
+    discard: Schema.NullOr(Schema.String),
+    comparing: Schema.Boolean,
+  },
 });
+
+export const QuickOpen = Schema.Struct({
+  query: Schema.String,
+  index: Schema.Number,
+  files: Schema.NullOr(Schema.Array(Schema.String)),
+});
+
+export type QuickOpen = typeof QuickOpen.Type;
 
 export type FileView = typeof FileView.Type;
 
@@ -165,6 +178,7 @@ export const Model = Schema.Struct({
   notify: Schema.Literals(['unsupported', 'default', 'granted', 'denied']),
   uploading: Schema.Number,
   palette: Schema.NullOr(Schema.Struct({ query: Schema.String, index: Schema.Number })),
+  quickOpen: Schema.NullOr(QuickOpen),
   historyOpen: Schema.Boolean,
   settings: Schema.NullOr(Schema.Struct({ query: Schema.String, section: SettingsSection })),
   addMenuOpen: Schema.Boolean,

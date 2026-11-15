@@ -4,6 +4,7 @@ import { Message } from '../message';
 import type { Model } from '../model';
 import { bar } from './bar';
 import { composer } from './composer';
+import { quickOpen } from './editor';
 import { feed } from './feed';
 import { movePicker } from './move-picker';
 import { palette } from './palette';
@@ -170,6 +171,7 @@ export const view = (model: Model, h: H): Document => ({
       ),
       newThreadDialog(h, model),
       palette(h, model),
+      quickOpen(h, model),
       movePicker(h, model),
       historyModal(h, model),
       fileModal(h, model),
