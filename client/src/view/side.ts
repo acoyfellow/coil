@@ -432,7 +432,10 @@ const activeList = (h: H, model: Model, threads: readonly ThreadSummary[]): Html
           : section.kind === 'pinned'
             ? pinnedHeader(h, section.threads.length)
             : groupHeader(h, model, section.label, section.threads.length);
-      const body = isOpen(model, section.key) ? sectionRows(h, model, section, children) : [];
+      const body =
+        section.kind === 'pinned' || isOpen(model, section.key)
+          ? sectionRows(h, model, section, children)
+          : [];
 
       return [...lead, header, ...body];
     })
