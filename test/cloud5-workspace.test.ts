@@ -55,8 +55,8 @@ describe('workspace outside the box', () => {
 
     expect(out.read).toBe('# plan');
     expect(out.root).toEqual([
-      { name: 'notes', type: 'directory' },
-      { name: 'a.txt', type: 'file' },
+      { name: 'notes', type: 'directory', pending: true },
+      { name: 'a.txt', type: 'file', pending: true },
     ]);
     expect(out.bootsWhileAsleep).toBe(0);
     expect(out.heldBeforeBoot).toEqual(['a.txt', 'notes/plan.md']);

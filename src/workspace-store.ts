@@ -45,7 +45,7 @@ export const listUnder = (paths: readonly string[], directory: string): Entry[] 
   }
 
   return [...seen]
-    .map(([name, type]) => ({ name, type, pending: true }))
+    .map(([name, type]) => ({ name, type }))
     .sort((a, b) =>
       a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'directory' ? -1 : 1,
     );
@@ -99,7 +99,7 @@ export class WorkspaceStore {
   }
 
   list(directory: string): Entry[] {
-    return listUnder(this.paths(), directory);
+    return listUnder(this.paths(), directory).map((entry) => ({ ...entry, pending: true }));
   }
 
   paths(): string[] {
