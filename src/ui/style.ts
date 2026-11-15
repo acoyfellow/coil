@@ -95,6 +95,7 @@ button.kids-toggle{border-radius:4px;position:absolute;left:0;top:50%;transform:
 .item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;color:inherit;text-decoration:none;min-width:0}
 .item:hover{background:var(--hover)}
 .item.on{background:var(--raise);font-weight:500}
+.pin-mark{display:inline-flex;color:var(--faint);flex:none}.pin-mark .icon{width:12px;height:12px}
 .item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .m{font-size:11.5px;color:var(--faint);white-space:nowrap}
 .item.child{padding-left:24px}

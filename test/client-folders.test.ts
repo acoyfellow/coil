@@ -192,6 +192,19 @@ describe('the sidebar shows folders', { timeout: COLD_BOOT_MS }, () => {
     expect(document.querySelector('#new-folder')).not.toBeNull();
   });
 
+  it('pin indicator: pinned rows show a pin icon and the header is a section label', async () => {
+    const errors = await boot('/');
+    const pinned = document.querySelector('[data-thread="pinned-old"]');
+    const unpinned = document.querySelector('[data-thread="stray"]');
+    const header = document.querySelector('[data-group="Pinned"]');
+
+    expect(errors).toEqual([]);
+    expect(pinned?.querySelector('svg.icon')).not.toBeNull();
+    expect(pinned?.querySelector('.pin-mark svg')).not.toBeNull();
+    expect(unpinned?.querySelector('.pin-mark')).toBeNull();
+    expect(header?.classList.contains('section-label')).toBe(true);
+  });
+
   it('hides the computer panel when no thread is open, and shows it once one is', async () => {
     const errors = await boot('/');
 

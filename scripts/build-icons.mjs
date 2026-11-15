@@ -28,6 +28,7 @@ const USED = {
   folder: 'folder',
   terminal: 'terminal',
   browser: 'globe',
+  pin: 'pin',
 };
 
 const inner = (name) => {
