@@ -148,6 +148,7 @@ const row = (h: H, model: Model, thread: ThreadSummary, child: boolean, kids = 0
         ],
         [
           h.span([h.Class(`dot ${phaseKey(thread)}`), h.AriaLabel(phaseLabel(thread))], []),
+          ...(thread.pinned === true ? [h.span([h.Class('pin-mark')], [icon(h, 'pin')])] : []),
           h.span([h.Class('t')], [thread.title === '' ? thread.name : thread.title]),
           h.span([h.Class('m')], [short(model.now, thread.updatedAt)]),
         ],
@@ -355,6 +356,13 @@ const sectionRows = (
     ];
   });
 
+const pinnedHeader = (h: H, count: number): Html =>
+  h.keyed('div')(
+    'pinned-head',
+    [h.Class('section-label'), h.DataAttribute('group', 'Pinned')],
+    [`Pinned ${count}`],
+  );
+
 const recentHeader = (h: H, model: Model): Html =>
   h.keyed('div')(
     'recent-head',
@@ -421,7 +429,9 @@ const activeList = (h: H, model: Model, threads: readonly ThreadSummary[]): Html
       const header =
         section.kind === 'folder'
           ? folderHeader(h, model, section)
-          : groupHeader(h, model, section.label, section.threads.length);
+          : section.kind === 'pinned'
+            ? pinnedHeader(h, section.threads.length)
+            : groupHeader(h, model, section.label, section.threads.length);
       const body = isOpen(model, section.key) ? sectionRows(h, model, section, children) : [];
 
       return [...lead, header, ...body];

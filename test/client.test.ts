@@ -192,7 +192,9 @@ describe('the foldkit client loads conversations', { timeout: COLD_BOOT_MS }, ()
     const calls: string[] = [];
     const errors = await boot('/', calls);
     const groups = () =>
-      [...document.querySelectorAll('#list .group')].map((group) => group.textContent ?? '');
+      [...document.querySelectorAll('#list .group, #list .section-label[data-group]')].map(
+        (group) => group.textContent ?? '',
+      );
 
     expect(errors).toEqual([]);
     expect(groups()).toEqual(['Pinned 1', 'Today 3', 'Earlier 1']);

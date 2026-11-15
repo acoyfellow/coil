@@ -2,6 +2,7 @@ import { Duration, Effect, Option, Queue, Schema, Stream } from 'effect';
 import { Subscription } from 'foldkit';
 import { eventsPath, LiveEvent } from '../../shared/protocol';
 import { rememberInstallPrompt } from './command';
+import { createLongPress } from './long-press';
 import { Message } from './message';
 import type { Model } from './model';
 import type { CoilClient } from './rpc';
@@ -62,6 +63,53 @@ const windowEvent = <A>(type: string, toMessage: (event: Event) => A): Stream.St
       (listener) => Effect.sync(() => globalThis.removeEventListener(type, listener)),
     ).pipe(Effect.andThen(Effect.never)),
   );
+
+const rowLongPress: Stream.Stream<Message> = Stream.callback<Message>((queue) =>
+  Effect.acquireRelease(
+    Effect.sync(() => {
+      let name: string | null = null;
+      const press = createLongPress(() => {
+        if (name !== null) Queue.offerUnsafe(queue, Message.OpenedMovePicker({ name }));
+      });
+      const cancel = () => press.end();
+      const onStart = (event: Event) => {
+        const touch = (event as TouchEvent).touches[0];
+        const row = (event.target as Element | null)?.closest?.('[data-thread]');
+
+        if (touch === undefined || row === null || row === undefined) return;
+        name = row.getAttribute('data-thread');
+        press.start(touch.clientX, touch.clientY);
+      };
+      const onMove = (event: Event) => {
+        const touch = (event as TouchEvent).touches[0];
+
+        if (touch !== undefined) press.move(touch.clientX, touch.clientY);
+      };
+      const onMenu = (event: Event) => {
+        if ((event.target as Element | null)?.closest?.('[data-thread]')) event.preventDefault();
+      };
+
+      globalThis.addEventListener('touchstart', onStart, { passive: true });
+      globalThis.addEventListener('touchmove', onMove, { passive: true });
+      globalThis.addEventListener('touchend', cancel);
+      globalThis.addEventListener('touchcancel', cancel);
+      globalThis.addEventListener('scroll', cancel, true);
+      globalThis.addEventListener('contextmenu', onMenu);
+
+      return { onStart, onMove, cancel, onMenu };
+    }),
+    ({ onStart, onMove, cancel, onMenu }) =>
+      Effect.sync(() => {
+        cancel();
+        globalThis.removeEventListener('touchstart', onStart);
+        globalThis.removeEventListener('touchmove', onMove);
+        globalThis.removeEventListener('touchend', cancel);
+        globalThis.removeEventListener('touchcancel', cancel);
+        globalThis.removeEventListener('scroll', cancel, true);
+        globalThis.removeEventListener('contextmenu', onMenu);
+      }),
+  ).pipe(Effect.andThen(Effect.never)),
+);
 
 const installPrompts = windowEvent('beforeinstallprompt', (event) => {
   event.preventDefault();
@@ -177,6 +225,10 @@ export const subscriptions = Subscription.make<Model, Message, CoilClient>()((en
           windowEvent('offline', () => Message.ChangedOnline({ online: false })),
         ),
     },
+  ),
+  longPress: entry(
+    { on: Schema.Boolean },
+    { modelToDependencies: () => ({ on: true }), dependenciesToStream: () => rowLongPress },
   ),
   keys: entry(
     { on: Schema.Boolean },

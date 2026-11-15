@@ -29,6 +29,7 @@ const USED = {
   'cloud-upload': 'cloud-upload',
   terminal: 'terminal',
   browser: 'globe',
+  pin: 'pin',
 };
 
 const inner = (name) => {
