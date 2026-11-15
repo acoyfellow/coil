@@ -12,7 +12,7 @@ export type ExecResult = {
 
 export type Snapshot = { readonly id: string; readonly size: number };
 
-export type Entry = { readonly name: string; readonly type: string };
+export type Entry = { readonly name: string; readonly type: string; readonly pending?: boolean };
 
 export class ComputerLost extends Error {
   override readonly name = 'ComputerLost';

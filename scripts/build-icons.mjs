@@ -26,6 +26,7 @@ const USED = {
   reload: 'rotate-cw',
   caret: 'chevron-right',
   folder: 'folder',
+  'cloud-upload': 'cloud-upload',
   terminal: 'terminal',
   browser: 'globe',
 };

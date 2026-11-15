@@ -185,7 +185,11 @@ export const ThreadView = Schema.Struct({
 
 export type ThreadView = typeof ThreadView.Type;
 
-export const DirEntry = Schema.Struct({ name: Schema.String, type: Schema.String });
+export const DirEntry = Schema.Struct({
+  name: Schema.String,
+  type: Schema.String,
+  pending: Schema.optional(Schema.Boolean),
+});
 
 export type DirEntry = typeof DirEntry.Type;
 

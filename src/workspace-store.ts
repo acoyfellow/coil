@@ -45,7 +45,7 @@ export const listUnder = (paths: readonly string[], directory: string): Entry[] 
   }
 
   return [...seen]
-    .map(([name, type]) => ({ name, type }))
+    .map(([name, type]) => ({ name, type, pending: true }))
     .sort((a, b) =>
       a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'directory' ? -1 : 1,
     );
@@ -161,6 +161,16 @@ export type FilesDeps = {
   readonly box: () => Promise<Computer>;
 };
 
+export const withPending = (disk: readonly Entry[], pending: readonly Entry[]): Entry[] => {
+  const held = new Map(pending.map((entry) => [entry.name, entry]));
+  const merged = disk.map((entry) => held.get(entry.name) ?? entry);
+  const extra = pending.filter((entry) => !disk.some((known) => known.name === entry.name));
+
+  return [...merged, ...extra].sort((a, b) =>
+    a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'directory' ? -1 : 1,
+  );
+};
+
 export const filesFor = ({ store, running, box }: FilesDeps): Files => ({
   read: async (path) => {
     if (running()) return (await box()).readFile(path);
@@ -183,7 +193,9 @@ export const filesFor = ({ store, running, box }: FilesDeps): Files => ({
   list: async (path) => {
     if (running()) return (await box()).list(path);
 
-    return store.sealed ? (await box()).list(path) : store.list(path);
+    return store.sealed
+      ? withPending(await (await box()).list(path), store.list(path))
+      : store.list(path);
   },
 });
 

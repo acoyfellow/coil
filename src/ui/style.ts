@@ -204,6 +204,8 @@ details[open]>summary .caret .icon{transform:rotate(90deg)}
 ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--dim) 35%,transparent);border-radius:6px}
 ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--dim) 60%,transparent)}
 .files{min-height:100%}
+.pending-mark{display:inline-flex;margin-left:6px;color:var(--faint);vertical-align:-2px}
+.pending-mark svg{width:13px;height:13px}
 .files.is-empty{background-image:url(/brand/tangent-light.svg);background-repeat:repeat}
 :root[data-theme=dark] .files.is-empty{background-image:url(/brand/tangent-dark.svg)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .files.is-empty{background-image:url(/brand/tangent-dark.svg)}}

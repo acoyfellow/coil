@@ -123,9 +123,23 @@ const entryRow = (h: H, dir: string, entry: DirEntry): Html => {
     [
       isDir ? icon(h, 'folder') : h.span([h.Class('icon-gap')], []),
       `${entry.name}${isDir ? '/' : ''}`,
+      ...(entry.pending === true && !isDir ? [pendingMark(h)] : []),
     ],
   );
 };
+
+const pendingMark = (h: H): Html =>
+  h.span(
+    [
+      h.Class('pending-mark'),
+      h.DataAttribute(
+        'tip',
+        'Saved while the computer was asleep. It goes onto the disk when the computer starts.',
+      ),
+      h.AriaLabel('Saved while asleep'),
+    ],
+    [icon(h, 'cloud-upload')],
+  );
 
 const editorBar = (h: H, buffer: EditorBuffer): Html =>
   h.div(

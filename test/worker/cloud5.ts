@@ -204,7 +204,30 @@ const ideSave: Probe = async (api, run) => {
   });
 };
 
+const asleepPending: Probe = async (api, run) => {
+  const name = `asleep-${run}`;
+
+  await api.create({ name, createdBy: 'test' });
+  await api.write(name, 'notes/plan.md', '# plan\n');
+
+  const rootAsleep = await rpc(api, 'ListDir', { name, path: '.' });
+  const notesAsleep = await rpc(api, 'ListDir', { name, path: 'notes' });
+  const asleep = await api.computerUsage(name);
+
+  await api.exec(name, ['bash', '-lc', 'true']);
+
+  const notesAwake = await rpc(api, 'ListDir', { name, path: 'notes' });
+
+  return Response.json({
+    rootAsleep,
+    notesAsleep,
+    notesAwake,
+    bootsWhileAsleep: asleep.boots,
+  });
+};
+
 export const cloud5Probes: Readonly<Record<string, Probe>> = {
+  '/asleep-pending': asleepPending,
   '/cloud5-lazy': lazy,
   '/cloud5-usage': usage,
   '/cloud5-workspace': workspace,
