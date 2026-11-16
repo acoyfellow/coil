@@ -195,6 +195,8 @@ type SheetSpec = { readonly goal: string; readonly expect: string };
 
 const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 
+const SNAPSHOT_START_WAIT_MS = 75_000;
+
 export class ThreadBusy extends Error {
   override readonly name = 'ThreadBusy';
 }
@@ -429,7 +431,9 @@ export class Thread extends DurableObject<Env> {
 
         if (this.ledger.phase === 'awake') await this.recordLostComputer(from);
 
-        await box.boot(from, this.ledger.size);
+        const restored = await this.bootWithFallback(box, from);
+
+        if (restored?.id !== from?.id) await this.recordFallback(from, restored);
         this.store.seal();
         await this.installGitBroker();
 
@@ -1104,6 +1108,56 @@ export class Thread extends DurableObject<Env> {
 
     this.ledger.inbox = rest;
     await this.start(next.requestId, next.message);
+  }
+
+  private async bootWithFallback(
+    box: Computer,
+    from: Snapshot | undefined,
+  ): Promise<Snapshot | undefined> {
+    if (from === undefined) {
+      await box.boot(undefined, this.ledger.size);
+
+      return undefined;
+    }
+
+    const choices = this.ledger.restoreChoices();
+    let failure: unknown;
+
+    for (const choice of choices) {
+      try {
+        await box.boot(choice, this.ledger.size, SNAPSHOT_START_WAIT_MS);
+
+        return choice;
+      } catch (cause) {
+        failure = cause;
+        console.warn('snapshot restore failed', choice.id, String(cause));
+        await box.destroy().catch(() => undefined);
+      }
+    }
+
+    console.warn('every snapshot failed, starting a clean computer', String(failure));
+    await box.boot(undefined, this.ledger.size);
+
+    return undefined;
+  }
+
+  private async recordFallback(wanted: Snapshot | undefined, got: Snapshot | undefined) {
+    const when = (snapshot: Snapshot | undefined) =>
+      this.ledger.pairs().find((pair) => pair.snapshot.id === snapshot?.id)?.at;
+    const wantedAt = when(wanted);
+    const gotAt = when(got);
+    const described =
+      got === undefined
+        ? 'a clean computer, because no saved disk would start. Files saved through the editor are kept; other changes on the old disk are gone'
+        : `the disk saved at ${new Date(gotAt ?? 0).toISOString()}, because the newer saved disk would not start`;
+    const record = await this.ledger.logExec(
+      ['coil', 'restore-fallback'],
+      1,
+      `The disk saved at ${new Date(wantedAt ?? 0).toISOString()} would not start. The computer started from ${described}.`,
+      'agent',
+    );
+
+    this.emit({ type: 'exec', record });
   }
 
   private async recordLostComputer(from: Snapshot | undefined) {

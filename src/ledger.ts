@@ -386,6 +386,24 @@ export class Ledger {
     return next;
   }
 
+  restoreChoices(depth = 3): Snapshot[] {
+    const seen = new Set<string>();
+    const choices: Snapshot[] = [];
+
+    for (const pair of [...this.pairs()].reverse()) {
+      if (choices.length >= depth) break;
+      if (seen.has(pair.snapshot.id)) continue;
+      seen.add(pair.snapshot.id);
+      choices.push(pair.snapshot);
+    }
+
+    const base = this.get('base');
+
+    if (choices.length === 0 && base !== null) choices.push({ id: base, size: 0 });
+
+    return choices;
+  }
+
   bootSnapshot(): Snapshot | undefined {
     const latest = this.latest()?.snapshot;
 

@@ -20,7 +20,7 @@ export class ComputerLost extends Error {
 
 export type Computer = {
   readonly running: () => boolean;
-  readonly boot: (from: Snapshot | undefined, size: Size) => Promise<void>;
+  readonly boot: (from: Snapshot | undefined, size: Size, waitMs?: number) => Promise<void>;
   readonly exec: (argv: readonly string[], cwd?: string) => Promise<ExecResult>;
   readonly readFile: (path: string) => Promise<string>;
   readonly writeFile: (path: string, content: string | ArrayBuffer) => Promise<void>;
@@ -43,8 +43,8 @@ const isStarting = (cause: unknown) => STARTING.test(String(cause));
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const untilStarted = async <A>(attempt: () => Promise<A>): Promise<A> => {
-  const deadline = Date.now() + READY_WAIT_MS;
+const untilStarted = async <A>(attempt: () => Promise<A>, waitMs = READY_WAIT_MS): Promise<A> => {
+  const deadline = Date.now() + waitMs;
 
   for (;;) {
     try {
@@ -98,7 +98,7 @@ export const sandboxComputer = (container: Container, image: string): Computer =
 
   return {
     running: () => container.running,
-    boot: async (from, size) => {
+    boot: async (from, size, waitMs) => {
       if (container.running) return;
 
       const base = {
@@ -110,7 +110,7 @@ export const sandboxComputer = (container: Container, image: string): Computer =
       container.start(
         from === undefined ? { ...base, image } : { ...base, containerSnapshot: { id: from.id } },
       );
-      await untilStarted(() => container.setInactivityTimeout(PLATFORM_INACTIVITY_MS));
+      await untilStarted(() => container.setInactivityTimeout(PLATFORM_INACTIVITY_MS), waitMs);
     },
     exec,
     readFile: async (path) => (await files.readFile(inWorkspace(path))).text(),

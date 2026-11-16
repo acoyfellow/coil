@@ -8,6 +8,10 @@ const running = new Map<string, Disk>();
 
 export const crash = (owner: string) => running.delete(owner);
 
+const unbootable = new Set<string>();
+
+export const breakSnapshot = (id: string) => unbootable.add(id);
+
 const bootedAt = new Map<string, string[]>();
 
 export const bootSizes = (owner: string) => bootedAt.get(owner) ?? [];
@@ -32,6 +36,8 @@ export const memoryComputer = (owner: string): Computer => ({
   running: () => running.has(owner),
   boot: async (from, size) => {
     if (running.has(owner)) return;
+    if (from !== undefined && unbootable.has(from.id))
+      throw new Error('The container has not been started');
 
     bootedAt.set(owner, [...(bootedAt.get(owner) ?? []), size]);
 

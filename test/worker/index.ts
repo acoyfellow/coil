@@ -16,7 +16,7 @@ import { ConnectorStore } from '../../src/connectors/store';
 import { coil, sharedView } from '../../src/service';
 import { statsPage } from '../../src/stats-page';
 import { type Env, Thread } from '../../src/thread';
-import { bootSizes, crash, memoryComputer } from '../memory-computer';
+import { bootSizes, breakSnapshot, crash, memoryComputer } from '../memory-computer';
 import { cloud5Probes } from './cloud5';
 
 const CONNECTOR_UPSTREAM = 'https://mcp.test/mcp';
@@ -254,6 +254,18 @@ type TestBindings = {
 export class TestThread extends Thread {
   async crashComputer() {
     crash(this.ctx.id.toString());
+  }
+
+  async breakLatestSnapshot() {
+    const latest = this.ledger.latest()?.snapshot.id;
+
+    if (latest !== undefined) breakSnapshot(latest);
+
+    return latest ?? null;
+  }
+
+  async breakEverySnapshot() {
+    for (const pair of this.ledger.pairs()) breakSnapshot(pair.snapshot.id);
   }
 
   async bootSizes() {
@@ -873,6 +885,40 @@ export default {
         pausedResize,
         boots: await test.bootSizes(),
         finalSize: (await api.view(name)).size,
+      });
+    }
+
+    if (url.pathname === '/restore-fallback') {
+      const name = `fallback-${run}`;
+      const test = (env.THREAD as unknown as DurableObjectNamespace<TestThread>).getByName(name);
+
+      await api.create({ name, createdBy: 'test' });
+      await api.exec(name, ['bash', '-lc', 'true']);
+      await api.write(name, 'one.txt', 'one');
+      await api.pause(name);
+      await api.exec(name, ['bash', '-lc', 'true']);
+      await api.write(name, 'two.txt', 'two');
+      await api.pause(name);
+      await test.breakLatestSnapshot();
+
+      const olderDisk = await api.exec(name, ['bash', '-lc', 'ls']);
+      const afterOlder = await api.view(name);
+
+      await api.pause(name);
+      await test.breakEverySnapshot();
+
+      const cleanDisk = await api.exec(name, ['bash', '-lc', 'ls']);
+      const afterClean = await api.view(name);
+      const notes = (view: typeof afterClean) =>
+        view.execs.filter((e) => e.argv.join(' ') === 'coil restore-fallback').map((e) => e.output);
+
+      return Response.json({
+        pairs: afterClean.pairs.map((pair) => pair.snapshot.id.slice(0, 12)),
+        olderDisk: olderDisk.stdout,
+        olderNotes: notes(afterOlder),
+        cleanDisk: cleanDisk.stdout,
+        cleanNotes: notes(afterClean),
+        running: afterClean.running,
       });
     }
 
