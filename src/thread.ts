@@ -195,7 +195,7 @@ type SheetSpec = { readonly goal: string; readonly expect: string };
 
 const AUTO_PAUSE_AFTER_MS = 9 * 60 * 1000;
 
-const SNAPSHOT_START_WAIT_MS = 75_000;
+const SNAPSHOT_START_WAIT_MS = 50_000;
 
 export class ThreadBusy extends Error {
   override readonly name = 'ThreadBusy';

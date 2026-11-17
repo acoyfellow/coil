@@ -386,7 +386,7 @@ export class Ledger {
     return next;
   }
 
-  restoreChoices(depth = 3): Snapshot[] {
+  restoreChoices(depth = 2): Snapshot[] {
     const seen = new Set<string>();
     const choices: Snapshot[] = [];
 
