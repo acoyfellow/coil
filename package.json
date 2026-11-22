@@ -35,16 +35,16 @@
     "@codemirror/merge": "6.12.3",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.15",
-    "@earendil-works/chord": "1.5.0",
-    "@earendil-works/pi-ai": "1.5.0",
-    "@earendil-works/pi-durable": "1.5.0",
-    "@earendil-works/pi-schema": "1.5.0",
-    "@effect/platform-browser": "4.1.2",
+    "@earendil-works/chord": "1.6.0",
+    "@earendil-works/pi-ai": "1.6.0",
+    "@earendil-works/pi-durable": "1.6.0",
+    "@earendil-works/pi-schema": "1.6.0",
+    "@effect/platform-browser": "4.1.5",
     "@novnc/novnc": "1.7.0",
     "cloudterm": "github:acoyfellow/cloudterm#2fbaeb4",
     "codemirror": "6.0.2",
-    "effect": "4.1.2",
-    "foldkit": "0.170.0"
+    "effect": "4.1.5",
+    "foldkit": "0.171.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
@@ -56,6 +56,6 @@
     "typescript": "^7.0.2",
     "vite": "8.3.5",
     "vitest": "^5.0.5",
-    "wrangler": "4.156.1"
+    "wrangler": "4.166.0"
   }
 }
