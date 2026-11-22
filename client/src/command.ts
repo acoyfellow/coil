@@ -910,9 +910,11 @@ export const ShowNotifications = Command.define('ShowNotifications', {
 
       for (const item of items) {
         const body =
-          item.why === 'loop'
-            ? 'Loop finished. Open it for the digest.'
-            : 'The agent finished its turn.';
+          item.why === 'waiting'
+            ? 'The agent is waiting for your approval.'
+            : item.why === 'loop'
+              ? 'Loop finished. Open it for the digest.'
+              : 'The agent finished its turn.';
         const options = {
           body,
           tag: `coil-${item.name}`,

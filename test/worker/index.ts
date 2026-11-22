@@ -916,6 +916,7 @@ export default {
       await api.start(name, crypto.randomUUID(), 'call run {"command":"git push origin main"}');
       await waitFor(async () => (await parked()).length === 1);
       const first = await parked();
+      const listedWaiting = (await api.list()).find((thread) => thread.name === name)?.waiting ?? 0;
       const ranBefore = await ran('git push origin main');
       const left = await api.decide(name, first[0]?.key ?? '', true);
       const allowedAnswer = await api.wait(name, 20);
@@ -944,6 +945,8 @@ export default {
         denied: { ran: deniedRan, answer: deniedAnswer.answer ?? '' },
         unknown,
         safe: { parked: safeParked, ran: safeRan },
+        listedWaiting,
+        listedAfter: (await api.list()).find((thread) => thread.name === name)?.waiting ?? 0,
       });
     }
 

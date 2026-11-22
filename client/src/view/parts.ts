@@ -43,7 +43,10 @@ type Phased = {
   readonly phase: string;
   readonly failed?: boolean;
   readonly state?: string;
+  readonly waiting?: number;
 };
+
+export const isWaiting = (thread: Phased): boolean => (thread.waiting ?? 0) > 0;
 
 const dotOf = (state: string): string =>
   (({ working: 'busy', compacting: 'busy' }) as Record<string, string>)[state] ?? state;
@@ -59,15 +62,18 @@ const labelOf = (state: string): string =>
   )[state] ?? state;
 
 export const phaseKey = (thread: Phased): string =>
-  thread.state === undefined
-    ? thread.busy
-      ? 'busy'
-      : thread.failed === true
-        ? 'failed'
-        : thread.phase
-    : dotOf(thread.state);
+  isWaiting(thread)
+    ? 'waiting'
+    : thread.state === undefined
+      ? thread.busy
+        ? 'busy'
+        : thread.failed === true
+          ? 'failed'
+          : thread.phase
+      : dotOf(thread.state);
 
 export const phaseLabel = (thread: Phased): string => {
+  if (isWaiting(thread)) return 'waiting for your approval';
   if (thread.state !== undefined) return labelOf(thread.state);
   if (thread.busy) return 'working';
   if (thread.failed === true) return 'last turn failed';

@@ -13,6 +13,7 @@ const matches = (filter: string) => {
 
   return (thread: ThreadSummary) =>
     needle === '' ||
+    (needle === 'waiting' && (thread.waiting ?? 0) > 0) ||
     thread.title.toLowerCase().includes(needle) ||
     thread.name.toLowerCase().includes(needle) ||
     (thread.repo ?? '').toLowerCase().includes(needle);
@@ -149,6 +150,14 @@ const row = (h: H, model: Model, thread: ThreadSummary, child: boolean, kids = 0
         [
           h.span([h.Class(`dot ${phaseKey(thread)}`), h.AriaLabel(phaseLabel(thread))], []),
           ...(thread.pinned === true ? [h.span([h.Class('pin-mark')], [icon(h, 'pin')])] : []),
+          ...((thread.waiting ?? 0) > 0
+            ? [
+                h.span(
+                  [h.Class('wait-mark'), h.DataAttribute('waiting', thread.name)],
+                  [icon(h, 'shield')],
+                ),
+              ]
+            : []),
           h.span([h.Class('t')], [thread.title === '' ? thread.name : thread.title]),
           h.span([h.Class('m')], [short(model.now, thread.updatedAt)]),
         ],
@@ -227,7 +236,7 @@ const filterBox = (h: H, model: Model): Html =>
     h.Class('list-filter'),
     h.Id('list-filter'),
     h.Type('search'),
-    h.Placeholder('Filter threads'),
+    h.Placeholder('Filter threads, or type waiting'),
     h.AriaLabel('Filter threads'),
     h.Value(model.listFilter),
     h.OnInput((value) => Message.UpdatedListFilter({ value })),
@@ -257,9 +266,12 @@ const isTarget = (model: Model, target: string) =>
   model.dragging !== null && model.dropTarget === target;
 
 const signals = (h: H, threads: readonly ThreadSummary[]): Html[] => {
-  const { busy, failed } = liveCount(threads);
+  const { busy, failed, waiting } = liveCount(threads);
 
   return [
+    ...(waiting > 0
+      ? [h.span([h.Class('dot waiting'), h.AriaLabel(`${waiting} waiting for you`)], [])]
+      : []),
     ...(busy > 0 ? [h.span([h.Class('dot busy'), h.AriaLabel(`${busy} working`)], [])] : []),
     ...(failed > 0 ? [h.span([h.Class('dot failed'), h.AriaLabel(`${failed} failed`)], [])] : []),
   ];

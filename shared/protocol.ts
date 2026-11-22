@@ -33,6 +33,7 @@ export const ThreadSummary = Schema.Struct({
   failed: Schema.optional(Schema.Boolean),
   pinned: Schema.optional(Schema.Boolean),
   folder: Schema.optional(Schema.NullOr(Schema.String)),
+  waiting: Schema.optional(Schema.Number),
 });
 
 export type ThreadSummary = typeof ThreadSummary.Type;

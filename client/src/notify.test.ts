@@ -30,4 +30,14 @@ describe('notifications', () => {
     ]);
     expect(finishedThreads([], [t('new', false)])).toEqual([]);
   });
+
+  it('fires when a thread starts waiting for an approval, not when the wait ends', () => {
+    const waiting = (name: string, count: number) => ({ ...t(name, true), waiting: count });
+
+    expect(finishedThreads([waiting('w', 0)], [waiting('w', 1)])).toEqual([
+      { name: 'w', title: 'T w', why: 'waiting' },
+    ]);
+    expect(finishedThreads([waiting('w', 1)], [waiting('w', 1)])).toEqual([]);
+    expect(finishedThreads([waiting('w', 1)], [waiting('w', 0)])).toEqual([]);
+  });
 });

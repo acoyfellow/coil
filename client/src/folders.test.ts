@@ -78,14 +78,15 @@ describe('sidebar sections', () => {
     expect(sectionsFor([], [folder('a', 'Empty', 1)], NOW, false)).toEqual([]);
   });
 
-  it('counts running and failed threads so a collapsed folder still signals', () => {
+  it('counts running, failed and waiting threads so a collapsed folder still signals', () => {
     expect(
       liveCount([
         thread('a', { busy: true }),
         thread('b', { looping: true }),
         thread('c', { failed: true }),
+        thread('d', { busy: true, waiting: 2 }),
       ]),
-    ).toEqual({ busy: 2, failed: 1 });
+    ).toEqual({ busy: 3, failed: 1, waiting: 1 });
   });
 });
 

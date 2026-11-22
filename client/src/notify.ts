@@ -3,7 +3,7 @@ import type { ThreadSummary } from '../../shared/protocol';
 export type Finished = {
   readonly name: string;
   readonly title: string;
-  readonly why: 'turn' | 'loop';
+  readonly why: 'turn' | 'loop' | 'waiting';
 };
 
 export const finishedThreads = (
@@ -16,6 +16,8 @@ export const finishedThreads = (
     const old = previous.get(thread.name);
 
     if (old === undefined) return [];
+    if ((thread.waiting ?? 0) > (old.waiting ?? 0))
+      return [{ name: thread.name, title: thread.title, why: 'waiting' }];
     if (old.looping && !thread.looping)
       return [{ name: thread.name, title: thread.title, why: 'loop' }];
     if (old.busy && !thread.busy && !thread.looping)

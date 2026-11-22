@@ -71,7 +71,7 @@ const filed = [
       ? { ...thread, folder: 'f-coil' }
       : thread,
   ),
-  { ...summary('stray', 'paused', false), folder: null },
+  { ...summary('stray', 'awake', true), folder: null, waiting: 1 },
 ];
 
 const fakeApi = (calls: string[]): CoilApi =>
@@ -216,6 +216,32 @@ describe('the sidebar shows folders', { timeout: COLD_BOOT_MS }, () => {
 
     expect(errorsOpen).toEqual([]);
     expect(document.querySelector('.app')?.classList.contains('no-thread')).toBe(false);
+  });
+
+  it('a thread waiting for an approval is marked, and the filter word waiting finds it', async () => {
+    const errors = await boot('/');
+    const waiting = document.querySelector('[data-thread="stray"]');
+    const other = document.querySelector('[data-thread="awake-one"]');
+
+    expect(errors).toEqual([]);
+    expect(waiting?.querySelector('.wait-mark svg')).not.toBeNull();
+    expect(waiting?.querySelector('.dot.waiting')).not.toBeNull();
+    expect(waiting?.getAttribute('title')).toContain('waiting for your approval');
+    expect(other?.querySelector('.wait-mark')).toBeNull();
+
+    const filter = document.querySelector<HTMLInputElement>('#list-filter');
+
+    if (filter !== null) {
+      filter.value = 'waiting';
+      filter.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    await settle();
+
+    const shown = [...document.querySelectorAll('#list [data-thread]')].map((node) =>
+      node.getAttribute('data-thread'),
+    );
+
+    expect(shown).toEqual(['stray']);
   });
 
   it('the row menu moves a thread into a folder', async () => {

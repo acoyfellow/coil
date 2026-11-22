@@ -117,4 +117,5 @@ export const orderForDrop = (
 export const liveCount = (threads: readonly ThreadSummary[]) => ({
   busy: threads.filter((thread) => thread.busy || thread.looping).length,
   failed: threads.filter((thread) => thread.failed === true).length,
+  waiting: threads.filter((thread) => (thread.waiting ?? 0) > 0).length,
 });

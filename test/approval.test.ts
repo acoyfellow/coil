@@ -64,6 +64,8 @@ type Probe = {
   readonly denied: { ran: boolean; answer: string };
   readonly unknown: string;
   readonly safe: { parked: number; ran: boolean };
+  readonly listedWaiting: number;
+  readonly listedAfter: number;
 };
 
 describe('the gate in a thread', () => {
@@ -98,5 +100,7 @@ describe('the gate in a thread', () => {
     expect(probe.denied.answer).toContain('The person said no');
     expect(probe.unknown).toContain('No open question has this key');
     expect(probe.safe).toEqual({ parked: 0, ran: true });
+    expect(probe.listedWaiting).toBe(1);
+    expect(probe.listedAfter).toBe(0);
   }, 120_000);
 });

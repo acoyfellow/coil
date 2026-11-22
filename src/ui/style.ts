@@ -70,6 +70,10 @@ button.group{border-radius:0;white-space:normal;font:inherit;font-size:11.5px;co
 .folder-head .dot{width:6px;height:6px;border-radius:50%;flex:none}
 .folder-head .dot.busy{background:var(--blue)}
 .folder-head .dot.failed{background:var(--red,#d33)}
+.folder-head .dot.waiting{background:var(--accent,#f38020)}
+.dot.waiting{background:var(--accent,#f38020);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent,#f38020) 25%,transparent)}
+.wait-mark{display:inline-flex;color:var(--accent,#f38020);flex:none}
+.wait-mark .icon{width:13px;height:13px}
 .folder-act{opacity:0;border:0;background:transparent;color:var(--faint);width:22px;height:22px;border-radius:5px;padding:0;cursor:pointer;flex:none}
 .folder-head:hover .folder-act,.folder-act:focus-visible{opacity:1}
 .folder-act:hover{background:var(--hover);color:var(--fg)}

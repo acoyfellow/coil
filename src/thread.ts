@@ -233,11 +233,11 @@ export class Thread extends DurableObject<Env> {
     open: (approval) => {
       if (this.pending.get(approval.key)?.taskId === approval.taskId) return;
       this.pending.set(approval.key, approval);
-      this.emit({ type: 'approvals', approvals: this.approvals() });
+      this.approvalsChanged();
     },
     close: (key) => {
       if (!this.pending.delete(key)) return;
-      this.emit({ type: 'approvals', approvals: this.approvals() });
+      this.approvalsChanged();
     },
   };
 
@@ -1069,7 +1069,13 @@ export class Thread extends DurableObject<Env> {
     if (!this.ledger.busy) return;
 
     this.ledger.busy = false;
-    await this.publish({ failed: await this.lastTurnFailed() });
+
+    if (this.pending.size > 0) {
+      this.pending.clear();
+      this.emit({ type: 'approvals', approvals: [] });
+    }
+
+    await this.publish({ failed: await this.lastTurnFailed(), waiting: 0 });
     this.state();
     await this.deliverDone().catch(() => undefined);
     await this.drainInbox().catch(() => undefined);
@@ -1653,6 +1659,13 @@ export class Thread extends DurableObject<Env> {
     await this.start(
       `loop-${next.runs.length}-${crypto.randomUUID().slice(0, 6)}`,
       `[loop run ${next.runs.length} of at most ${loop.maxRuns}]\n${loop.prompt}`,
+    );
+  }
+
+  private approvalsChanged() {
+    this.emit({ type: 'approvals', approvals: this.approvals() });
+    void this.publish({ waiting: this.pending.size }).catch((cause: unknown) =>
+      console.warn('approval count not published', String(cause)),
     );
   }
 
