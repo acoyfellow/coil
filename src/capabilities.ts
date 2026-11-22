@@ -906,6 +906,19 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.setModel(text(args, 'name'), text(args, 'model')),
   },
   {
+    name: 'thread_steer',
+    group: 'threads',
+    summary:
+      'Draft the next message to a thread from a short goal, such as "get it unstuck". The thread model reads the end of the conversation and writes the draft. Nothing is sent: send the draft with thread_send if you agree with it.',
+    input: {
+      name: NAME,
+      goal: { type: 'string', description: 'What the next message must get the agent to do.' },
+    },
+    required: ['name', 'goal'],
+    returns: '{ draft }',
+    run: (api, args) => api.steer(text(args, 'name'), text(args, 'goal')),
+  },
+  {
     name: 'thread_stop',
     group: 'threads',
     summary:

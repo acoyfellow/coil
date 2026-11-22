@@ -4,6 +4,7 @@ import { rememberFiles } from '../command';
 import { Message } from '../message';
 import type { Model } from '../model';
 import { Autosize } from '../mount';
+import { canDraft, STEER_SUGGESTIONS, type SteerState } from '../steer';
 import { viewOf } from '../update';
 import { meter } from './meter';
 import { type H, icon } from './parts';
@@ -22,6 +23,71 @@ const hint = (model: Model): string => {
   return touchKeyboard() ? '' : 'Enter sends · Shift+Enter for a new line';
 };
 
+const steerPanel = (h: H, state: SteerState): Html =>
+  h.div(
+    [h.Class('steer'), h.Id('steer'), h.DataAttribute('status', state.status)],
+    [
+      h.div(
+        [h.Class('steer-row')],
+        [
+          h.input([
+            h.Id('steer-goal'),
+            h.Class('steer-goal'),
+            h.Placeholder('Goal for the next message, e.g. get it unstuck'),
+            h.AriaLabel('Steer goal'),
+            h.Value(state.goal),
+            h.Disabled(state.status === 'drafting'),
+            h.OnInput((goal) => Message.UpdatedSteerGoal({ goal })),
+            h.OnKeyDownPreventDefault((key) =>
+              key === 'Enter'
+                ? Option.some(Message.SubmittedSteer())
+                : key === 'Escape'
+                  ? Option.some(Message.ClosedSteer())
+                  : Option.none(),
+            ),
+          ]),
+          h.button(
+            [
+              h.Id('steer-draft'),
+              h.Class('steer-draft'),
+              h.AriaLabel('Draft the message'),
+              h.DataAttribute('tip', 'Draft the message (Enter)'),
+              h.Disabled(!canDraft(state)),
+              h.OnClick(Message.SubmittedSteer()),
+            ],
+            [icon(h, state.status === 'drafting' ? 'loader' : 'sparkles')],
+          ),
+          h.button(
+            [
+              h.Id('steer-close'),
+              h.AriaLabel('Close steer'),
+              h.DataAttribute('tip', 'Close (Esc)'),
+              h.OnClick(Message.ClosedSteer()),
+            ],
+            [icon(h, 'close')],
+          ),
+        ],
+      ),
+      state.status === 'drafting'
+        ? h.div([h.Class('steer-note')], ['Drafting from the end of the thread…'])
+        : state.problem !== null
+          ? h.div([h.Class('steer-note steer-problem'), h.Role('alert')], [state.problem])
+          : h.div(
+              [h.Class('steer-chips')],
+              STEER_SUGGESTIONS.map((goal) =>
+                h.button(
+                  [h.Class('steer-chip'), h.OnClick(Message.UpdatedSteerGoal({ goal }))],
+                  [goal],
+                ),
+              ),
+            ),
+      h.div(
+        [h.Class('steer-note')],
+        ['The draft goes into the message box. Nothing is sent until you send it.'],
+      ),
+    ],
+  );
+
 export const composer = (h: H, model: Model): Html => {
   const view = viewOf(model);
   const working = view?.busy ?? false;
@@ -39,6 +105,9 @@ export const composer = (h: H, model: Model): Html => {
       }),
     ],
     [
+      ...(model.steer !== null && model.steer.name === model.name
+        ? [steerPanel(h, model.steer)]
+        : []),
       h.div(
         [h.Class('composer-inner')],
         [
@@ -60,6 +129,21 @@ export const composer = (h: H, model: Model): Html => {
             [
               ...(view === null || model.name === null ? [] : [meter(h, model, view, model.name)]),
               h.div([h.Class('hint'), h.Id('hint'), h.Title(hint(model))], [hint(model)]),
+              ...(view === null || model.name === null
+                ? []
+                : [
+                    h.button(
+                      [
+                        h.Id('steer-open'),
+                        h.Class(model.steer?.name === model.name ? 'is-on' : ''),
+                        h.AriaLabel('Steer'),
+                        h.AriaPressed(String(model.steer?.name === model.name)),
+                        h.DataAttribute('tip', 'Steer: draft the next message from a goal'),
+                        h.OnClick(Message.ClickedSteer()),
+                      ],
+                      [icon(h, 'sparkles')],
+                    ),
+                  ]),
               working && model.name !== null
                 ? h.button(
                     [

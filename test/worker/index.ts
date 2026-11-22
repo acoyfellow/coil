@@ -165,6 +165,13 @@ const scripted = (): ModelChoice => {
     Array.from({ length: 400 }, () => (context: Context) => {
       const request = asked(context);
 
+      if (request.startsWith('END OF THE CONVERSATION:')) {
+        const goal = /GOAL OF THE PERSON: (.+)/.exec(request)?.[1] ?? '';
+        const saw = request.includes('write notes.txt') ? 'saw the earlier request' : 'saw nothing';
+
+        return fauxAssistantMessage(fauxText(`PERSON: Steered toward "${goal}" (${saw}).`));
+      }
+
       if (request.includes('Summarize') || request.includes('summary'))
         return fauxAssistantMessage(
           fauxText('Summary: the thread wrote files into its own computer.'),
@@ -886,6 +893,23 @@ export default {
         boots: await test.bootSizes(),
         finalSize: (await api.view(name)).size,
       });
+    }
+
+    if (url.pathname === '/steer') {
+      const name = `steer-${run}`;
+
+      await api.create({ name, createdBy: 'test' });
+      await api.send(name, crypto.randomUUID(), 'write notes.txt containing hello');
+
+      const before = (await api.view(name)).messages.length;
+      const drafted = await api.steer(name, 'make it run the tests');
+      const after = (await api.view(name)).messages.length;
+      const empty = await api.steer(name, '   ').then(
+        () => 'accepted',
+        (cause: unknown) => String(cause),
+      );
+
+      return Response.json({ draft: drafted.draft, before, after, empty });
     }
 
     if (url.pathname === '/restore-fallback') {

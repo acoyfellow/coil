@@ -115,6 +115,11 @@ const fakeApi = (calls: string[]): CoilApi =>
 
       return { ...summary(name, 'paused', false), pinned };
     },
+    steer: async (name: string, goal: string) => {
+      calls.push(`steer ${name} ${goal}`);
+
+      return { draft: `Draft for: ${goal}` };
+    },
     start: async (name: string, requestId: string) => {
       calls.push(`start ${name}`);
 
@@ -304,5 +309,40 @@ describe('the code editor', { timeout: COLD_BOOT_MS }, () => {
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(errors).toEqual([]);
     vi.unstubAllGlobals();
+  });
+});
+
+describe('steer in the composer', { timeout: COLD_BOOT_MS }, () => {
+  it('a chip fills the goal, the draft lands in the message box, and nothing is sent', async () => {
+    const calls: string[] = [];
+    const errors = await boot('/t/awake-one', calls);
+
+    await waitFor(() => document.querySelector('#steer-open') !== null);
+    document.querySelector<HTMLButtonElement>('#steer-open')?.click();
+    await waitFor(() => document.querySelector('#steer') !== null);
+
+    expect(document.querySelector<HTMLButtonElement>('#steer-draft')?.disabled).toBe(true);
+
+    const chip = [...document.querySelectorAll<HTMLButtonElement>('.steer-chip')].find(
+      (node) => node.textContent === 'make it run the tests',
+    );
+
+    chip?.click();
+    await settle();
+
+    expect(document.querySelector<HTMLInputElement>('#steer-goal')?.value).toBe(
+      'make it run the tests',
+    );
+
+    document.querySelector<HTMLButtonElement>('#steer-draft')?.click();
+    await waitFor(() => document.querySelector('#steer') === null);
+    await settle();
+
+    expect(errors).toEqual([]);
+    expect(calls).toContain('steer awake-one make it run the tests');
+    expect(calls.some((call) => call.startsWith('start '))).toBe(false);
+    expect(document.querySelector<HTMLTextAreaElement>('#text')?.value).toBe(
+      'Draft for: make it run the tests',
+    );
   });
 });

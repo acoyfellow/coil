@@ -134,6 +134,7 @@ export type CoilApi = {
   readonly share: (name: string) => Promise<{ path: string }>;
   readonly unshare: (name: string) => Promise<null>;
   readonly stop: (name: string) => Promise<null>;
+  readonly steer: (name: string, goal: string) => Promise<{ draft: string }>;
   readonly setModel: (name: string, model: string) => Out<typeof Usage>;
   readonly models: () => Promise<readonly ModelInfo[]>;
   readonly rename: (name: string, title: string) => Out<typeof ThreadSummary>;
@@ -203,6 +204,7 @@ export const handlersFor = (caller: Caller) => {
     Share: ({ name }) => attempt(() => api.share(name)),
     Unshare: ({ name }) => attempt(() => api.unshare(name)),
     Stop: ({ name }) => attempt(() => api.stop(name)),
+    Steer: ({ name, goal }) => attempt(() => api.steer(name, goal)),
     Models: () => attempt(() => api.models()),
     SetModel: ({ name, model }) => attempt(() => api.setModel(name, model)),
     Rename: ({ name, title }) => attempt(() => api.rename(name, title)),

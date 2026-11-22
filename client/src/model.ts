@@ -10,6 +10,7 @@ import {
   ThreadSummary,
   ThreadView,
 } from '../../shared/protocol';
+import { SteerState } from './steer';
 
 export const Remote = <A extends Schema.Top>(value: A) =>
   defineTaggedUnion({
@@ -180,6 +181,7 @@ export const Model = Schema.Struct({
   palette: Schema.NullOr(Schema.Struct({ query: Schema.String, index: Schema.Number })),
   quickOpen: Schema.NullOr(QuickOpen),
   historyOpen: Schema.Boolean,
+  steer: Schema.NullOr(SteerState),
   settings: Schema.NullOr(Schema.Struct({ query: Schema.String, section: SettingsSection })),
   addMenuOpen: Schema.Boolean,
   drawer: Drawer,

@@ -194,6 +194,19 @@ details[open]>summary .caret .icon{transform:rotate(90deg)}
 #send{width:28px;height:28px;padding:0;justify-content:center;border-radius:50%;background:var(--orange);color:#fff;font-size:15px}
 #send:hover:not(:disabled){background:var(--orange);color:#fff;opacity:.9}
 #send .spin{border-color:rgba(255,255,255,.4);border-top-color:#fff}
+#steer-open,#steer-draft,#steer-close{display:inline-flex;align-items:center;justify-content:center;aspect-ratio:1/1;width:28px;height:28px;padding:0;flex:none;line-height:0;border-radius:8px;background:none;color:var(--muted)}
+#steer-open .icon,#steer-draft .icon,#steer-close .icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#steer-open:hover,#steer-open.is-on{color:var(--blue);background:var(--hover)}
+#steer-draft:not(:disabled){color:var(--blue)}
+.steer[data-status=drafting] #steer-draft .icon{animation:spin .8s linear infinite}
+.steer{max-width:720px;margin:0 auto 6px;border:1px solid var(--line2);border-radius:12px;padding:8px 8px 8px 12px;background:var(--bg2,var(--bg));display:flex;flex-direction:column;gap:6px}
+.steer-row{display:flex;align-items:center;gap:4px;min-width:0}
+.steer-goal{flex:1 1 auto;min-width:0;border:0;background:none;padding:4px 0;font:inherit;color:inherit;outline:none}
+.steer-chips{display:flex;flex-wrap:wrap;gap:6px}
+.steer-chip{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line2);background:none;color:var(--muted)}
+.steer-chip:hover{color:var(--text);border-color:var(--blue)}
+.steer-note{font-size:11.5px;color:var(--faint)}
+.steer-problem{color:var(--red,#c33)}
 
 .panel{border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;min-width:0;min-height:0}
 .tabs{display:flex;gap:4px;padding:0 10px;border-bottom:1px solid var(--line);height:42px;align-items:center;flex:none;min-width:0}

@@ -12,6 +12,7 @@ import {
   CreateNamedFolder,
   CreateThread,
   DeleteFolder,
+  DraftSteer,
   ExpireToast,
   FileThread,
   FocusComposer,
@@ -20,6 +21,7 @@ import {
   FocusPalette,
   FocusQuickOpen,
   FocusSettings,
+  FocusSteerGoal,
   Install,
   JumpToLatest,
   KillLoops,
@@ -92,6 +94,15 @@ import { finishedThreads } from './notify';
 import { paletteItems } from './palette';
 import { pathForThread } from './route';
 import type { CoilClient } from './rpc';
+import {
+  acceptsResult,
+  canDraft,
+  draftInto,
+  failDraft,
+  openSteer,
+  startDraft,
+  typeGoal,
+} from './steer';
 
 type UpdateReturn = Update.Return<Model, Message, CoilClient>;
 
@@ -588,6 +599,52 @@ export const update = (model: Model, message: Message): UpdateReturn =>
       commands: model.name === null ? [] : [SaveDraft({ thread: model.name, draft: value })],
     }),
     SubmittedDraft: () => send(model),
+    ClickedSteer: () =>
+      model.name === null
+        ? { model }
+        : model.steer?.name === model.name
+          ? { model: modifyFields(model, { steer: () => null }) }
+          : {
+              model: modifyFields(model, { steer: () => openSteer(model.name ?? '') }),
+              commands: [FocusSteerGoal()],
+            },
+    ClosedSteer: () => ({ model: modifyFields(model, { steer: () => null }) }),
+    UpdatedSteerGoal: ({ goal }) =>
+      model.steer === null
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              steer: (state) => (state === null ? null : typeGoal(state, goal)),
+            }),
+          },
+    SubmittedSteer: () => {
+      const state = model.steer;
+
+      if (state === null || !canDraft(state)) return { model };
+
+      return {
+        model: modifyFields(model, { steer: () => startDraft(state) }),
+        commands: [DraftSteer({ name: state.name, goal: state.goal.trim() })],
+      };
+    },
+    DraftedSteer: ({ name, goal, draft }) =>
+      !acceptsResult(model.steer, name, goal) || name !== model.name
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              steer: () => null,
+              draft: (current) => draftInto(current, draft),
+            }),
+            commands: [FocusComposer()],
+          },
+    FailedSteer: ({ name, goal, reason }) =>
+      !acceptsResult(model.steer, name, goal)
+        ? { model }
+        : {
+            model: modifyFields(model, {
+              steer: (state) => (state === null ? null : failDraft(state, reason)),
+            }),
+          },
     DroppedFiles: ({ count }) =>
       model.name === null || count === 0
         ? { model }

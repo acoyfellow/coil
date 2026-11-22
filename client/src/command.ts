@@ -409,6 +409,31 @@ export const SaveFile = Command.define('SaveFile', {
     ),
 });
 
+export const DraftSteer = Command.define('DraftSteer', {
+  args: { name: Schema.String, goal: Schema.String },
+  messages: [Message.DraftedSteer, Message.FailedSteer],
+  execute: ({ name, goal }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const { draft } = yield* client.Steer({ name, goal });
+
+      return Message.DraftedSteer({ name, goal, draft });
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.succeed(Message.FailedSteer({ name, goal, reason: reasonOf(error) })),
+      ),
+    ),
+});
+
+export const FocusSteerGoal = Command.define('FocusSteerGoal', {
+  messages: [Message.CompletedEffect],
+  execute: Effect.sync(() => {
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('#steer-goal')?.focus());
+
+    return Message.CompletedEffect();
+  }),
+});
+
 export const ListWorkspaceFiles = Command.define('ListWorkspaceFiles', {
   args: { name: Schema.String },
   messages: [Message.LoadedFileList],

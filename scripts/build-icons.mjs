@@ -31,6 +31,8 @@ const USED = {
   terminal: 'terminal',
   browser: 'globe',
   pin: 'pin',
+  sparkles: 'sparkles',
+  loader: 'loader-circle',
 };
 
 const inner = (name) => {

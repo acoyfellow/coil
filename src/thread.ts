@@ -1,4 +1,5 @@
 import { DurableObject, exports as workerExports } from 'cloudflare:workers';
+import { createModels } from '@earendil-works/pi-ai';
 import type { Extension, HarnessSettings } from '@earendil-works/pi-durable';
 import { GATEWAY_MODELS, type ModelInfo, modelInfo as pinnedModelInfo } from '../shared/models';
 import {
@@ -64,6 +65,7 @@ import { workersAI } from './model';
 import { type RunJsResult, runJs } from './run-js';
 import { bounded, HUMAN_LIMIT_SECONDS } from './shell';
 import { DEFAULT_SIZE, type Size } from './size';
+import { cleanDraft, cleanGoal, STEER_SYSTEM, steerPrompt } from './steer';
 import { parseSteps, runSteps, type StepExecutor } from './steps';
 import { bridge, parseSize, SESSION, terminalEnv, tmuxArgs } from './terminal';
 import { type ComputerUsage, metered } from './usage';
@@ -1633,6 +1635,37 @@ export class Thread extends DurableObject<Env> {
       `loop-${next.runs.length}-${crypto.randomUUID().slice(0, 6)}`,
       `[loop run ${next.runs.length} of at most ${loop.maxRuns}]\n${loop.prompt}`,
     );
+  }
+
+  async steer(goal: string): Promise<{ draft: string }> {
+    const clean = cleanGoal(goal);
+    const agent = await this.open();
+    const prompt = steerPrompt(await agent.messages(), clean);
+    const choice = this.model();
+    const models = createModels(choice.options);
+
+    models.setProvider(choice.provider);
+
+    const model = models.getModel(choice.provider.id, choice.modelId);
+
+    if (model === undefined) throw new Error(`The model ${choice.modelId} is not available.`);
+
+    const reply = await models.completeSimple(model, {
+      systemPrompt: STEER_SYSTEM,
+      messages: [{ role: 'user', content: prompt, timestamp: Date.now() }],
+    });
+
+    if (reply.stopReason === 'error')
+      throw new Error(`The model did not answer: ${reply.errorMessage ?? 'unknown error'}`);
+
+    const text = reply.content
+      .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+      .join('');
+    const draft = cleanDraft(text);
+
+    if (draft === '') throw new Error('The model gave an empty draft. Try again.');
+
+    return { draft };
   }
 
   async stop(): Promise<null> {

@@ -245,6 +245,7 @@ export const coil = (env: Env, owner: string) => {
       return null;
     },
     stop: async (name: string) => (await known(name)).stop(),
+    steer: async (name: string, goal: string) => (await known(name)).steer(goal),
     setModel: async (name: string, model: string) => {
       const details = (await models()).find((each) => each.id === model);
 

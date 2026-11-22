@@ -59,6 +59,12 @@ export const Message = defineMessageUnion({
 
   ClickedJumpToLatest: {},
   UpdatedDraft: { value: Schema.String },
+  ClickedSteer: {},
+  ClosedSteer: {},
+  UpdatedSteerGoal: { goal: Schema.String },
+  SubmittedSteer: {},
+  DraftedSteer: { name: Schema.String, goal: Schema.String, draft: Schema.String },
+  FailedSteer: { name: Schema.String, goal: Schema.String, reason: Schema.String },
   SubmittedDraft: {},
   DroppedFiles: { count: Schema.Number },
   UploadedFiles: {

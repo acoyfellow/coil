@@ -376,6 +376,11 @@ export const CoilRpcs = RpcGroup.make(
   }),
   Rpc.make('Unshare', { payload: target, success: Schema.Null, error: CoilError }),
   Rpc.make('Stop', { payload: target, success: Schema.Null, error: CoilError }),
+  Rpc.make('Steer', {
+    payload: { ...target, goal: Schema.String },
+    success: Schema.Struct({ draft: Schema.String }),
+    error: CoilError,
+  }),
   Rpc.make('Models', { success: Schema.Array(ModelOption), error: CoilError }),
   Rpc.make('SetModel', {
     payload: { ...target, model: Schema.String },
