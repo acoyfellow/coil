@@ -919,6 +919,31 @@ export const CAPABILITIES: readonly Capability[] = [
     run: (api, args) => api.steer(text(args, 'name'), text(args, 'goal')),
   },
   {
+    name: 'thread_approvals',
+    group: 'threads',
+    summary:
+      'List the risky tool calls a thread is waiting on: a git push, a deploy or publish, or a thread delete. Each waits up to a day for a person, then does not run.',
+    input: { name: NAME },
+    required: ['name'],
+    returns: '[{ key, tool, args, risk, until }]',
+    run: (api, args) => api.approvals(text(args, 'name')),
+  },
+  {
+    name: 'thread_decide',
+    group: 'threads',
+    summary:
+      'Approve or deny one waiting call from thread_approvals. The answer applies only to that call with exactly those arguments. Approve only when the person who owns the thread told you to.',
+    input: {
+      name: NAME,
+      key: { type: 'string', description: 'The key from thread_approvals.' },
+      decision: { type: 'string', enum: ['approve', 'deny'], description: 'approve or deny' },
+    },
+    required: ['name', 'key', 'decision'],
+    returns: 'The calls still waiting',
+    run: (api, args) =>
+      api.decide(text(args, 'name'), text(args, 'key'), text(args, 'decision') === 'approve'),
+  },
+  {
     name: 'thread_stop',
     group: 'threads',
     summary:

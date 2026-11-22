@@ -9,6 +9,7 @@ const USED = {
   files: 'folder',
   computer: 'monitor',
   check: 'check',
+  shield: 'shield-alert',
   square: 'square',
   rename: 'pencil',
   archive: 'archive',

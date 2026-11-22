@@ -425,6 +425,22 @@ export const DraftSteer = Command.define('DraftSteer', {
     ),
 });
 
+export const Decide = Command.define('Decide', {
+  args: { name: Schema.String, key: Schema.String, allow: Schema.Boolean },
+  messages: [Message.DecidedApproval, Message.FailedDecide],
+  execute: ({ name, key, allow }) =>
+    Effect.gen(function* () {
+      const client = yield* CoilClient;
+      const approvals = yield* client.Decide({ name, key, allow });
+
+      return Message.DecidedApproval({ name, approvals });
+    }).pipe(
+      Effect.catch((error) =>
+        Effect.succeed(Message.FailedDecide({ name, key, reason: reasonOf(error) })),
+      ),
+    ),
+});
+
 export const FocusSteerGoal = Command.define('FocusSteerGoal', {
   messages: [Message.CompletedEffect],
   execute: Effect.sync(() => {

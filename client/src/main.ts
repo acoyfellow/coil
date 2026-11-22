@@ -72,6 +72,7 @@ export const initialModel = (flags: Flags): Model => ({
   quickOpen: null,
   historyOpen: false,
   steer: null,
+  deciding: [],
   settings:
     flags.openSettings === undefined || flags.openSettings === null
       ? null

@@ -7,6 +7,7 @@ import {
   LiveEvent,
   ModelOption,
   Pair,
+  PendingApproval,
   Size,
   Surface,
   SurfaceKind,
@@ -65,6 +66,9 @@ export const Message = defineMessageUnion({
   SubmittedSteer: {},
   DraftedSteer: { name: Schema.String, goal: Schema.String, draft: Schema.String },
   FailedSteer: { name: Schema.String, goal: Schema.String, reason: Schema.String },
+  ClickedDecide: { key: Schema.String, allow: Schema.Boolean },
+  DecidedApproval: { name: Schema.String, approvals: Schema.Array(PendingApproval) },
+  FailedDecide: { name: Schema.String, key: Schema.String, reason: Schema.String },
   SubmittedDraft: {},
   DroppedFiles: { count: Schema.Number },
   UploadedFiles: {

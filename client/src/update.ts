@@ -11,6 +11,7 @@ import {
   CreateFolder,
   CreateNamedFolder,
   CreateThread,
+  Decide,
   DeleteFolder,
   DraftSteer,
   ExpireToast,
@@ -217,6 +218,8 @@ const applyEvent = (model: Model, event: LiveEvent): UpdateReturn => {
             : { ...view, execs: [...view.execs, event.record] },
         ),
       };
+    case 'approvals':
+      return { model: withView(model, (view) => ({ ...view, approvals: event.approvals })) };
     case 'surfaces': {
       const hadBrowser =
         viewOf(model)?.surfaces.some((surface) => surface.kind === 'browser') ?? false;
@@ -645,6 +648,27 @@ export const update = (model: Model, message: Message): UpdateReturn =>
               steer: (state) => (state === null ? null : failDraft(state, reason)),
             }),
           },
+    ClickedDecide: ({ key, allow }) =>
+      model.name === null
+        ? { model }
+        : {
+            model: modifyFields(model, { deciding: (keys) => [...keys, key] }),
+            commands: [Decide({ name: model.name, key, allow })],
+          },
+    DecidedApproval: ({ name, approvals }) => {
+      const cleared = modifyFields(model, { deciding: () => [] });
+
+      return {
+        model:
+          name === model.name ? withView(cleared, (view) => ({ ...view, approvals })) : cleared,
+      };
+    },
+    FailedDecide: ({ key, reason }) =>
+      toast(
+        modifyFields(model, { deciding: (keys) => keys.filter((each) => each !== key) }),
+        reason,
+        true,
+      ),
     DroppedFiles: ({ count }) =>
       model.name === null || count === 0
         ? { model }

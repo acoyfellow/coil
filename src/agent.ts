@@ -19,6 +19,7 @@ import {
 } from '@earendil-works/pi-durable';
 import { openDurableObjectSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/cloudflare';
 import { bool, num, opt, str } from '@earendil-works/pi-schema';
+import { Approval, type ApprovalBoard, approvalGate, NO_BOARD, taskIdOf } from './approval-gate';
 import type { Computer } from './computer';
 import type { Ledger } from './ledger';
 import type { RunJsResult } from './run-js';
@@ -741,6 +742,7 @@ export type Agent = {
   readonly setModel: (modelId: string) => Promise<void>;
   readonly usage: () => Promise<UsageTotals>;
   readonly contextTokens: () => Promise<number>;
+  readonly decide: (taskId: number, key: string, allow: boolean) => Promise<string>;
 };
 
 export type UsageTotals = {
@@ -798,6 +800,7 @@ export const openAgent = async (
   route: ModelRoute = () => model,
   plugins: readonly Extension[] = [],
   files: Files = boxFiles(computer),
+  board: ApprovalBoard = NO_BOARD,
 ): Promise<Agent> => {
   const models = createModels(model.options);
 
@@ -827,6 +830,8 @@ export const openAgent = async (
       tools: tools(computer, files, ledger, children, browser, extras, threads).map(stoppable),
     }),
   );
+
+  registry.install(approvalGate(board));
 
   for (const plugin of plugins)
     registry.install({ ...plugin, tools: plugin.tools?.map(stoppable) });
@@ -920,5 +925,7 @@ export const openAgent = async (
 
       return Math.round(JSON.stringify(view.messages).length / CHARS_PER_TOKEN);
     },
+    decide: (taskId, key, allow) =>
+      harness.signal(taskIdOf(taskId), Approval, key, { allow }, CONTEXT),
   };
 };

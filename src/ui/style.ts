@@ -199,6 +199,15 @@ details[open]>summary .caret .icon{transform:rotate(90deg)}
 #steer-open:hover,#steer-open.is-on{color:var(--blue);background:var(--hover)}
 #steer-draft:not(:disabled){color:var(--blue)}
 .steer[data-status=drafting] #steer-draft .icon{animation:spin .8s linear infinite}
+.approval{max-width:720px;margin:0 auto 6px;border:1px solid var(--accent,#f38020);border-radius:12px;padding:10px 12px;background:var(--bg2,var(--bg));display:flex;flex-direction:column;gap:8px}
+.approval-head{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0}
+.approval-head .icon{color:var(--accent,#f38020);flex:none}
+.approval-until{margin-left:auto;font-weight:400;font-size:12px;color:var(--muted);white-space:nowrap}
+.approval-args{margin:0;padding:8px;border-radius:8px;background:var(--code,var(--bg));font:12px/1.4 var(--mono,monospace);white-space:pre-wrap;word-break:break-all;max-height:160px;overflow:auto}
+.approval-actions{display:flex;justify-content:flex-end;gap:8px}
+.approval-actions button{height:32px;padding:0 14px;border-radius:8px;border:1px solid var(--line2);background:transparent;cursor:pointer}
+.approval-allow{background:var(--fg)!important;color:var(--bg);border-color:var(--fg)!important}
+.approval-actions button:disabled{opacity:.5;cursor:default}
 .steer{max-width:720px;margin:0 auto 6px;border:1px solid var(--line2);border-radius:12px;padding:8px 8px 8px 12px;background:var(--bg2,var(--bg));display:flex;flex-direction:column;gap:6px}
 .steer-row{display:flex;align-items:center;gap:4px;min-width:0}
 .steer-goal{flex:1 1 auto;min-width:0;border:0;background:none;padding:4px 0;font:inherit;color:inherit;outline:none}

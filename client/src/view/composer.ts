@@ -1,5 +1,6 @@
 import { Option } from 'effect';
 import type { Html } from 'foldkit/html';
+import type { PendingApproval } from '../../../shared/protocol';
 import { rememberFiles } from '../command';
 import { Message } from '../message';
 import type { Model } from '../model';
@@ -22,6 +23,74 @@ const hint = (model: Model): string => {
 
   return touchKeyboard() ? '' : 'Enter sends · Shift+Enter for a new line';
 };
+
+const RISK_TITLES: Readonly<Record<PendingApproval['risk'], string>> = {
+  push: 'The agent wants to push code',
+  deploy: 'The agent wants to deploy or publish',
+  delete: 'The agent wants to delete a thread',
+};
+
+const commandOf = (approval: PendingApproval): string => {
+  try {
+    const args = JSON.parse(approval.args) as Record<string, unknown>;
+
+    return typeof args.command === 'string' ? args.command : approval.args;
+  } catch {
+    return approval.args;
+  }
+};
+
+const untilLabel = (until: number, now: number): string => {
+  const minutes = Math.max(0, Math.round((until - now) / 60_000));
+
+  return minutes >= 120 ? `${Math.round(minutes / 60)} h` : `${minutes} min`;
+};
+
+const approvalCard = (h: H, approval: PendingApproval, busy: boolean, now: number): Html =>
+  h.div(
+    [
+      h.Class('approval'),
+      h.DataAttribute('key', approval.key),
+      h.DataAttribute('risk', approval.risk),
+      h.Role('alertdialog'),
+      h.AriaLabel(RISK_TITLES[approval.risk]),
+    ],
+    [
+      h.div(
+        [h.Class('approval-head')],
+        [
+          icon(h, 'shield'),
+          h.span([h.Class('approval-title')], [RISK_TITLES[approval.risk]]),
+          h.span(
+            [h.Class('approval-until')],
+            [`Waits ${untilLabel(approval.until, now)}, then does not run`],
+          ),
+        ],
+      ),
+      h.pre([h.Class('approval-args')], [commandOf(approval)]),
+      h.div(
+        [h.Class('approval-actions')],
+        [
+          h.button(
+            [
+              h.Class('approval-deny'),
+              h.Disabled(busy),
+              h.OnClick(Message.ClickedDecide({ key: approval.key, allow: false })),
+            ],
+            ['Deny'],
+          ),
+          h.button(
+            [
+              h.Class('approval-allow'),
+              h.Disabled(busy),
+              h.OnClick(Message.ClickedDecide({ key: approval.key, allow: true })),
+            ],
+            ['Approve'],
+          ),
+        ],
+      ),
+    ],
+  );
 
 const steerPanel = (h: H, state: SteerState): Html =>
   h.div(
@@ -105,6 +174,9 @@ export const composer = (h: H, model: Model): Html => {
       }),
     ],
     [
+      ...(viewOf(model)?.approvals ?? []).map((approval) =>
+        approvalCard(h, approval, model.deciding.includes(approval.key), model.now),
+      ),
       ...(model.steer !== null && model.steer.name === model.name
         ? [steerPanel(h, model.steer)]
         : []),

@@ -143,6 +143,17 @@ export const Turn = Schema.Struct({
 
 export type Turn = typeof Turn.Type;
 
+export const PendingApproval = Schema.Struct({
+  key: Schema.String,
+  taskId: Schema.Number,
+  tool: Schema.String,
+  args: Schema.String,
+  risk: Schema.Literals(['push', 'deploy', 'delete']),
+  until: Schema.Number,
+});
+
+export type PendingApproval = typeof PendingApproval.Type;
+
 export const LoopSpec = Schema.Struct({
   prompt: Schema.String,
   everySeconds: Schema.Number,
@@ -181,6 +192,7 @@ export const ThreadView = Schema.Struct({
   model: Schema.String,
   usage: Usage,
   turns: Schema.Array(Turn),
+  approvals: Schema.optional(Schema.Array(PendingApproval)),
 });
 
 export type ThreadView = typeof ThreadView.Type;
@@ -381,6 +393,11 @@ export const CoilRpcs = RpcGroup.make(
     success: Schema.Struct({ draft: Schema.String }),
     error: CoilError,
   }),
+  Rpc.make('Decide', {
+    payload: { ...target, key: Schema.String, allow: Schema.Boolean },
+    success: Schema.Array(PendingApproval),
+    error: CoilError,
+  }),
   Rpc.make('Models', { success: Schema.Array(ModelOption), error: CoilError }),
   Rpc.make('SetModel', {
     payload: { ...target, model: Schema.String },
@@ -457,6 +474,7 @@ export const LiveEvent = Schema.Union([
   Schema.TaggedStruct('state', { phase: Phase, busy: Schema.Boolean, running: Schema.Boolean }),
   Schema.TaggedStruct('exec', { record: ExecRecord }),
   Schema.TaggedStruct('surfaces', { surfaces: Schema.Array(Surface) }),
+  Schema.TaggedStruct('approvals', { approvals: Schema.Array(PendingApproval) }),
   Schema.TaggedStruct('page', {
     page: Schema.Struct({ url: Schema.String, title: Schema.String }),
   }),

@@ -13,6 +13,8 @@ import {
   openAgent,
   type ThreadDirectory,
 } from './agent';
+import { type PendingApproval, UnknownApproval } from './approval';
+import type { ApprovalBoard } from './approval-gate';
 import { type AccountCredentials, accountModel } from './auth/account-models';
 import { accountToken, replacedToken, SignedOut } from './auth/refresh';
 import { isCloudflareOwner, mayUseHostInference } from './auth/types';
@@ -97,6 +99,7 @@ export type ThreadView = {
   readonly model: string;
   readonly usage: Usage;
   readonly turns: Turn[];
+  readonly approvals: PendingApproval[];
 };
 
 export type Usage = {
@@ -167,7 +170,8 @@ export type LiveEvent =
     }
   | { readonly type: 'exec'; readonly record: ExecRecord }
   | { readonly type: 'surfaces'; readonly surfaces: Surface[] }
-  | { readonly type: 'page'; readonly page: PageState };
+  | { readonly type: 'page'; readonly page: PageState }
+  | { readonly type: 'approvals'; readonly approvals: PendingApproval[] };
 
 const IMAGE = 'computer';
 
@@ -222,6 +226,20 @@ export class Thread extends DurableObject<Env> {
   private readonly listeners = new Set<(event: LiveEvent) => void>();
 
   private unwatch: (() => void) | undefined;
+
+  private readonly pending = new Map<string, PendingApproval>();
+
+  private readonly board: ApprovalBoard = {
+    open: (approval) => {
+      if (this.pending.get(approval.key)?.taskId === approval.taskId) return;
+      this.pending.set(approval.key, approval);
+      this.emit({ type: 'approvals', approvals: this.approvals() });
+    },
+    close: (key) => {
+      if (!this.pending.delete(key)) return;
+      this.emit({ type: 'approvals', approvals: this.approvals() });
+    },
+  };
 
   private browser: Promise<Browser> | undefined;
 
@@ -889,6 +907,7 @@ export class Thread extends DurableObject<Env> {
       (id) => this.route(id),
       this.plugins(),
       this.files(),
+      this.board,
     )
       .then(async (agent) => {
         const toLive = liveEvents();
@@ -1637,6 +1656,34 @@ export class Thread extends DurableObject<Env> {
     );
   }
 
+  approvals(): PendingApproval[] {
+    return [...this.pending.values()].sort((a, b) => a.until - b.until);
+  }
+
+  async decide(key: string, allow: boolean): Promise<PendingApproval[]> {
+    await this.open();
+
+    const approval = this.pending.get(key);
+
+    if (approval === undefined) throw new UnknownApproval();
+
+    const agent = await this.open();
+    const result = await agent.decide(approval.taskId, key, allow);
+
+    this.board.close(key);
+
+    if (result !== 'delivered' && result !== 'duplicate') throw new UnknownApproval();
+
+    await this.ledger.logExec(
+      ['approval', allow ? 'allow' : 'deny', approval.tool],
+      0,
+      approval.args,
+      'human',
+    );
+
+    return this.approvals();
+  }
+
   async steer(goal: string): Promise<{ draft: string }> {
     const clean = cleanGoal(goal);
     const agent = await this.open();
@@ -1774,6 +1821,7 @@ export class Thread extends DurableObject<Env> {
       model: this.currentModel(),
       usage: await this.usage(),
       turns: this.ledger.turns(),
+      approvals: this.approvals(),
     };
   }
 

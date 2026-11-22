@@ -18,6 +18,7 @@ import {
   NotFound,
   type Pair,
   type Pair as PairSchema,
+  type PendingApproval as PendingApprovalValue,
   type Prepared,
   type Resized,
   RPC_PATH,
@@ -135,6 +136,12 @@ export type CoilApi = {
   readonly unshare: (name: string) => Promise<null>;
   readonly stop: (name: string) => Promise<null>;
   readonly steer: (name: string, goal: string) => Promise<{ draft: string }>;
+  readonly approvals: (name: string) => Promise<readonly PendingApprovalValue[]>;
+  readonly decide: (
+    name: string,
+    key: string,
+    allow: boolean,
+  ) => Promise<readonly PendingApprovalValue[]>;
   readonly setModel: (name: string, model: string) => Out<typeof Usage>;
   readonly models: () => Promise<readonly ModelInfo[]>;
   readonly rename: (name: string, title: string) => Out<typeof ThreadSummary>;
@@ -205,6 +212,7 @@ export const handlersFor = (caller: Caller) => {
     Unshare: ({ name }) => attempt(() => api.unshare(name)),
     Stop: ({ name }) => attempt(() => api.stop(name)),
     Steer: ({ name, goal }) => attempt(() => api.steer(name, goal)),
+    Decide: ({ name, key, allow }) => attempt(() => api.decide(name, key, allow)),
     Models: () => attempt(() => api.models()),
     SetModel: ({ name, model }) => attempt(() => api.setModel(name, model)),
     Rename: ({ name, title }) => attempt(() => api.rename(name, title)),

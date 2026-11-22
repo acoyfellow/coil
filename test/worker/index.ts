@@ -895,6 +895,58 @@ export default {
       });
     }
 
+    if (url.pathname === '/approval') {
+      const name = `approval-${run}`;
+      const ran = async (marker: string) =>
+        (await api.view(name)).execs.some(
+          (record) => record.by === 'agent' && record.argv.join(' ').includes(marker),
+        );
+      const waitFor = async (check: () => Promise<boolean>) => {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          if (await check()) return true;
+          await new Promise((done) => setTimeout(done, 100));
+        }
+
+        return false;
+      };
+      const parked = async () => api.approvals(name);
+
+      await api.create({ name, createdBy: 'test' });
+
+      await api.start(name, crypto.randomUUID(), 'call run {"command":"git push origin main"}');
+      await waitFor(async () => (await parked()).length === 1);
+      const first = await parked();
+      const ranBefore = await ran('git push origin main');
+      const left = await api.decide(name, first[0]?.key ?? '', true);
+      const allowedAnswer = await api.wait(name, 20);
+      const allowedRan = await waitFor(() => ran('git push origin main'));
+
+      await api.start(name, crypto.randomUUID(), 'call run {"command":"git push --force"}');
+      await waitFor(async () => (await parked()).length === 1);
+      const second = await parked();
+      const unknown = await api.decide(name, 'nope', true).then(
+        () => 'accepted',
+        (cause: unknown) => String(cause),
+      );
+
+      await api.decide(name, second[0]?.key ?? '', false);
+      const deniedAnswer = await api.wait(name, 20);
+      const deniedRan = await ran('git push --force');
+
+      await api.send(name, crypto.randomUUID(), 'call run {"command":"git status"}');
+      const safeParked = (await parked()).length;
+      const safeRan = await ran('git status');
+
+      return Response.json({
+        parked: first.map(({ tool, risk, args }) => ({ tool, risk, args })),
+        ranBefore,
+        allowed: { left: left.length, ran: allowedRan, answer: allowedAnswer.answer ?? '' },
+        denied: { ran: deniedRan, answer: deniedAnswer.answer ?? '' },
+        unknown,
+        safe: { parked: safeParked, ran: safeRan },
+      });
+    }
+
     if (url.pathname === '/steer') {
       const name = `steer-${run}`;
 

@@ -182,6 +182,7 @@ export const Model = Schema.Struct({
   quickOpen: Schema.NullOr(QuickOpen),
   historyOpen: Schema.Boolean,
   steer: Schema.NullOr(SteerState),
+  deciding: Schema.Array(Schema.String),
   settings: Schema.NullOr(Schema.Struct({ query: Schema.String, section: SettingsSection })),
   addMenuOpen: Schema.Boolean,
   drawer: Drawer,
